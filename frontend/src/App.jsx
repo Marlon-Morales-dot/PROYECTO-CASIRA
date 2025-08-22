@@ -43,7 +43,7 @@ function LandingPage() {
     {
       title: "Nueva Biblioteca en San Juan",
       description: "Gracias a nuestros donantes, 300 niños ahora tienen acceso a libros y tecnología",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
+      image: "https://www.eccastillayleon.org/wp-content/uploads/2016/12/Colegio-Santa-Clara-de-Asis-Palencia-03.jpg",
       donorCount: 12,
       impact: "300 niños beneficiados",
       beforeAfter: "De aula vacía a biblioteca completa"
@@ -51,7 +51,7 @@ function LandingPage() {
     {
       title: "Laboratorio de Ciencias Renovado",
       description: "El Liceo San Francisco ahora cuenta con equipamiento moderno para experimentos",
-      image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=500",
+      image: "https://www.colegiosanfranciscodeasis.cl/csfda/wp-content/uploads/2016/10/CSFDA_infraestructura_lab_ciencias_2-1051x750.jpg",
       donorCount: 8,
       impact: "200 estudiantes beneficiados",
       beforeAfter: "De laboratorio básico a centro de innovación"
@@ -59,7 +59,7 @@ function LandingPage() {
     {
       title: "Centro Comunitario Construido",
       description: "Un espacio de encuentro que fortalece los lazos de toda la comunidad",
-      image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=500",
+      image: "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
       donorCount: 15,
       impact: "500 familias beneficiadas",
       beforeAfter: "De terreno baldío a centro comunitario"
@@ -73,7 +73,7 @@ function LandingPage() {
       contribution: "Infraestructura educativa",
       worksSupported: ["Liceo San Francisco", "Biblioteca Comunitaria", "Centro de Capacitación"],
       recognition: "Transformadores de Educación",
-      avatar: "https://via.placeholder.com/60"
+      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyq5FXnebK1KS9Ld_fLAcHIX3gOT4vdHZIqkJLesTfrGSqz0mrIVAEGuyexBxDy1H2kCY&usqp=CAU"
     },
     {
       name: "Grupo Voluntarios Canadienses",
@@ -81,7 +81,7 @@ function LandingPage() {
       contribution: "Trabajo especializado y capacitación",
       worksSupported: ["Laboratorio de Ciencias", "Programa Digital", "Capacitación Docente"],
       recognition: "Embajadores del Conocimiento",
-      avatar: "https://via.placeholder.com/60"
+      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLRPJHsxku2OofJOiMa-aMJD29121Pxqotzw&s"
     },
     {
       name: "Constructora Solidaria",
@@ -89,7 +89,7 @@ function LandingPage() {
       contribution: "Materiales y construcción",
       worksSupported: ["Centro Comunitario", "Aulas Nuevas", "Biblioteca"],
       recognition: "Constructores de Sueños",
-      avatar: "https://via.placeholder.com/60"
+      avatar: "https://hficprovinciadivinosalvador.com/wp-content/uploads/2023/05/2-3.jpg"
     }
   ];
 
@@ -160,7 +160,7 @@ function LandingPage() {
             </div>
             <div className="relative">
               <img 
-                src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=600" 
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s" 
                 alt="Comunidad transformada" 
                 className="rounded-lg shadow-xl"
               />
