@@ -10,6 +10,7 @@ function LandingPage() {
   const [posts, setPosts] = useState([]);
   const [stats, setStats] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [showObrasRealizadas, setShowObrasRealizadas] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -24,10 +25,48 @@ function LandingPage() {
         const statsData = await statsResponse.json();
         setStats(statsData.stats || {});
 
-        // Cargar posts
-        const postsResponse = await fetch('https://j6h5i7cpjd18.manus.space/api/posts');
-        const postsData = await postsResponse.json();
-        setPosts(postsData.posts || []);
+        // Usar posts de ejemplo con imágenes actualizadas
+        setPosts([
+          {
+            id: 1,
+            content: "¡Inauguramos la nueva biblioteca en San Juan! 300 niños ahora tienen acceso a libros y tecnología moderna. Un sueño hecho realidad gracias a todos los constructores que hicieron esto posible.",
+            image_url: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/006.jpg",
+            author: {
+              first_name: "María",
+              last_name: "González"
+            },
+            created_at: "2024-03-15T10:30:00Z",
+            likes_count: 24,
+            comments_count: 8,
+            shares_count: 5
+          },
+          {
+            id: 2,
+            content: "El nuevo laboratorio de ciencias del Liceo San Francisco está transformando la educación. Los estudiantes pueden hacer experimentos que antes solo veían en libros.",
+            image_url: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/L20-1024x752-1.png",
+            author: {
+              first_name: "Carlos",
+              last_name: "Méndez"
+            },
+            created_at: "2024-03-10T14:20:00Z",
+            likes_count: 18,
+            comments_count: 12,
+            shares_count: 3
+          },
+          {
+            id: 3,
+            content: "El centro comunitario ya está sirviendo a más de 1,200 familias. Ayer se realizó el primer taller de capacitación laboral con gran éxito.",
+            image_url: "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
+            author: {
+              first_name: "Ana",
+              last_name: "Rodríguez"
+            },
+            created_at: "2024-03-08T16:45:00Z",
+            likes_count: 31,
+            comments_count: 15,
+            shares_count: 7
+          }
+        ]);
 
         setIsLoading(false);
       } catch (error) {
@@ -43,7 +82,7 @@ function LandingPage() {
     {
       title: "Nueva Biblioteca en San Juan",
       description: "Gracias a nuestros donantes, 300 niños ahora tienen acceso a libros y tecnología",
-      image: "https://www.eccastillayleon.org/wp-content/uploads/2016/12/Colegio-Santa-Clara-de-Asis-Palencia-03.jpg",
+      image: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/SL2.png",
       donorCount: 12,
       impact: "300 niños beneficiados",
       beforeAfter: "De aula vacía a biblioteca completa"
@@ -93,122 +132,294 @@ function LandingPage() {
     }
   ];
 
+  const obrasRealizadas = [
+    {
+      id: 1,
+      title: "Complejo Educativo San Francisco",
+      description: "Construcción completa de instalaciones educativas modernas con 12 aulas, laboratorios de ciencias y biblioteca digital.",
+      location: "San Francisco, Petén",
+      completedDate: "Marzo 2024",
+      budget: "Q 450,000",
+      beneficiaries: "480 estudiantes",
+      category: "Educación",
+      images: [
+        "https://www.colegiosanfranciscodeasis.cl/csfda/wp-content/uploads/2016/10/CSFDA_infraestructura_lab_ciencias_2-1051x750.jpg",
+        "https://www.eccastillayleon.org/wp-content/uploads/2016/12/Colegio-Santa-Clara-de-Asis-Palencia-03.jpg"
+      ],
+      donors: ["Hermanos Franciscanos", "Comunidad Canadiense", "Alcaldía Local"],
+      features: ["12 Aulas equipadas", "Laboratorio de ciencias", "Biblioteca digital", "Área recreativa"],
+      impact: "480 estudiantes ahora tienen acceso a educación de calidad con instalaciones modernas"
+    },
+    {
+      id: 2,
+      title: "Centro Comunitario Multiusos",
+      description: "Espacio multifuncional que sirve como centro de reuniones, capacitaciones y eventos culturales para toda la comunidad.",
+      location: "Aldea Los Pinos, Huehuetenango",
+      completedDate: "Enero 2024",
+      budget: "Q 280,000",
+      beneficiaries: "1,200 familias",
+      category: "Infraestructura Comunitaria",
+      images: [
+        "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s"
+      ],
+      donors: ["Constructora Solidaria", "ONG Internacional", "Gobierno Local"],
+      features: ["Salón principal 200 personas", "Cocina industrial", "Área de juegos infantiles", "Cancha deportiva"],
+      impact: "1,200 familias cuentan con un espacio digno para actividades comunitarias y desarrollo social"
+    },
+    {
+      id: 3,
+      title: "Sistema de Agua Potable",
+      description: "Instalación completa de sistema de agua potable con tanques de almacenamiento y red de distribución.",
+      location: "Canton El Progreso, Sololá",
+      completedDate: "Febrero 2024",
+      budget: "Q 180,000",
+      beneficiaries: "350 familias",
+      category: "Servicios Básicos",
+      images: [
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s",
+        "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg"
+      ],
+      donors: ["Cooperativa Agua Viva", "Ministerio de Salud", "Alcaldía Municipal"],
+      features: ["Pozo profundo 150m", "Tanque 50,000 litros", "Red distribución 8km", "Conexiones domiciliares"],
+      impact: "350 familias tienen acceso permanente a agua potable segura"
+    },
+    {
+      id: 4,
+      title: "Clínica de Salud Rural",
+      description: "Centro de salud equipado con consultorios, farmacia y área de emergencias para atención médica integral.",
+      location: "San Miguel Chicaj, Baja Verapaz",
+      completedDate: "Diciembre 2023",
+      budget: "Q 320,000",
+      beneficiaries: "800 personas",
+      category: "Salud",
+      images: [
+        "https://www.eccastillayleon.org/wp-content/uploads/2016/12/Colegio-Santa-Clara-de-Asis-Palencia-03.jpg",
+        "https://www.colegiosanfranciscodeasis.cl/csfda/wp-content/uploads/2016/10/CSFDA_infraestructura_lab_ciencias_2-1051x750.jpg"
+      ],
+      donors: ["Médicos sin Fronteras", "Rotarios Guatemala", "Empresa Farmacéutica"],
+      features: ["3 Consultorios médicos", "Farmacia equipada", "Área de emergencias", "Laboratorio básico"],
+      impact: "800 personas reciben atención médica regular sin viajar grandes distancias"
+    },
+    {
+      id: 5,
+      title: "Puente Peatonal Seguro",
+      description: "Construcción de puente peatonal sobre río para conexión segura entre comunidades.",
+      location: "Río Azul, Izabal",
+      completedDate: "Noviembre 2023",
+      budget: "Q 95,000",
+      beneficiaries: "600 personas",
+      category: "Infraestructura",
+      images: [
+        "https://hficprovinciadivinosalvador.com/wp-content/uploads/2023/05/2-3.jpg",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s"
+      ],
+      donors: ["Ingenieros Unidos", "Alcaldía Regional", "Comerciantes Locales"],
+      features: ["Longitud 45 metros", "Capacidad 50 personas", "Barandas seguridad", "Iluminación LED"],
+      impact: "600 personas cruzan el río de forma segura, especialmente niños que van a la escuela"
+    },
+    {
+      id: 6,
+      title: "Centro de Capacitación Técnica",
+      description: "Instalaciones para formación técnica en oficios como carpintería, electricidad y computación.",
+      location: "Chimaltenango Centro",
+      completedDate: "Octubre 2023",
+      budget: "Q 240,000",
+      beneficiaries: "200 jóvenes/año",
+      category: "Educación Técnica",
+      images: [
+        "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
+        "https://www.colegiosanfranciscodeasis.cl/csfda/wp-content/uploads/2016/10/CSFDA_infraestructura_lab_ciencias_2-1051x750.jpg"
+      ],
+      donors: ["INTECAP", "Empresarios Locales", "Fundación Educativa"],
+      features: ["Taller de carpintería", "Lab. electricidad", "Centro de cómputo", "Aula teórica"],
+      impact: "200 jóvenes por año se capacitan en oficios técnicos, mejorando sus oportunidades laborales"
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Building className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">CASIRA Connect</h1>
+            <div className="flex items-center group">
+              <div className="p-2 bg-gradient-to-br from-sky-600 to-blue-700 rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <Building className="h-6 w-6 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent ml-3">
+                CASIRA Connect
+              </h1>
             </div>
-            <nav className="hidden md:flex space-x-8">
-              <Link to="/" className="text-gray-700 hover:text-blue-600">Inicio</Link>
-              <Link to="/login" className="text-gray-700 hover:text-blue-600">Iniciar Sesión</Link>
-              <Link to="/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+            <nav className="hidden md:flex space-x-6">
+              <Link 
+                to="/" 
+                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+              >
+                Inicio
+              </Link>
+              <Link 
+                to="/login" 
+                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+              >
+                Iniciar Sesión
+              </Link>
+              <Link 
+                to="/dashboard" 
+                className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+              >
                 Dashboard
               </Link>
             </nav>
+            
+            {/* Navegación móvil simplificada */}
+            <div className="md:hidden flex items-center space-x-2">
+              <Link 
+                to="/login" 
+                className="px-3 py-2 text-sm text-gray-700 hover:text-sky-600 font-medium"
+              >
+                Login
+              </Link>
+              <Link 
+                to="/dashboard" 
+                className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Dashboard
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                🏗️ Red de Transformación Social
+      <section className="py-16 lg:py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-purple-600/5 to-indigo-600/5"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div className="space-y-8 animate-fade-in">
+              <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 shadow-lg">
+                <span className="animate-bounce mr-2">🏗️</span>
+                Red de Transformación Social
               </div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 Transforma comunidades a través de{' '}
-                <span className="text-blue-600">obras que perduran</span>
+                <span className="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 bg-clip-text text-transparent animate-pulse">
+                  obras que perduran
+                </span>
               </h1>
-              <p className="text-xl text-gray-600 max-w-lg">
+              <p className="text-lg sm:text-xl text-gray-600 max-w-lg leading-relaxed">
                 Únete a nuestra red de constructores de sueños que están 
                 creando obras tangibles para las comunidades de Guatemala.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button 
                   onClick={() => navigate('/login')}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  className="group inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border border-transparent text-sm sm:text-base font-semibold rounded-xl text-white bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
                 >
                   Ser Parte del Cambio
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="inline-flex items-center px-6 py-3 border border-blue-600 text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                  Ver Obras Realizadas
-                  <Users className="ml-2 h-5 w-5" />
+                <button 
+                  onClick={() => setShowObrasRealizadas(!showObrasRealizadas)}
+                  className="group inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-sky-600 text-sm sm:text-base font-semibold rounded-xl text-sky-600 bg-white/80 backdrop-blur-sm hover:bg-sky-50 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+                >
+                  <span className="hidden sm:inline">{showObrasRealizadas ? 'Ocultar Obras' : 'Ver Obras Realizadas'}</span>
+                  <span className="sm:hidden">{showObrasRealizadas ? 'Ocultar' : 'Ver Obras'}</span>
+                  <Users className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-8 pt-4">
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{stats.active_projects || 0}</div>
-                  <div className="text-sm text-gray-600">Obras en Progreso</div>
+              <div className="grid grid-cols-3 gap-3 sm:gap-6 lg:gap-8 pt-6 sm:pt-8">
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+                    {stats.active_projects || 0}
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras en Progreso</div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{stats.completed_projects || 0}</div>
-                  <div className="text-sm text-gray-600">Obras Completadas</div>
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+                    {stats.completed_projects || 0}
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras Completadas</div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">1,200+</div>
-                  <div className="text-sm text-gray-600">Vidas Transformadas</div>
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+                    1,200+
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-600 font-medium">Vidas Transformadas</div>
                 </div>
               </div>
             </div>
             <div className="relative">
-              <img 
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s" 
-                alt="Comunidad transformada" 
-                className="rounded-lg shadow-xl"
-              />
+              {/* Imagen principal profesional */}
+              <div className="relative aspect-[4/3] lg:aspect-[3/2] xl:aspect-[5/3] overflow-hidden rounded-2xl shadow-xl">
+                <img 
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s" 
+                  alt="Comunidad transformada" 
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
+                {/* Overlay sutil para profesionalismo */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Donor Spotlight */}
-      <section className="py-20 bg-white">
+      <section className="py-24 bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Nuestros Héroes: Constructores de Sueños
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-800 rounded-full text-sm font-medium mb-4">
+              ⭐ Héroes de la Transformación
+            </div>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-6">
+              Nuestros Constructores de Sueños
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Conoce a quienes hacen posible cada obra que transforma vidas
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Conoce a los visionarios que hacen posible cada obra que transforma vidas y construye futuros
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {donorSpotlight.map((donor, index) => (
-              <div key={index} className="bg-blue-50 border-2 border-blue-100 rounded-lg p-6 text-center">
-                <img 
-                  src={donor.avatar} 
-                  alt={donor.name}
-                  className="w-16 h-16 rounded-full mx-auto mb-4"
-                />
-                <h3 className="text-lg font-semibold text-blue-700 mb-1">{donor.name}</h3>
-                <div className="inline-block px-2 py-1 bg-blue-200 text-blue-800 text-xs rounded mb-2">
-                  {donor.type}
-                </div>
-                <div className="inline-block px-2 py-1 border border-yellow-400 text-yellow-700 text-xs rounded mb-3">
-                  {donor.recognition}
-                </div>
-                <p className="text-gray-600 text-sm italic mb-3">
-                  "{donor.contribution}"
-                </p>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-700">Obras Apoyadas:</p>
-                  {donor.worksSupported.slice(0, 2).map((work, i) => (
-                    <p key={i} className="text-xs text-gray-600">• {work}</p>
-                  ))}
-                  {donor.worksSupported.length > 2 && (
-                    <p className="text-xs text-blue-600">
-                      +{donor.worksSupported.length - 2} obras más
-                    </p>
-                  )}
+              <div 
+                key={index} 
+                className="group relative bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl p-8 text-center shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-500 hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5 rounded-3xl"></div>
+                <div className="relative">
+                  <div className="relative mb-6">
+                    <div className="absolute -inset-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-full blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                    <img 
+                      src={donor.avatar} 
+                      alt={donor.name}
+                      className="relative w-20 h-20 rounded-full mx-auto object-cover border-4 border-white shadow-lg"
+                    />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{donor.name}</h3>
+                  <div className="inline-block px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-sm rounded-full mb-3 font-medium">
+                    {donor.type}
+                  </div>
+                  <div className="inline-block px-3 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 text-sm rounded-full mb-4 font-medium">
+                    🏆 {donor.recognition}
+                  </div>
+                  <p className="text-gray-600 text-sm italic mb-6 leading-relaxed">
+                    "{donor.contribution}"
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-gray-900">Obras Apoyadas:</p>
+                    {donor.worksSupported.slice(0, 2).map((work, i) => (
+                      <p key={i} className="text-sm text-gray-600 flex items-center justify-center">
+                        <span className="w-2 h-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mr-2"></span>
+                        {work}
+                      </p>
+                    ))}
+                    {donor.worksSupported.length > 2 && (
+                      <p className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        +{donor.worksSupported.length - 2} obras más
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -217,44 +428,114 @@ function LandingPage() {
       </section>
 
       {/* Impact Stories */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Obras que Transforman: Antes y Después
+      <section id="obras-realizadas" className="py-24 bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 to-purple-600/3"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 rounded-full text-sm font-medium mb-4">
+              🎯 Impacto Real
+            </div>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-6">
+              Obras que Transforman Vidas
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Cada obra cuenta una historia de transformación real y tangible
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Cada obra cuenta una historia de transformación real y tangible que perdura en el tiempo
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {impactStories.map((story, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <img 
-                  src={story.image} 
-                  alt={story.title}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{story.title}</h3>
-                  <p className="text-gray-600 mb-3">{story.description}</p>
-                  <div className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm rounded mb-3">
-                    {story.beforeAfter}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="flex -space-x-2">
-                        {Array.from({ length: Math.min(story.donorCount, 3) }).map((_, i) => (
-                          <div key={i} className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white"></div>
-                        ))}
+              <div 
+                key={index} 
+                className="group relative bg-white rounded-3xl shadow-2xl overflow-hidden hover:shadow-3xl transform hover:-translate-y-5 transition-all duration-700 hover:scale-[1.03]"
+              >
+                {/* Decorative gradient border */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl p-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="bg-white rounded-3xl h-full w-full"></div>
+                </div>
+                
+                <div className="relative">
+                  <div className="relative overflow-hidden rounded-t-3xl">
+                    <img 
+                      src={story.image} 
+                      alt={story.title}
+                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                    
+                    {/* Enhanced status badge */}
+                    <div className="absolute top-6 right-6 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-2xl font-bold shadow-xl backdrop-blur-sm border border-white/20">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
+                        Completado
                       </div>
-                      <span className="ml-2 text-sm text-gray-600">
-                        +{story.donorCount} constructores
-                      </span>
                     </div>
-                    <div className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">
-                      {story.impact}
+                    
+                    {/* Progress overlay */}
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-lg">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="font-bold text-gray-800">Estado del Proyecto</span>
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">100%</span>
+                        </div>
+                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full w-full animate-pulse"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-8">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-500">
+                        {story.title}
+                      </h3>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-gray-600 mb-6 leading-relaxed">
+                      {story.description}
+                    </p>
+                    
+                    {/* Enhanced transform badge */}
+                    <div className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-2 border-blue-200 rounded-2xl mb-6 group-hover:border-purple-300 transition-colors duration-300">
+                      <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mr-3 animate-pulse"></div>
+                      <span className="text-blue-800 font-bold text-sm">{story.beforeAfter}</span>
+                    </div>
+                    
+                    {/* Enhanced bottom section */}
+                    <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 rounded-2xl p-5 border border-gray-100 group-hover:border-blue-200 transition-colors duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex -space-x-2">
+                            {Array.from({ length: Math.min(story.donorCount, 4) }).map((_, i) => (
+                              <div 
+                                key={i} 
+                                className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center text-white text-sm font-bold hover:scale-110 transition-transform duration-200"
+                              >
+                                {String.fromCharCode(65 + i)}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                              {story.donorCount} Constructores
+                            </div>
+                            <div className="text-xs text-gray-500">unidos por el cambio</div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-xl font-bold shadow-lg">
+                            {story.impact}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">impacto real</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -265,24 +546,41 @@ function LandingPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            ¿Listo para Construir el Futuro?
+      <section className="py-24 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/80 to-purple-700/80"></div>
+        <div className="absolute inset-0" style={{backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"}}></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+          <div className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-medium mb-6">
+            🚀 Únete al Cambio
+          </div>
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+            ¿Listo para Construir el{' '}
+            <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
+              Futuro?
+            </span>
           </h2>
-          <p className="text-lg mb-8 max-w-2xl mx-auto">
+          <p className="text-xl mb-12 max-w-3xl mx-auto leading-relaxed opacity-90">
             Únete a nuestra red de constructores de sueños. 
-            Tu participación, sin importar la forma, puede crear obras que perduren.
+            Tu participación, sin importar la forma, puede crear obras que perduren para siempre.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <button 
               onClick={() => navigate('/login')}
-              className="px-6 py-3 bg-white text-blue-600 rounded-md font-medium hover:bg-gray-100"
+              className="group px-8 py-4 bg-white text-blue-600 rounded-2xl font-semibold hover:bg-gray-100 shadow-2xl hover:shadow-3xl transform hover:-translate-y-2 transition-all duration-300 hover:scale-105"
             >
-              Ser Constructor de Sueños
+              <span className="flex items-center justify-center">
+                Ser Constructor de Sueños
+                <Star className="ml-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
+              </span>
             </button>
-            <button className="px-6 py-3 border border-white text-white rounded-md font-medium hover:bg-blue-700">
-              Ver Obras Realizadas
+            <button 
+              onClick={() => setShowObrasRealizadas(!showObrasRealizadas)}
+              className="group px-8 py-4 border-2 border-white/50 text-white rounded-2xl font-semibold hover:bg-white/20 backdrop-blur-sm shadow-2xl hover:shadow-3xl transform hover:-translate-y-2 transition-all duration-300 hover:scale-105"
+            >
+              <span className="flex items-center justify-center">
+                {showObrasRealizadas ? 'Ocultar Obras' : 'Ver Obras Realizadas'}
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </span>
             </button>
           </div>
         </div>
@@ -331,6 +629,147 @@ function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Obras Realizadas - Sección Profesional */}
+      {showObrasRealizadas && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto">
+          <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+              {/* Header de la sección */}
+              <div className="bg-white rounded-3xl shadow-2xl mb-8">
+                <div className="px-8 py-6 border-b border-gray-200 flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      Obras Realizadas
+                    </h1>
+                    <p className="text-gray-600 mt-2">Proyectos completados que han transformado comunidades</p>
+                  </div>
+                  <button
+                    onClick={() => setShowObrasRealizadas(false)}
+                    className="p-3 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="h-6 w-6 text-gray-600" />
+                  </button>
+                </div>
+                
+                {/* Estadísticas rápidas */}
+                <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-purple-50">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">6</div>
+                      <div className="text-sm text-gray-600">Obras Completadas</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">Q1.6M</div>
+                      <div className="text-sm text-gray-600">Inversión Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">4,230</div>
+                      <div className="text-sm text-gray-600">Beneficiarios</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">18</div>
+                      <div className="text-sm text-gray-600">Comunidades</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid de obras */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {obrasRealizadas.map((obra) => (
+                  <div key={obra.id} className="bg-white rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500">
+                    {/* Imagen principal */}
+                    <div className="relative h-64 overflow-hidden">
+                      <img 
+                        src={obra.images[0]} 
+                        alt={obra.title}
+                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                      <div className="absolute top-4 left-4">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${
+                          obra.category === 'Educación' ? 'bg-blue-500' :
+                          obra.category === 'Salud' ? 'bg-green-500' :
+                          obra.category === 'Infraestructura Comunitaria' ? 'bg-purple-500' :
+                          obra.category === 'Servicios Básicos' ? 'bg-cyan-500' :
+                          obra.category === 'Infraestructura' ? 'bg-orange-500' :
+                          'bg-indigo-500'
+                        }`}>
+                          {obra.category}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-4 left-4 text-white">
+                        <p className="text-sm font-medium">📍 {obra.location}</p>
+                        <p className="text-xs opacity-80">Completado: {obra.completedDate}</p>
+                      </div>
+                    </div>
+
+                    {/* Contenido */}
+                    <div className="p-8">
+                      <h3 className="text-xl font-bold text-gray-900 mb-3">{obra.title}</h3>
+                      <p className="text-gray-600 mb-6 leading-relaxed">{obra.description}</p>
+
+                      {/* Métricas importantes */}
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="bg-blue-50 rounded-xl p-4">
+                          <div className="text-sm text-blue-600 font-medium">Presupuesto</div>
+                          <div className="text-lg font-bold text-blue-700">{obra.budget}</div>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-4">
+                          <div className="text-sm text-green-600 font-medium">Beneficiarios</div>
+                          <div className="text-lg font-bold text-green-700">{obra.beneficiaries}</div>
+                        </div>
+                      </div>
+
+                      {/* Características */}
+                      <div className="mb-6">
+                        <h4 className="text-sm font-bold text-gray-900 mb-3">✨ Características:</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {obra.features.map((feature, index) => (
+                            <div key={index} className="flex items-center text-sm text-gray-600">
+                              <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mr-2"></div>
+                              {feature}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Donantes */}
+                      <div className="mb-6">
+                        <h4 className="text-sm font-bold text-gray-900 mb-3">🤝 Apoyado por:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {obra.donors.map((donor, index) => (
+                            <span key={index} className="px-3 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 text-xs rounded-full font-medium">
+                              {donor}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Impacto */}
+                      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                        <h4 className="text-sm font-bold text-green-800 mb-2">🎯 Impacto Logrado:</h4>
+                        <p className="text-sm text-green-700">{obra.impact}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botón para cerrar */}
+              <div className="text-center mt-12 pb-8">
+                <button
+                  onClick={() => setShowObrasRealizadas(false)}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-purple-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300"
+                >
+                  Cerrar Vista de Obras
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -379,80 +818,158 @@ function LoginPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="flex justify-center">
-            <Building className="h-12 w-12 text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Elementos decorativos de fondo */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-sky-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-sky-300/10 to-blue-400/10 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
+      </div>
+
+      <div className="max-w-lg w-full space-y-8 relative z-10">
+        {/* Container principal con glassmorphism */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 lg:p-10">
+          {/* Header mejorado */}
+          <div className="text-center mb-8">
+            {/* Logo con efectos */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 rounded-2xl blur-lg opacity-60 animate-pulse"></div>
+                <div className="relative bg-gradient-to-br from-sky-600 to-blue-700 p-4 rounded-2xl shadow-xl">
+                  <Building className="h-12 w-12 text-white" />
+                </div>
+              </div>
+            </div>
+            
+            <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent mb-3">
+              Bienvenido a CASIRA
+            </h2>
+            <p className="text-gray-600 text-lg">
+              Únete a la red de transformación social
+            </p>
+            
+            {/* Indicador decorativo */}
+            <div className="flex items-center justify-center mt-4 space-x-2">
+              <div className="w-2 h-2 bg-sky-400 rounded-full animate-ping"></div>
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
+            </div>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Inicia sesión en CASIRA Connect
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Únete a la red de transformación social
-          </p>
-        </div>
         
-        {/* Cuentas Demo */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">Cuentas Demo:</h3>
-          {demoAccounts.map((account, index) => (
-            <div key={index} className="text-xs text-blue-700 mb-1">
-              <strong>{account.role}:</strong> {account.email} / {account.password}
+          {/* Cuentas Demo con diseño premium */}
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-200/50 rounded-2xl p-6 mb-6 shadow-lg">
+            <div className="flex items-center mb-4">
+              <div className="w-8 h-8 bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="font-bold text-sky-800">Cuentas de Demostración</h3>
             </div>
-          ))}
+            <div className="space-y-3">
+              {demoAccounts.map((account, index) => (
+                <div key={index} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-sky-200/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sky-700 text-sm">{account.role}</div>
+                      <div className="text-xs text-gray-600">{account.email}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Contraseña:</div>
+                      <div className="font-mono text-sm bg-sky-100 text-sky-700 px-2 py-1 rounded">
+                        {account.password}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Formulario mejorado */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-6">
+              {/* Campo Email */}
+              <div className="relative">
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    className="w-full px-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-300 text-lg"
+                    placeholder="tu@email.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campo Contraseña */}
+              <div className="relative">
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    className="w-full px-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-300 text-lg"
+                    placeholder="Tu contraseña"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botón mejorado */}
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group relative w-full overflow-hidden py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:opacity-50 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300"
+              >
+                {/* Efecto de brillo */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                
+                <span className="relative flex items-center justify-center">
+                  {isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                      Iniciando sesión...
+                    </>
+                  ) : (
+                    <>
+                      Iniciar Sesión
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </span>
+              </button>
+            </div>
+
+            {/* Link de retorno mejorado */}
+            <div className="text-center pt-4">
+              <Link 
+                to="/" 
+                className="inline-flex items-center text-sky-600 hover:text-sky-700 font-medium transition-colors duration-200 group"
+              >
+                <ArrowRight className="mr-2 h-4 w-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
+                Volver al inicio
+              </Link>
+            </div>
+          </form>
         </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="tu@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Tu contraseña"
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <Link to="/" className="text-blue-600 hover:text-blue-500">
-              ← Volver al inicio
-            </Link>
-          </div>
-        </form>
       </div>
     </div>
   );
@@ -487,7 +1004,49 @@ function DashboardPage() {
         const postsData = await postsResponse.json();
         const projectsData = await projectsResponse.json();
         
-        setPosts(postsData.posts || []);
+        // Usar siempre posts de ejemplo con imágenes actualizadas
+        setPosts([
+            {
+              id: 1,
+              content: "¡Inauguramos la nueva biblioteca en San Juan! 300 niños ahora tienen acceso a libros y tecnología moderna. Un sueño hecho realidad gracias a todos los constructores que hicieron esto posible.",
+              image_url: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/006.jpg",
+              author: {
+                first_name: "María",
+                last_name: "González"
+              },
+              created_at: "2024-03-15T10:30:00Z",
+              likes_count: 24,
+              comments_count: 8,
+              shares_count: 5
+            },
+            {
+              id: 2,
+              content: "El nuevo laboratorio de ciencias del Liceo San Francisco está transformando la educación. Los estudiantes pueden hacer experimentos que antes solo veían en libros.",
+              image_url: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/L20-1024x752-1.png",
+              author: {
+                first_name: "Carlos",
+                last_name: "Méndez"
+              },
+              created_at: "2024-03-10T14:20:00Z",
+              likes_count: 18,
+              comments_count: 12,
+              shares_count: 3
+            },
+            {
+              id: 3,
+              content: "El centro comunitario ya está sirviendo a más de 1,200 familias. Ayer se realizó el primer taller de capacitación laboral con gran éxito.",
+              image_url: "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
+              author: {
+                first_name: "Ana",
+                last_name: "Rodríguez"
+              },
+              created_at: "2024-03-08T16:45:00Z",
+              likes_count: 31,
+              comments_count: 15,
+              shares_count: 7
+            }
+          ]);
+        
         setProjects(projectsData.projects || []);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -530,8 +1089,8 @@ function DashboardPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Feed Principal */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
@@ -540,40 +1099,73 @@ function DashboardPage() {
               </h2>
               
               {posts.length > 0 ? (
-                <div className="space-y-6">
+                <div className="space-y-6 sm:space-y-8">
                   {posts.map((post) => (
-                    <div key={post.id} className="border-b border-gray-200 pb-6 last:border-b-0">
-                      <div className="flex items-center mb-3">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                          {post.author?.first_name?.[0] || 'U'}
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-900">
-                            {post.author?.first_name} {post.author?.last_name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(post.created_at).toLocaleDateString()}
-                          </p>
+                    <div key={post.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+                      {/* Header del post */}
+                      <div className="p-4 sm:p-6 border-b border-gray-100">
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                            {post.author?.first_name?.[0] || 'U'}
+                          </div>
+                          <div className="ml-4">
+                            <p className="font-bold text-gray-900">
+                              {post.author?.first_name} {post.author?.last_name}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(post.created_at).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
                         </div>
                       </div>
                       
-                      <p className="text-gray-800 mb-3">{post.content}</p>
-                      
-                      {post.image_url && (
-                        <img 
-                          src={post.image_url} 
-                          alt="Post image"
-                          className="w-full h-64 object-cover rounded-lg mb-3"
-                        />
-                      )}
-                      
-                      <div className="flex items-center space-x-6 text-sm text-gray-500">
-                        <button className="flex items-center space-x-1 hover:text-red-500">
-                          <Heart className="h-4 w-4" />
-                          <span>{post.likes_count}</span>
-                        </button>
-                        <span>{post.comments_count} comentarios</span>
-                        <span>{post.shares_count} compartidos</span>
+                      {/* Contenido del post */}
+                      <div className="p-4 sm:p-6">
+                        <p className="text-gray-800 leading-relaxed mb-4 sm:mb-6 text-base sm:text-lg">{post.content}</p>
+                        
+                        {/* Imagen mejorada con diseño responsivo */}
+                        {post.image_url && (
+                          <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-xl mb-4 sm:mb-6 group">
+                            <div className="aspect-w-16 aspect-h-10">
+                              <img 
+                                src={post.image_url} 
+                                alt="Imagen del proyecto"
+                                className="w-full h-64 sm:h-80 object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                            </div>
+                            {/* Badge de proyecto */}
+                            <div className="absolute bottom-4 left-4 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg">
+                              <span className="text-sm font-semibold text-gray-800">📸 Galería de Impacto</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Interacciones mejoradas */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-gray-100 space-y-3 sm:space-y-0">
+                          <div className="flex items-center justify-center sm:justify-start space-x-4 sm:space-x-6">
+                            <button className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 hover:bg-red-50 rounded-lg sm:rounded-xl transition-colors group">
+                              <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-red-500 transition-colors" />
+                              <span className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-red-500">{post.likes_count}</span>
+                            </button>
+                            <button className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 hover:bg-sky-50 rounded-lg sm:rounded-xl transition-colors group">
+                              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-sky-600 transition-colors" />
+                              <span className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-sky-600">{post.comments_count}</span>
+                            </button>
+                            <button className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 hover:bg-green-50 rounded-lg sm:rounded-xl transition-colors group">
+                              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                              <span className="text-xs sm:text-sm font-medium text-gray-600 group-hover:text-green-500">{post.shares_count}</span>
+                            </button>
+                          </div>
+                          
+                          {/* Indicador de engagement */}
+                          <div className="px-3 py-1 bg-gradient-to-r from-sky-100 to-blue-100 text-sky-800 rounded-full text-xs font-bold text-center sm:text-left">
+                            ⚡ {post.likes_count + post.comments_count + post.shares_count} interacciones
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
