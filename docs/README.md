@@ -160,6 +160,7 @@ Esta carpeta contiene toda la documentación técnica del proyecto CASIRA Connec
 
 **Última actualización**: Agosto 2025  
 **Versión del proyecto**: 1.0.0  
+**Autor**: Marlon Agusto Morales  
 **Docs mantenidas por**: Equipo CASIRA
 
 </div>

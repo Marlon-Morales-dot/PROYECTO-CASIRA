@@ -414,4 +414,5 @@ curl -X GET https://tu-backend-url/api/projects/featured
 
 ¡Tu aplicación CASIRA Connect está lista para transformar vidas! 🌟
 
-Para cualquier consulta adicional sobre despliegue, contacta: deploy-support@casira.org
+**Desarrollado por**: Marlon Agusto Morales  
+Para consultas sobre despliegue: soporte-tecnico@casira.org

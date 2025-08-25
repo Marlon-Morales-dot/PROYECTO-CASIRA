@@ -532,8 +532,8 @@ load_dotenv()
 ## 📞 Soporte y Contribución
 
 ### Contacto Técnico
-- **Email**: backend-team@casira.org
-- **GitHub Issues**: [repository-url]/issues
+- **Desarrollador**: Marlon Agusto Morales
+- **Email**: soporte-tecnico@casira.org
 
 ### Contribuir
 1. Fork del repositorio

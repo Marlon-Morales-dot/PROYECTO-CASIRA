@@ -335,7 +335,7 @@ Este proyecto está desarrollado específicamente para **CASIRA** (Centro Intern
 - 🌐 **Website**: https://casira.org
 
 ### Información del Proyecto
-- **Autor**: Manus AI
+- **Autor**: Marlon Agusto Morales
 - **Versión**: 1.0.0
 - **Fecha de Lanzamiento**: Agosto 2025
 - **Última Actualización**: Agosto 2025

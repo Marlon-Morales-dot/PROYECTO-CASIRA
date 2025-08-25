@@ -270,6 +270,7 @@ python app.py
 ## Contacto y Soporte
 
 Para consultas sobre la API:
-- **Email**: dev-team@casira.org
-- **Documentación**: [GitHub Wiki](repository-url/wiki)
-- **Issues**: [GitHub Issues](repository-url/issues)
+- **Desarrollador**: Marlon Agusto Morales
+- **Email**: soporte-tecnico@casira.org
+- **Documentación**: Ver carpeta `docs/`
+- **Issues**: Contactar al desarrollador
