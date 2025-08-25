@@ -4,10 +4,16 @@ import { Heart, Users, Building, Star, ArrowRight, Menu, X } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js';
 import './App.css';
 
-// Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase configuration with fallbacks and validation
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wlliqmcpiiktcdzwzhdn.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbGlxbWNwaWlrdGNkend6aGRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NTQ4NjYsImV4cCI6MjA3MTIzMDg2Nn0.of83kjXRw4ZFCi22vTosULBEVEhS6ESX3z2HuTljRjo';
+
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables');
+}
+
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Auth hook
 function useAuth() {
@@ -15,9 +21,16 @@ function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // Obtener sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
 
@@ -38,6 +51,13 @@ function useAuth() {
 // Google OAuth Button Component
 const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
   const handleGoogleSignIn = async () => {
+    if (!supabase) {
+      const error = new Error('Supabase not configured');
+      console.error('Google OAuth error: Supabase not available');
+      if (onError) onError(error);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -450,8 +470,8 @@ function LandingPage() {
               {/* Imagen principal profesional */}
               <div className="relative aspect-[4/3] lg:aspect-[3/2] xl:aspect-[5/3] overflow-hidden rounded-2xl shadow-xl">
                 <img 
-                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0ApgZmOJjv6vQHFt8vyUuVXgOTFiQrN8Umg&s" 
-                  alt="Comunidad transformada" 
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLRPJHsxku2OofJOiMa-aMJD29121Pxqotzw&s" 
+                  alt="Grupo Voluntarios Canadienses transformando comunidades" 
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
                 {/* Overlay sutil para profesionalismo */}
@@ -1075,20 +1095,22 @@ function LoginPage() {
               </div>
             </div>
 
-            {/* Google OAuth Button */}
-            <div className="pt-6">
-              <GoogleOAuthButton
-                onSuccess={(data) => {
-                  console.log('Google OAuth success:', data);
-                  // La redirección se manejará automáticamente por el hook useAuth
-                }}
-                onError={(error) => {
-                  console.error('Google OAuth error:', error);
-                  alert('Error al iniciar sesión con Google: ' + error.message);
-                }}
-                disabled={isLoading}
-              />
-            </div>
+            {/* Google OAuth Button - Solo si Supabase está configurado */}
+            {supabase && (
+              <div className="pt-6">
+                <GoogleOAuthButton
+                  onSuccess={(data) => {
+                    console.log('Google OAuth success:', data);
+                    // La redirección se manejará automáticamente por el hook useAuth
+                  }}
+                  onError={(error) => {
+                    console.error('Google OAuth error:', error);
+                    alert('Error al iniciar sesión con Google: ' + error.message);
+                  }}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
 
             {/* Link de retorno mejorado */}
             <div className="text-center pt-4">
@@ -1207,7 +1229,7 @@ function DashboardPage() {
   const handleLogout = async () => {
     try {
       // Cerrar sesión de Supabase si existe
-      if (session) {
+      if (session && supabase) {
         await supabase.auth.signOut();
       }
       
