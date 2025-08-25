@@ -237,7 +237,7 @@ function LandingPage() {
       contribution: "Trabajo especializado y capacitación",
       worksSupported: ["Laboratorio de Ciencias", "Programa Digital", "Capacitación Docente"],
       recognition: "Embajadores del Conocimiento",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLRPJHsxku2OofJOiMa-aMJD29121Pxqotzw&s"
+      avatar: "/grupo-canadienses.jpg"
     },
     {
       name: "Constructora Solidaria",
@@ -470,8 +470,8 @@ function LandingPage() {
               {/* Imagen principal profesional */}
               <div className="relative aspect-[4/3] lg:aspect-[3/2] xl:aspect-[5/3] overflow-hidden rounded-2xl shadow-xl">
                 <img 
-                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLRPJHsxku2OofJOiMa-aMJD29121Pxqotzw&s" 
-                  alt="Grupo Voluntarios Canadienses transformando comunidades" 
+                  src="/grupo-canadienses.jpg" 
+                  alt="Grupo de Canadienses transformando comunidades" 
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
                 {/* Overlay sutil para profesionalismo */}
