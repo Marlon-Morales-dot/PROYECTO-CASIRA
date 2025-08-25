@@ -1,41 +1,378 @@
-# Variables de entorno (NUNCA subir)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ================================
+# GITIGNORE CASIRA CONNECT - SEGURIDAD MÁXIMA
+# ================================
+# ⚠️  IMPORTANTE: Este archivo protege información privada y sensible
+# 🔒 NUNCA commitear archivos con datos personales, claves o tokens
 
-# Dependencies
+# ================================
+# 🔐 VARIABLES DE ENTORNO Y SECRETOS
+# ================================
+# Variables de entorno (TODAS LAS VARIANTES)
+.env
+.env.*
+!.env.example
+*.env
+casira.env
+config.env
+secrets.env
+local.env
+dev.env
+prod.env
+staging.env
+
+# Claves y certificados (MUY IMPORTANTE)
+*.pem
+*.key
+*.crt
+*.cert
+*.ca-bundle
+*.p12
+*.pfx
+*.gpg
+*.asc
+id_rsa*
+*.pub
+known_hosts
+
+# Configuraciones con tokens/passwords
+*token*
+*secret*
+*password*
+*credentials*
+api-keys.json
+auth-config.json
+firebase-adminsdk-*.json
+
+# ================================
+# 🤖 MCP Y AI/LLM ESPECÍFICOS (NUEVA SECCIÓN)
+# ================================
+# Model Context Protocol files
+mcp/
+mcp-config/
+mcp-server/
+*.mcp
+mcp.json
+mcp-settings.json
+mcp-context.json
+mcp-cache/
+
+# Claude Code y AI configurations
+.claude/
+.claude-code/
+claude-config.json
+claude-context/
+ai-context/
+llm-logs/
+ai-cache/
+anthropic-cache/
+
+# Archivos de modelos y entrenamiento
+*.pt
+*.pth
+*.pkl
+*.safetensors
+*.bin
+model-cache/
+embeddings/
+training-data/
+fine-tuning/
+
+# Cache de AI/LLM
+*.ai-temp
+*.llm-cache
+openai-cache/
+huggingface-cache/
+
+# ================================
+# 📁 DEPENDENCIES Y PACKAGES
+# ================================
+# Node.js dependencies (NUNCA commitear)
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package lock files 
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpmfile.cjs
+
+# Python dependencies y cache
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Build outputs
+# Virtual environments (CRÍTICO - nunca subir)
+venv/
+env/
+ENV/
+.venv/
+.env/
+env.bak/
+venv.bak/
+casira-env/
+
+# ================================
+# 🏗️ BUILD OUTPUTS
+# ================================
+# Frontend builds
 dist/
 build/
-*.egg-info/
+.next/
+out/
+.output/
+.nuxt/
 
-# IDEs
-.vscode/
+# Python distribution
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ================================
+# 🗄️ BASES DE DATOS Y ARCHIVOS SENSIBLES
+# ================================
+# Archivos de base de datos locales (DATOS PERSONALES)
+*.db
+*.sqlite
+*.sqlite3
+data.db
+development.db
+test.db
+casira.db
+users.db
+
+# Backups de BD (pueden contener datos de usuarios)
+*.sql
+*.dump
+*.backup
+*.bak
+dump.sql
+backup.sql
+
+# Supabase local
+.supabase/
+supabase/.env
+supabase/config.toml
+
+# Uploads de usuarios (DATOS PERSONALES)
+uploads/
+user-uploads/
+temp-uploads/
+profile-pictures/
+project-images/
+donante-data/
+beneficiario-info/
+
+# ================================
+# 📊 LOGS Y DATOS TEMPORALES
+# ================================
+# Logs (pueden contener info privada)
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+error.log
+access.log
+debug.log
+server.log
+
+# Datos temporales
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Reportes generados (pueden tener datos personales)
+reports/
+exports/
+analytics/
+user-data/
+metrics/
+stats/
+
+# Cache
+.turbo/
+.vite/
+vite.config.*.timestamp-*
+.eslintcache
+.stylelintcache
+image-cache/
+thumbnail-cache/
+
+# ================================
+# 🚀 DEPLOYMENT Y SERVICIOS
+# ================================
+# Deployment configs
+.vercel/
+.vercel
+.netlify/
+.railway/
+.render/
+.heroku/
+
+# Docker secrets
+docker-compose.override.yml
+.dockerignore
+Dockerfile.prod
+
+# ================================
+# 💻 SISTEMA OPERATIVO
+# ================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ================================
+# 🛠️ IDEs Y EDITORES
+# ================================
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+
+# JetBrains
 .idea/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Editor temporales
 *.swp
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
+# ================================
+# 🧪 TESTING Y COVERAGE
+# ================================
 # Coverage reports
 coverage/
-.nyc_output
+.coverage
+.nyc_output/
+*.lcov
 
-# Runtime
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
+# Test data (puede contener info sensible)
+test-data/
+mock-data/
+fixtures/
+
+# ================================
+# 🎯 CASIRA CONNECT ESPECÍFICOS
+# ================================
+# Configuraciones locales del proyecto
+local-config.json
+dev-config.json
+personal-settings.json
+casira-local.json
+
+# Flask específico
+instance/
+.webassets-cache
+
+# ================================
+# 📝 DOCUMENTOS PRIVADOS
+# ================================
+# Notas privadas (NUNCA subir)
+PRIVATE-NOTES.md
+SECRETS.md
+PASSWORDS.txt
+CREDENTIALS.txt
+TODO-PRIVATE.md
+
+# Documentos internos
+internal/
+private/
+confidential/
+meetings/
+internal-docs/
+
+# ================================
+# 🔄 ARCHIVOS TEMPORALES Y BACKUP
+# ================================
+# Backups
+*.backup
+*.bak
+*.old
+*.orig
+*.rej
+*.tmp
+
+# Archivos comprimidos temporales
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# ================================
+# ⚠️  REGLAS DE SEGURIDAD FINALES
+# ================================
+# Cualquier archivo que contenga estas palabras peligrosas
+*password*
+*secret*
+*private*
+*confidential*
+*token*
+*credential*
+*auth*
+
+# Configuraciones que pueden ser sensibles
+config-prod.json
+config-local.json
+settings-private.json
+
+# ================================
+# ✅ ARCHIVOS QUE SÍ MANTENER
+# ================================
+# Archivos importantes del proyecto (usar !)
+!.gitignore
+!.gitkeep
+!README.md
+!LICENSE
+!.env.example
+!docs/
+!supabase-schema.sql
+!mcp-server.js
+!frontend/src/
+!backend/app*.py
+!backend/requirements*.txt
+!backend/Procfile
+!backend/render.yaml
+!backend/runtime.txt
