@@ -83,12 +83,12 @@ function LandingPage() {
     const loadData = async () => {
       try {
         // Cargar proyectos destacados
-        const projectsResponse = await fetch('https://j6h5i7cpjd18.manus.space/api/projects/featured');
+        const projectsResponse = await fetch('https://proyecto-casira.onrender.com/api/projects/featured');
         const projectsData = await projectsResponse.json();
         setProjects(projectsData.projects || []);
 
         // Cargar estadísticas
-        const statsResponse = await fetch('https://j6h5i7cpjd18.manus.space/api/projects/stats');
+        const statsResponse = await fetch('https://proyecto-casira.onrender.com/api/projects/stats');
         const statsData = await statsResponse.json();
         setStats(statsData.stats || {});
 
@@ -863,7 +863,7 @@ function LoginPage() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('https://j6h5i7cpjd18.manus.space/api/auth/login', {
+      const response = await fetch('https://proyecto-casira.onrender.com/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1115,8 +1115,8 @@ function DashboardPage() {
     const loadDashboardData = async () => {
       try {
         const [postsResponse, projectsResponse] = await Promise.all([
-          fetch('https://j6h5i7cpjd18.manus.space/api/posts'),
-          fetch('https://j6h5i7cpjd18.manus.space/api/projects')
+          fetch('https://proyecto-casira.onrender.com/api/posts'),
+          fetch('https://proyecto-casira.onrender.com/api/projects')
         ]);
         
         const postsData = await postsResponse.json();
