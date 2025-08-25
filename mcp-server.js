@@ -115,6 +115,59 @@ class CasiraServer {
             },
           },
         },
+        {
+          name: 'deploy_to_render',
+          description: 'Despliega el proyecto a Render usando git push',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              service: {
+                type: 'string',
+                description: 'Servicio a desplegar (frontend/backend)',
+                enum: ['frontend', 'backend'],
+              },
+              branch: {
+                type: 'string',
+                description: 'Rama a desplegar (por defecto main)',
+                default: 'main',
+              },
+            },
+            required: ['service'],
+          },
+        },
+        {
+          name: 'check_render_logs',
+          description: 'Simula la verificación de logs de Render (requiere CLI de Render)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              service: {
+                type: 'string',
+                description: 'Servicio del cual obtener logs',
+              },
+              lines: {
+                type: 'number',
+                description: 'Número de líneas de log (por defecto 50)',
+                default: 50,
+              },
+            },
+            required: ['service'],
+          },
+        },
+        {
+          name: 'update_render_config',
+          description: 'Actualiza la configuración de Render (render.yaml)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              config: {
+                type: 'object',
+                description: 'Objeto de configuración para render.yaml',
+              },
+            },
+            required: ['config'],
+          },
+        },
       ],
     }));
 
@@ -137,6 +190,15 @@ class CasiraServer {
           
           case 'list_project_structure':
             return await this.listProjectStructure(args.directory || '');
+          
+          case 'deploy_to_render':
+            return await this.deployToRender(args.service, args.branch || 'main');
+          
+          case 'check_render_logs':
+            return await this.checkRenderLogs(args.service, args.lines || 50);
+          
+          case 'update_render_config':
+            return await this.updateRenderConfig(args.config);
           
           default:
             throw new Error(`Herramienta desconocida: ${name}`);
@@ -285,6 +347,126 @@ class CasiraServer {
         ],
       };
     }
+  }
+
+  async deployToRender(service, branch) {
+    try {
+      // Verificar que estamos en un repositorio git
+      await execAsync('git status', { cwd: PROJECT_ROOT });
+      
+      // Hacer commit de cambios pendientes si los hay
+      const { stdout: status } = await execAsync('git status --porcelain', { cwd: PROJECT_ROOT });
+      if (status.trim()) {
+        await execAsync('git add .', { cwd: PROJECT_ROOT });
+        await execAsync(`git commit -m "Deploy ${service} to Render"`, { cwd: PROJECT_ROOT });
+      }
+      
+      // Push a la rama
+      const { stdout, stderr } = await execAsync(`git push origin ${branch}`, { 
+        cwd: PROJECT_ROOT,
+        timeout: 60000 
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Despliegue de ${service} iniciado en Render (rama: ${branch})\n\nOutput:\n${stdout}${stderr ? `\nErrors:\n${stderr}` : ''}\n\nEl despliegue debería comenzar automáticamente en Render.`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error desplegando a Render: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+
+  async checkRenderLogs(service, lines) {
+    try {
+      // Nota: Esto requiere tener el CLI de Render instalado
+      // render logs <service-name> --num <lines>
+      const { stdout, stderr } = await execAsync(`render logs ${service} --num ${lines}`, { 
+        cwd: PROJECT_ROOT,
+        timeout: 30000 
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Logs de ${service} (últimas ${lines} líneas):\n\n${stdout}${stderr ? `\nErrors:\n${stderr}` : ''}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error obteniendo logs: ${error.message}\n\nNota: Asegúrate de tener el CLI de Render instalado: npm install -g @render/cli`,
+          },
+        ],
+      };
+    }
+  }
+
+  async updateRenderConfig(config) {
+    try {
+      const yamlContent = this.objectToYaml(config);
+      const renderConfigPath = path.join(BACKEND_DIR, 'render.yaml');
+      
+      await fs.writeFile(renderConfigPath, yamlContent, 'utf8');
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Configuración de Render actualizada en backend/render.yaml:\n\n${yamlContent}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error actualizando configuración de Render: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+
+  objectToYaml(obj, indent = 0) {
+    let yaml = '';
+    const spaces = ' '.repeat(indent);
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        yaml += `${spaces}${key}:\n`;
+        yaml += this.objectToYaml(value, indent + 2);
+      } else if (Array.isArray(value)) {
+        yaml += `${spaces}${key}:\n`;
+        value.forEach(item => {
+          if (typeof item === 'object') {
+            yaml += `${spaces}- `;
+            yaml += this.objectToYaml(item, indent + 2).replace(/^\s{2}/, '');
+          } else {
+            yaml += `${spaces}- ${item}\n`;
+          }
+        });
+      } else {
+        yaml += `${spaces}${key}: ${value}\n`;
+      }
+    }
+    
+    return yaml;
   }
 
   async run() {

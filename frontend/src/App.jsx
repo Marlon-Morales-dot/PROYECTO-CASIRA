@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Heart, Users, Building, Star, ArrowRight, Menu, X } from 'lucide-react';
+import GoogleOAuthButton from './components/GoogleOAuthButton';
+import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
 import './App.css';
 
 // Componente de Landing Page
@@ -244,11 +247,11 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center group">
-              <div className="p-2 bg-gradient-to-br from-sky-600 to-blue-700 rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <Building className="h-6 w-6 text-white" />
+              <div className="p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300 overflow-hidden">
+                <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent ml-3">
-                CASIRA Connect
+                AMISTAD CASIRA
               </h1>
             </div>
             <nav className="hidden md:flex space-x-6">
@@ -592,8 +595,8 @@ function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <Building className="h-6 w-6 text-blue-400 mr-2" />
-                <span className="text-lg font-semibold">CASIRA Connect</span>
+                <img src="/logo.png" alt="AMISTAD CASIRA" className="h-8 w-auto object-contain mr-3 brightness-75" />
+                <span className="text-lg font-semibold">AMISTAD CASIRA</span>
               </div>
               <p className="text-gray-400">
                 Transformando comunidades a través de obras que perduran.
@@ -777,11 +780,19 @@ function LandingPage() {
 // Componente de Login
 function LoginPage() {
   const navigate = useNavigate();
+  const { session, loading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redireccionar si ya está autenticado
+  useEffect(() => {
+    if (!loading && session) {
+      navigate('/dashboard');
+    }
+  }, [session, loading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -835,14 +846,14 @@ function LoginPage() {
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 rounded-2xl blur-lg opacity-60 animate-pulse"></div>
-                <div className="relative bg-gradient-to-br from-sky-600 to-blue-700 p-4 rounded-2xl shadow-xl">
-                  <Building className="h-12 w-12 text-white" />
+                <div className="relative bg-white p-4 rounded-2xl shadow-xl">
+                  <img src="/logo.png" alt="AMISTAD CASIRA" className="h-16 w-auto object-contain" />
                 </div>
               </div>
             </div>
             
             <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent mb-3">
-              Bienvenido a CASIRA
+              Bienvenido a AMISTAD CASIRA
             </h2>
             <p className="text-gray-600 text-lg">
               Únete a la red de transformación social
@@ -958,6 +969,33 @@ function LoginPage() {
               </button>
             </div>
 
+            {/* Divisor */}
+            <div className="pt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white/80 text-gray-500 font-medium">O continúa con</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Google OAuth Button */}
+            <div className="pt-6">
+              <GoogleOAuthButton
+                onSuccess={(data) => {
+                  console.log('Google OAuth success:', data);
+                  // La redirección se manejará automáticamente por el hook useAuth
+                }}
+                onError={(error) => {
+                  console.error('Google OAuth error:', error);
+                  alert('Error al iniciar sesión con Google: ' + error.message);
+                }}
+                disabled={isLoading}
+              />
+            </div>
+
             {/* Link de retorno mejorado */}
             <div className="text-center pt-4">
               <Link 
@@ -978,20 +1016,36 @@ function LoginPage() {
 // Componente de Dashboard
 function DashboardPage() {
   const navigate = useNavigate();
+  const { session, loading } = useAuth();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    
-    if (!token || !userData) {
-      navigate('/login');
-      return;
+    if (loading) return; // Esperar a que cargue la autenticación
+
+    // Comprobar autenticación de Supabase (Google OAuth)
+    if (session) {
+      const googleUser = {
+        first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+        last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+        email: session.user.email,
+        role: 'usuario',
+        bio: 'Usuario autenticado con Google'
+      };
+      setUser(googleUser);
+    } else {
+      // Comprobar autenticación tradicional
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      if (!token || !userData) {
+        navigate('/login');
+        return;
+      }
+      
+      setUser(JSON.parse(userData));
     }
-    
-    setUser(JSON.parse(userData));
     
     // Cargar datos del dashboard
     const loadDashboardData = async () => {
@@ -1054,12 +1108,25 @@ function DashboardPage() {
     };
     
     loadDashboardData();
-  }, [navigate]);
+  }, [navigate, session, loading]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      // Cerrar sesión de Supabase si existe
+      if (session) {
+        await supabase.auth.signOut();
+      }
+      
+      // Limpiar localStorage para autenticación tradicional
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      navigate('/');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      // Navegar de todas formas
+      navigate('/');
+    }
   };
 
   if (!user) {
@@ -1073,8 +1140,8 @@ function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <Building className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">CASIRA Connect</h1>
+              <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain mr-3" />
+              <h1 className="text-2xl font-bold text-gray-900">AMISTAD CASIRA</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">Hola, {user.first_name}</span>

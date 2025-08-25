@@ -94,10 +94,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Package lock files 
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Package lock files (comentado para mantener consistencia)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 .pnpmfile.cjs
 
 # Python dependencies y cache
@@ -160,7 +160,7 @@ casira.db
 users.db
 
 # Backups de BD (pueden contener datos de usuarios)
-*.sql
+# *.sql (comentado para permitir schema.sql)
 *.dump
 *.backup
 *.bak
