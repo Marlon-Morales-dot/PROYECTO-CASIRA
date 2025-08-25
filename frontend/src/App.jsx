@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Heart, Users, Building, Star, ArrowRight, Menu, X } from 'lucide-react';
-import GoogleOAuthButton from './components/GoogleOAuthButton';
-import { useAuth } from './hooks/useAuth';
-import { supabase } from './lib/supabase';
+import GoogleOAuthButton from './components/GoogleOAuthButton.jsx';
+import { useAuth } from './hooks/useAuth.js';
+import { supabase } from './lib/supabase.js';
 import './App.css';
 
 // Componente de Landing Page
