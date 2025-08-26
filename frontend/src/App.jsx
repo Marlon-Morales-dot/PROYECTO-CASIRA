@@ -1445,7 +1445,7 @@ function DashboardPage() {
             }
           ]);
         
-        setProjects(projectsData.projects || []);
+        setProjects(projectsData || []);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       }

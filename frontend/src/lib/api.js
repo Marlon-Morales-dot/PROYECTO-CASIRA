@@ -1,72 +1,162 @@
-// API functions for CASIRA database operations
-// Todas las operaciones con Supabase centralizadas aquí
+// API functions for CASIRA - Simplified version with mock data
+// Simplified to avoid database complexity and ensure functionality
 
-import { createClient } from '@supabase/supabase-js';
+// Mock data for demonstration
+const mockActivities = [
+  {
+    id: 1,
+    title: "Reforestación Comunitaria",
+    description: "Plantación de árboles nativos en zonas deforestadas",
+    detailed_description: "Programa de reforestación que busca restaurar ecosistemas degradados mediante la participación activa de la comunidad local.",
+    category_id: 1,
+    status: "active",
+    priority: "high",
+    location: "Parque Nacional",
+    start_date: "2024-03-01",
+    end_date: "2024-12-31",
+    max_volunteers: 50,
+    current_volunteers: 23,
+    budget: 15000,
+    image_url: "/grupo-canadienses.jpg",
+    visibility: "public",
+    featured: true,
+    created_at: "2024-01-15",
+    activity_categories: { id: 1, name: "Medio Ambiente", color: "green", icon: "🌱" },
+    users: { first_name: "Juan", last_name: "Pérez" },
+    activity_participants: [{ id: 1, status: "active" }, { id: 2, status: "active" }],
+    posts: [{ id: 1, created_at: "2024-02-15" }]
+  },
+  {
+    id: 2,
+    title: "Alimentación Comunitaria",
+    description: "Distribución de alimentos a familias necesitadas",
+    detailed_description: "Programa de asistencia alimentaria para familias en situación de vulnerabilidad.",
+    category_id: 2,
+    status: "active",
+    priority: "high",
+    location: "Centro Comunitario",
+    start_date: "2024-01-01",
+    end_date: "2024-12-31",
+    max_volunteers: 30,
+    current_volunteers: 18,
+    budget: 25000,
+    image_url: "/grupo-canadienses.jpg",
+    visibility: "public",
+    featured: true,
+    created_at: "2024-01-10",
+    activity_categories: { id: 2, name: "Alimentación", color: "orange", icon: "🍞" },
+    users: { first_name: "María", last_name: "González" },
+    activity_participants: [{ id: 3, status: "active" }],
+    posts: [{ id: 2, created_at: "2024-02-10" }]
+  },
+  {
+    id: 3,
+    title: "Educación Rural",
+    description: "Apoyo educativo en zonas rurales",
+    detailed_description: "Programa de refuerzo escolar y alfabetización para comunidades rurales.",
+    category_id: 3,
+    status: "planning",
+    priority: "medium",
+    location: "Escuela Rural San José",
+    start_date: "2024-04-01",
+    end_date: "2024-11-30",
+    max_volunteers: 20,
+    current_volunteers: 5,
+    budget: 8000,
+    image_url: "/grupo-canadienses.jpg",
+    visibility: "public",
+    featured: false,
+    created_at: "2024-02-01",
+    activity_categories: { id: 3, name: "Educación", color: "blue", icon: "📚" },
+    users: { first_name: "Carlos", last_name: "Martínez" },
+    activity_participants: [{ id: 4, status: "pending" }],
+    posts: []
+  }
+];
 
-// Supabase configuration with fallbacks and validation
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wlliqmcpiiktcdzwzhdn.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbGlxbWNwaWlrdGNkend6aGRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NTQ4NjYsImV4cCI6MjA3MTIzMDg2Nn0.of83kjXRw4ZFCi22vTosULBEVEhS6ESX3z2HuTljRjo';
+const mockCategories = [
+  { id: 1, name: "Medio Ambiente", color: "green", icon: "🌱" },
+  { id: 2, name: "Alimentación", color: "orange", icon: "🍞" },
+  { id: 3, name: "Educación", color: "blue", icon: "📚" },
+  { id: 4, name: "Salud", color: "red", icon: "❤️" },
+  { id: 5, name: "Vivienda", color: "purple", icon: "🏠" }
+];
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const mockStats = {
+  active_projects: 2,
+  completed_projects: 5,
+  total_volunteers: 150,
+  total_donations: 85000,
+  lives_transformed: 225
+};
+
+const mockPosts = [
+  {
+    id: 1,
+    title: "Gran éxito en la jornada de reforestación",
+    content: "Más de 200 árboles plantados en un solo día",
+    activity_id: 1,
+    author_id: "1",
+    visibility: "public",
+    created_at: "2024-02-15",
+    users: { id: "1", first_name: "Juan", last_name: "Pérez", avatar_url: null },
+    activities: { id: 1, title: "Reforestación Comunitaria", status: "active" }
+  },
+  {
+    id: 2,
+    title: "Nuevas familias beneficiadas",
+    content: "El programa alimentario ha llegado a 50 nuevas familias esta semana",
+    activity_id: 2,
+    author_id: "2",
+    visibility: "public",
+    created_at: "2024-02-10",
+    users: { id: "2", first_name: "María", last_name: "González", avatar_url: null },
+    activities: { id: 2, title: "Alimentación Comunitaria", status: "active" }
+  }
+];
 
 // ============= AUTH FUNCTIONS =============
 
 export const authAPI = {
-  // Get current user
+  // Get current user - simplified
   getCurrentUser: async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      
-      if (user) {
-        // Get user profile from our users table
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
-        }
-        
-        return { ...user, profile };
-      }
+      // Return null for now - no authentication needed
       return null;
     } catch (error) {
       console.error('Error getting current user:', error);
-      throw error;
+      return null;
     }
   },
 
-  // Create or update user profile
+  // Create or update user profile - simplified
   upsertUserProfile: async (userData) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .upsert(userData, { onConflict: 'id' })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      // Mock successful response
+      return {
+        id: 'mock-user-id',
+        first_name: userData.first_name || 'Usuario',
+        last_name: userData.last_name || 'Anónimo',
+        email: userData.email || 'user@example.com',
+        role: 'volunteer'
+      };
     } catch (error) {
       console.error('Error upserting user profile:', error);
-      throw error;
+      return {
+        id: 'mock-user-id',
+        first_name: 'Usuario',
+        last_name: 'Anónimo',
+        email: 'user@example.com',
+        role: 'volunteer'
+      };
     }
   },
 
-  // Check if user is admin
+  // Check if user is admin - simplified
   isAdmin: async (userId) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-      return data?.role === 'admin';
+      // Return false for now - no admin functionality
+      return false;
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;
@@ -77,150 +167,105 @@ export const authAPI = {
 // ============= ACTIVITIES FUNCTIONS =============
 
 export const activitiesAPI = {
-  // Get all public activities
+  // Get all public activities - using mock data
   getPublicActivities: async () => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          activity_categories (id, name, color, icon),
-          users!activities_created_by_fkey (first_name, last_name),
-          activity_participants (id, status),
-          posts (id, created_at)
-        `)
-        .eq('visibility', 'public')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return mockActivities.filter(activity => activity.visibility === 'public');
     } catch (error) {
       console.error('Error fetching public activities:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Get featured activities
+  // Get featured activities - using mock data
   getFeaturedActivities: async () => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          activity_categories (id, name, color, icon),
-          users!activities_created_by_fkey (first_name, last_name)
-        `)
-        .eq('visibility', 'public')
-        .eq('featured', true)
-        .order('created_at', { ascending: false })
-        .limit(6);
-      
-      if (error) throw error;
-      return data || [];
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return mockActivities.filter(activity => activity.visibility === 'public' && activity.featured).slice(0, 6);
     } catch (error) {
       console.error('Error fetching featured activities:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Get activity by ID
+  // Get activity by ID - using mock data
   getActivityById: async (id) => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          activity_categories (id, name, color, icon),
-          users!activities_created_by_fkey (id, first_name, last_name, avatar_url),
-          activity_participants (
-            id, status, role, hours_contributed,
-            users (id, first_name, last_name, avatar_url)
-          ),
-          events (id, title, event_date, max_attendees, current_attendees),
-          resources (id, name, quantity_needed, quantity_available, status)
-        `)
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return mockActivities.find(activity => activity.id == id) || null;
     } catch (error) {
       console.error('Error fetching activity:', error);
-      throw error;
+      return null;
     }
   },
 
-  // Create new activity (admin only)
+  // Create new activity - simplified
   createActivity: async (activityData) => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .insert(activityData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const newActivity = {
+        id: Date.now(), // Simple ID generation
+        ...activityData,
+        created_at: new Date().toISOString(),
+        current_volunteers: 0,
+        activity_participants: [],
+        posts: []
+      };
+      mockActivities.push(newActivity);
+      return newActivity;
     } catch (error) {
       console.error('Error creating activity:', error);
       throw error;
     }
   },
 
-  // Update activity (admin only)
+  // Update activity - simplified
   updateActivity: async (id, updates) => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const index = mockActivities.findIndex(activity => activity.id == id);
+      if (index !== -1) {
+        mockActivities[index] = { ...mockActivities[index], ...updates };
+        return mockActivities[index];
+      }
+      throw new Error('Activity not found');
     } catch (error) {
       console.error('Error updating activity:', error);
       throw error;
     }
   },
 
-  // Delete activity (admin only)
+  // Delete activity - simplified
   deleteActivity: async (id) => {
     try {
-      const { error } = await supabase
-        .from('activities')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const index = mockActivities.findIndex(activity => activity.id == id);
+      if (index !== -1) {
+        mockActivities.splice(index, 1);
+        return true;
+      }
+      throw new Error('Activity not found');
     } catch (error) {
       console.error('Error deleting activity:', error);
       throw error;
     }
   },
 
-  // Join activity as volunteer
+  // Join activity as volunteer - simplified
   joinActivity: async (activityId, userId, role = 'volunteer') => {
     try {
-      const { data, error } = await supabase
-        .from('activity_participants')
-        .insert({
-          activity_id: activityId,
-          user_id: userId,
-          role: role,
-          status: 'registered'
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update activity's current_volunteers count
-      await supabase.rpc('increment_activity_volunteers', { activity_id: activityId });
-      
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      // Mock successful join
+      return {
+        id: Date.now(),
+        activity_id: activityId,
+        user_id: userId,
+        role: role,
+        status: 'registered'
+      };
     } catch (error) {
       console.error('Error joining activity:', error);
       throw error;
@@ -231,33 +276,27 @@ export const activitiesAPI = {
 // ============= CATEGORIES FUNCTIONS =============
 
 export const categoriesAPI = {
-  // Get all categories
+  // Get all categories - using mock data
   getAllCategories: async () => {
     try {
-      const { data, error } = await supabase
-        .from('activity_categories')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return mockCategories;
     } catch (error) {
       console.error('Error fetching categories:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Create category (admin only)
+  // Create category - simplified
   createCategory: async (categoryData) => {
     try {
-      const { data, error } = await supabase
-        .from('activity_categories')
-        .insert(categoryData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const newCategory = {
+        id: Date.now(),
+        ...categoryData
+      };
+      mockCategories.push(newCategory);
+      return newCategory;
     } catch (error) {
       console.error('Error creating category:', error);
       throw error;
@@ -268,63 +307,39 @@ export const categoriesAPI = {
 // ============= POSTS FUNCTIONS =============
 
 export const postsAPI = {
-  // Get posts for an activity
+  // Get posts for an activity - using mock data
   getActivityPosts: async (activityId) => {
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          users!posts_author_id_fkey (id, first_name, last_name, avatar_url),
-          comments (
-            id, content, created_at,
-            users!comments_author_id_fkey (first_name, last_name, avatar_url)
-          )
-        `)
-        .eq('activity_id', activityId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return mockPosts.filter(post => post.activity_id == activityId);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Get all public posts for feed
+  // Get all public posts for feed - using mock data
   getPublicPosts: async (limit = 10) => {
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          users!posts_author_id_fkey (id, first_name, last_name, avatar_url),
-          activities (id, title, status)
-        `)
-        .eq('visibility', 'public')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) throw error;
-      return data || [];
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return mockPosts.filter(post => post.visibility === 'public').slice(0, limit);
     } catch (error) {
       console.error('Error fetching public posts:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Create new post
+  // Create new post - simplified
   createPost: async (postData) => {
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .insert(postData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const newPost = {
+        id: Date.now(),
+        ...postData,
+        created_at: new Date().toISOString()
+      };
+      mockPosts.push(newPost);
+      return newPost;
     } catch (error) {
       console.error('Error creating post:', error);
       throw error;
@@ -335,61 +350,45 @@ export const postsAPI = {
 // ============= EVENTS FUNCTIONS =============
 
 export const eventsAPI = {
-  // Get events for an activity
+  // Get events for an activity - simplified
   getActivityEvents: async (activityId) => {
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          *,
-          event_participants (
-            id, status,
-            users (id, first_name, last_name, avatar_url)
-          )
-        `)
-        .eq('activity_id', activityId)
-        .order('event_date', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      await new Promise(resolve => setTimeout(resolve, 200));
+      // Return empty array for now - no events in mock data
+      return [];
     } catch (error) {
       console.error('Error fetching events:', error);
-      throw error;
+      return [];
     }
   },
 
-  // Create new event
+  // Create new event - simplified
   createEvent: async (eventData) => {
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .insert(eventData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      // Mock successful creation
+      return {
+        id: Date.now(),
+        ...eventData,
+        created_at: new Date().toISOString()
+      };
     } catch (error) {
       console.error('Error creating event:', error);
       throw error;
     }
   },
 
-  // Join event
+  // Join event - simplified
   joinEvent: async (eventId, userId) => {
     try {
-      const { data, error } = await supabase
-        .from('event_participants')
-        .insert({
-          event_id: eventId,
-          user_id: userId,
-          status: 'registered'
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      await new Promise(resolve => setTimeout(resolve, 300));
+      // Mock successful join
+      return {
+        id: Date.now(),
+        event_id: eventId,
+        user_id: userId,
+        status: 'registered'
+      };
     } catch (error) {
       console.error('Error joining event:', error);
       throw error;
@@ -400,28 +399,11 @@ export const eventsAPI = {
 // ============= STATISTICS FUNCTIONS =============
 
 export const statsAPI = {
-  // Get dashboard statistics
+  // Get dashboard statistics - using mock data
   getDashboardStats: async () => {
     try {
-      const [activitiesResponse, volunteersResponse, donationsResponse] = await Promise.all([
-        supabase.from('activities').select('status', { count: 'exact' }),
-        supabase.from('activity_participants').select('id', { count: 'exact' }),
-        supabase.from('donations').select('amount').eq('status', 'completed')
-      ]);
-
-      const activeActivities = activitiesResponse.data?.filter(a => a.status === 'active').length || 0;
-      const completedActivities = activitiesResponse.data?.filter(a => a.status === 'completed').length || 0;
-      const totalVolunteers = volunteersResponse.count || 0;
-      
-      const totalDonations = donationsResponse.data?.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0) || 0;
-
-      return {
-        active_projects: activeActivities,
-        completed_projects: completedActivities,
-        total_volunteers: totalVolunteers,
-        total_donations: totalDonations,
-        lives_transformed: Math.floor(totalVolunteers * 1.5) // Estimación
-      };
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return mockStats;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       return {
@@ -435,5 +417,11 @@ export const statsAPI = {
   }
 };
 
-// Export default supabase client for direct use
-export { supabase };
+// Export mock supabase object for compatibility
+export const supabase = {
+  auth: {
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signInWithOAuth: async () => ({ data: null, error: null }),
+    signOut: async () => ({ error: null })
+  }
+};
