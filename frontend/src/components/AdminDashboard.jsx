@@ -31,6 +31,11 @@ const AdminDashboard = ({ user, onLogout }) => {
     featured: false
   });
 
+  // Image handling states
+  const [imageOption, setImageOption] = useState('url'); // 'url' or 'upload'
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
   useEffect(() => {
     loadAdminData();
   }, []);
@@ -53,6 +58,54 @@ const AdminDashboard = ({ user, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Image handling functions
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('El archivo es muy grande. Máximo 5MB permitido.');
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+        setFormData(prev => ({ ...prev, image_url: e.target.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageOptionChange = (option) => {
+    setImageOption(option);
+    setSelectedFile(null);
+    setImagePreview(null);
+    
+    if (option === 'url') {
+      // Keep the current URL if it exists
+    } else {
+      // Clear URL when switching to upload
+      setFormData(prev => ({ ...prev, image_url: '' }));
+    }
+  };
+
+  const resetImageStates = () => {
+    setImageOption('url');
+    setSelectedFile(null);
+    setImagePreview(null);
   };
 
   const handleCreateActivity = async (e) => {
@@ -90,12 +143,93 @@ const AdminDashboard = ({ user, onLogout }) => {
         featured: false
       });
       
+      resetImageStates();
       setShowCreateForm(false);
       await loadAdminData(); // Reload activities
       alert('¡Actividad creada exitosamente!');
     } catch (error) {
       console.error('Error creating activity:', error);
       alert('Error al crear la actividad: ' + error.message);
+    }
+  };
+
+  const handleEditActivity = (activity) => {
+    setEditingActivity(activity);
+    setFormData({
+      title: activity.title || '',
+      description: activity.description || '',
+      detailed_description: activity.detailed_description || '',
+      category_id: activity.category_id || '',
+      status: activity.status || 'planning',
+      priority: activity.priority || 'medium',
+      location: activity.location || '',
+      start_date: activity.start_date || '',
+      end_date: activity.end_date || '',
+      max_volunteers: activity.max_volunteers || '',
+      budget: activity.budget || '',
+      image_url: activity.image_url || '',
+      requirements: activity.requirements || [],
+      benefits: activity.benefits || [],
+      visibility: activity.visibility || 'public',
+      featured: activity.featured || false
+    });
+
+    // Set image states for editing
+    if (activity.image_url) {
+      if (activity.image_url.startsWith('data:')) {
+        setImageOption('upload');
+        setImagePreview(activity.image_url);
+      } else {
+        setImageOption('url');
+      }
+    } else {
+      resetImageStates();
+    }
+    
+    setShowCreateForm(true);
+  };
+
+  const handleUpdateActivity = async (e) => {
+    e.preventDefault();
+    try {
+      const activityData = {
+        ...formData,
+        requirements: formData.requirements.filter(r => r.trim()),
+        benefits: formData.benefits.filter(b => b.trim()),
+        max_volunteers: parseInt(formData.max_volunteers) || null,
+        budget: parseFloat(formData.budget) || null
+      };
+
+      await activitiesAPI.updateActivity(editingActivity.id, activityData);
+      
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        detailed_description: '',
+        category_id: '',
+        status: 'planning',
+        priority: 'medium',
+        location: '',
+        start_date: '',
+        end_date: '',
+        max_volunteers: '',
+        budget: '',
+        image_url: '',
+        requirements: [],
+        benefits: [],
+        visibility: 'public',
+        featured: false
+      });
+      
+      resetImageStates();
+      setEditingActivity(null);
+      setShowCreateForm(false);
+      await loadAdminData(); // Reload activities
+      alert('¡Actividad actualizada exitosamente!');
+    } catch (error) {
+      console.error('Error updating activity:', error);
+      alert('Error al actualizar la actividad: ' + error.message);
     }
   };
 
@@ -110,6 +244,30 @@ const AdminDashboard = ({ user, onLogout }) => {
       console.error('Error deleting activity:', error);
       alert('Error al eliminar la actividad: ' + error.message);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingActivity(null);
+    setShowCreateForm(false);
+    resetImageStates();
+    setFormData({
+      title: '',
+      description: '',
+      detailed_description: '',
+      category_id: '',
+      status: 'planning',
+      priority: 'medium',
+      location: '',
+      start_date: '',
+      end_date: '',
+      max_volunteers: '',
+      budget: '',
+      image_url: '',
+      requirements: [],
+      benefits: [],
+      visibility: 'public',
+      featured: false
+    });
   };
 
   const tabs = [
@@ -304,7 +462,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
-                              onClick={() => setEditingActivity(activity)}
+                              onClick={() => handleEditActivity(activity)}
                               className="text-indigo-600 hover:text-indigo-900 mr-3"
                             >
                               <Edit3 className="h-4 w-4" />
@@ -385,8 +543,10 @@ const AdminDashboard = ({ user, onLogout }) => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Crear Nueva Actividad</h3>
-              <form onSubmit={handleCreateActivity} className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {editingActivity ? 'Editar Actividad' : 'Crear Nueva Actividad'}
+              </h3>
+              <form onSubmit={editingActivity ? handleUpdateActivity : handleCreateActivity} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Título</label>
                   <input
@@ -464,13 +624,74 @@ const AdminDashboard = ({ user, onLogout }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">URL de Imagen</label>
-                  <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Imagen de la Actividad</label>
+                  
+                  {/* Image option selector */}
+                  <div className="flex space-x-4 mb-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="imageOption"
+                        value="url"
+                        checked={imageOption === 'url'}
+                        onChange={() => handleImageOptionChange('url')}
+                        className="mr-2"
+                      />
+                      URL de Imagen
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="imageOption"
+                        value="upload"
+                        checked={imageOption === 'upload'}
+                        onChange={() => handleImageOptionChange('upload')}
+                        className="mr-2"
+                      />
+                      Subir desde Equipo
+                    </label>
+                  </div>
+
+                  {/* URL Input */}
+                  {imageOption === 'url' && (
+                    <input
+                      type="url"
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                      value={formData.image_url}
+                      onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  )}
+
+                  {/* File Upload */}
+                  {imageOption === 'upload' && (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        PNG, JPG, WebP hasta 5MB
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  {(imagePreview || (imageOption === 'url' && formData.image_url)) && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Vista previa:</p>
+                      <img
+                        src={imagePreview || formData.image_url}
+                        alt="Vista previa"
+                        className="h-32 w-32 object-cover rounded-lg border"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center">
@@ -489,7 +710,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowCreateForm(false)}
+                    onClick={handleCancelEdit}
                     className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     Cancelar
@@ -498,7 +719,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                     type="submit"
                     className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
                   >
-                    Crear Actividad
+                    {editingActivity ? 'Actualizar Actividad' : 'Crear Actividad'}
                   </button>
                 </div>
               </form>
