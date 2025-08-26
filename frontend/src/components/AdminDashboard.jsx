@@ -601,23 +601,56 @@ const AdminDashboard = ({ user, onLogout }) => {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Ubicación</label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Ubicación</label>
+                    <label className="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
                     <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
                   
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fecha de Fin</label>
+                    <input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Máx. Voluntarios</label>
                     <input
                       type="number"
                       value={formData.max_volunteers}
                       onChange={(e) => setFormData({...formData, max_volunteers: e.target.value})}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Presupuesto ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.budget}
+                      onChange={(e) => setFormData({...formData, budget: e.target.value})}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>

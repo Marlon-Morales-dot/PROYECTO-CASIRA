@@ -1,8 +1,11 @@
 // API functions for CASIRA - Simplified version with mock data
 // Simplified to avoid database complexity and ensure functionality
 
-// Mock data for demonstration
-const mockActivities = [
+// Global state management for mock data
+class MockDataStore {
+  constructor() {
+    this.listeners = [];
+    this.activities = [
   {
     id: 1,
     title: "Reforestación Comunitaria",
@@ -74,7 +77,7 @@ const mockActivities = [
   }
 ];
 
-const mockCategories = [
+    this.categories = [
   { id: 1, name: "Medio Ambiente", color: "green", icon: "🌱" },
   { id: 2, name: "Alimentación", color: "orange", icon: "🍞" },
   { id: 3, name: "Educación", color: "blue", icon: "📚" },
@@ -82,7 +85,7 @@ const mockCategories = [
   { id: 5, name: "Vivienda", color: "purple", icon: "🏠" }
 ];
 
-const mockStats = {
+    this.stats = {
   active_projects: 2,
   completed_projects: 5,
   total_volunteers: 150,
@@ -90,7 +93,7 @@ const mockStats = {
   lives_transformed: 225
 };
 
-const mockPosts = [
+    this.posts = [
   {
     id: 1,
     title: "Gran éxito en la jornada de reforestación",
@@ -114,6 +117,71 @@ const mockPosts = [
     activities: { id: 2, title: "Alimentación Comunitaria", status: "active" }
   }
 ];
+  }
+
+  // Methods to update stats automatically
+  updateStats() {
+    const activeActivities = this.activities.filter(a => a.status === 'active').length;
+    const completedActivities = this.activities.filter(a => a.status === 'completed').length;
+    const totalVolunteers = this.activities.reduce((sum, a) => sum + (a.current_volunteers || 0), 0);
+    
+    this.stats = {
+      active_projects: activeActivities,
+      completed_projects: completedActivities,
+      total_volunteers: totalVolunteers,
+      total_donations: 85000,
+      lives_transformed: Math.floor(totalVolunteers * 1.5)
+    };
+  }
+
+  // Event system for real-time updates
+  subscribe(callback) {
+    this.listeners.push(callback);
+    return () => {
+      const index = this.listeners.indexOf(callback);
+      if (index > -1) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  notify() {
+    this.listeners.forEach(callback => callback());
+  }
+
+  // Enhanced methods that notify changes
+  addActivity(activity) {
+    this.activities.push(activity);
+    this.updateStats();
+    this.notify();
+    return activity;
+  }
+
+  updateActivity(id, updates) {
+    const index = this.activities.findIndex(activity => activity.id == id);
+    if (index !== -1) {
+      this.activities[index] = { ...this.activities[index], ...updates };
+      this.updateStats();
+      this.notify();
+      return this.activities[index];
+    }
+    throw new Error('Activity not found');
+  }
+
+  deleteActivity(id) {
+    const index = this.activities.findIndex(activity => activity.id == id);
+    if (index !== -1) {
+      this.activities.splice(index, 1);
+      this.updateStats();
+      this.notify();
+      return true;
+    }
+    throw new Error('Activity not found');
+  }
+}
+
+// Create global instance
+const dataStore = new MockDataStore();
 
 // ============= AUTH FUNCTIONS =============
 
@@ -172,7 +240,7 @@ export const activitiesAPI = {
     try {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 300));
-      return mockActivities.filter(activity => activity.visibility === 'public');
+      return dataStore.activities.filter(activity => activity.visibility === 'public');
     } catch (error) {
       console.error('Error fetching public activities:', error);
       return [];
@@ -184,7 +252,7 @@ export const activitiesAPI = {
     try {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 300));
-      return mockActivities.filter(activity => activity.visibility === 'public' && activity.featured).slice(0, 6);
+      return dataStore.activities.filter(activity => activity.visibility === 'public' && activity.featured).slice(0, 6);
     } catch (error) {
       console.error('Error fetching featured activities:', error);
       return [];
@@ -195,7 +263,7 @@ export const activitiesAPI = {
   getActivityById: async (id) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
-      return mockActivities.find(activity => activity.id == id) || null;
+      return dataStore.activities.find(activity => activity.id == id) || null;
     } catch (error) {
       console.error('Error fetching activity:', error);
       return null;
@@ -214,8 +282,7 @@ export const activitiesAPI = {
         activity_participants: [],
         posts: []
       };
-      mockActivities.push(newActivity);
-      return newActivity;
+      return dataStore.addActivity(newActivity);
     } catch (error) {
       console.error('Error creating activity:', error);
       throw error;
@@ -226,12 +293,7 @@ export const activitiesAPI = {
   updateActivity: async (id, updates) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const index = mockActivities.findIndex(activity => activity.id == id);
-      if (index !== -1) {
-        mockActivities[index] = { ...mockActivities[index], ...updates };
-        return mockActivities[index];
-      }
-      throw new Error('Activity not found');
+      return dataStore.updateActivity(id, updates);
     } catch (error) {
       console.error('Error updating activity:', error);
       throw error;
@@ -242,12 +304,7 @@ export const activitiesAPI = {
   deleteActivity: async (id) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const index = mockActivities.findIndex(activity => activity.id == id);
-      if (index !== -1) {
-        mockActivities.splice(index, 1);
-        return true;
-      }
-      throw new Error('Activity not found');
+      return dataStore.deleteActivity(id);
     } catch (error) {
       console.error('Error deleting activity:', error);
       throw error;
@@ -280,7 +337,7 @@ export const categoriesAPI = {
   getAllCategories: async () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
-      return mockCategories;
+      return dataStore.categories;
     } catch (error) {
       console.error('Error fetching categories:', error);
       return [];
@@ -295,7 +352,7 @@ export const categoriesAPI = {
         id: Date.now(),
         ...categoryData
       };
-      mockCategories.push(newCategory);
+      dataStore.categories.push(newCategory);
       return newCategory;
     } catch (error) {
       console.error('Error creating category:', error);
@@ -311,7 +368,7 @@ export const postsAPI = {
   getActivityPosts: async (activityId) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
-      return mockPosts.filter(post => post.activity_id == activityId);
+      return dataStore.posts.filter(post => post.activity_id == activityId);
     } catch (error) {
       console.error('Error fetching posts:', error);
       return [];
@@ -322,7 +379,7 @@ export const postsAPI = {
   getPublicPosts: async (limit = 10) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      return mockPosts.filter(post => post.visibility === 'public').slice(0, limit);
+      return dataStore.posts.filter(post => post.visibility === 'public').slice(0, limit);
     } catch (error) {
       console.error('Error fetching public posts:', error);
       return [];
@@ -338,7 +395,7 @@ export const postsAPI = {
         ...postData,
         created_at: new Date().toISOString()
       };
-      mockPosts.push(newPost);
+      dataStore.posts.push(newPost);
       return newPost;
     } catch (error) {
       console.error('Error creating post:', error);
@@ -403,7 +460,8 @@ export const statsAPI = {
   getDashboardStats: async () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
-      return mockStats;
+      dataStore.updateStats();
+      return dataStore.stats;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       return {
@@ -416,6 +474,9 @@ export const statsAPI = {
     }
   }
 };
+
+// Export dataStore for subscriptions
+export { dataStore };
 
 // Export mock supabase object for compatibility
 export const supabase = {
