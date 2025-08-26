@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings } from 'lucide-react';
-import { activitiesAPI, categoriesAPI, statsAPI } from '../lib/api.js';
+import { activitiesAPI, categoriesAPI, statsAPI } from '@/lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
