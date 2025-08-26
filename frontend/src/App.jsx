@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, Users, Building, Star, ArrowRight, Menu, X } from 'lucide-react';
+import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import AdminDashboard from './components/AdminDashboard.jsx';
 import './App.css';
 
 // Supabase configuration with fallbacks and validation
@@ -132,15 +133,20 @@ function LandingPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Cargar proyectos destacados
-        const projectsResponse = await fetch('https://proyecto-casira.onrender.com/api/projects/featured');
-        const projectsData = await projectsResponse.json();
-        setProjects(projectsData.projects || []);
-
-        // Cargar estadísticas
-        const statsResponse = await fetch('https://proyecto-casira.onrender.com/api/projects/stats');
-        const statsData = await statsResponse.json();
-        setStats(statsData.stats || {});
+        // Cargar proyectos destacados desde Supabase
+        try {
+          const { activitiesAPI, statsAPI } = await import('./lib/api.js');
+          const activities = await activitiesAPI.getFeaturedActivities();
+          const stats = await statsAPI.getDashboardStats();
+          
+          setProjects(activities || []);
+          setStats(stats || {});
+        } catch (error) {
+          console.error('Error loading data from Supabase:', error);
+          // Fallback to static data
+          setProjects([]);
+          setStats({});
+        }
 
         // Usar posts de ejemplo con imágenes actualizadas
         setPosts([
@@ -374,6 +380,12 @@ function LandingPage() {
                 className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
               >
                 Inicio
+              </Link>
+              <Link 
+                to="/activities" 
+                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+              >
+                Actividades
               </Link>
               <Link 
                 to="/login" 
@@ -1142,14 +1154,39 @@ function DashboardPage() {
 
     // Comprobar autenticación de Supabase (Google OAuth)
     if (session) {
-      const googleUser = {
-        first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-        last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
-        email: session.user.email,
-        role: 'usuario',
-        bio: 'Usuario autenticado con Google'
+      const handleGoogleUser = async () => {
+        try {
+          // Importar API functions
+          const { authAPI } = await import('./lib/api.js');
+          
+          // Crear o actualizar perfil de usuario
+          const userData = {
+            id: session.user.id,
+            email: session.user.email,
+            first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+            last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+            avatar_url: session.user.user_metadata.avatar_url,
+            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer'
+          };
+          
+          // Upsert user profile
+          await authAPI.upsertUserProfile(userData);
+          setUser(userData);
+        } catch (error) {
+          console.error('Error handling Google OAuth user:', error);
+          const googleUser = {
+            id: session.user.id,
+            first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+            last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+            email: session.user.email,
+            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+            bio: 'Usuario autenticado con Google'
+          };
+          setUser(googleUser);
+        }
       };
-      setUser(googleUser);
+      
+      handleGoogleUser();
     } else {
       // Comprobar autenticación tradicional
       const token = localStorage.getItem('token');
@@ -1166,13 +1203,23 @@ function DashboardPage() {
     // Cargar datos del dashboard
     const loadDashboardData = async () => {
       try {
-        const [postsResponse, projectsResponse] = await Promise.all([
-          fetch('https://proyecto-casira.onrender.com/api/posts'),
-          fetch('https://proyecto-casira.onrender.com/api/projects')
-        ]);
-        
-        const postsData = await postsResponse.json();
-        const projectsData = await projectsResponse.json();
+        // Cargar datos desde Supabase
+        try {
+          const { postsAPI, activitiesAPI } = await import('./lib/api.js');
+          const [postsData, projectsData] = await Promise.all([
+            postsAPI.getPublicPosts(10),
+            activitiesAPI.getPublicActivities()
+          ]);
+          
+          // Si tenemos datos reales, los usamos
+          if (postsData && postsData.length > 0) {
+            setPosts(postsData);
+          }
+          
+          setProjects(projectsData || []);
+        } catch (error) {
+          console.error('Error loading dashboard data from Supabase:', error);
+        }
         
         // Usar siempre posts de ejemplo con imágenes actualizadas
         setPosts([
@@ -1247,6 +1294,11 @@ function DashboardPage() {
 
   if (!user) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+  }
+
+  // Si es administrador, mostrar AdminDashboard
+  if (user.role === 'admin') {
+    return <AdminDashboard user={user} onLogout={handleLogout} />;
   }
 
   return (
@@ -1424,12 +1476,188 @@ function DashboardPage() {
   );
 }
 
+// Componente de Activities Page
+function ActivitiesPage() {
+  const [activities, setActivities] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadActivities();
+    loadCategories();
+  }, []);
+
+  const loadActivities = async () => {
+    try {
+      const { activitiesAPI } = await import('./lib/api.js');
+      const data = await activitiesAPI.getPublicActivities();
+      setActivities(data || []);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const { categoriesAPI } = await import('./lib/api.js');
+      const data = await categoriesAPI.getAllCategories();
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const filteredActivities = selectedCategory 
+    ? activities.filter(activity => activity.category_id === selectedCategory)
+    : activities;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <Link to="/" className="flex items-center">
+              <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain mr-3" />
+              <h1 className="text-2xl font-bold text-gray-900">AMISTAD CASIRA</h1>
+            </Link>
+            <nav className="flex space-x-6">
+              <Link to="/" className="text-gray-700 hover:text-blue-600">Inicio</Link>
+              <Link to="/activities" className="text-blue-600 font-semibold">Actividades</Link>
+              <Link to="/login" className="text-gray-700 hover:text-blue-600">Login</Link>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Actividades y Proyectos</h1>
+          <p className="text-xl text-gray-600 mb-6">
+            Descubre todas las oportunidades para ser parte del cambio en tu comunidad
+          </p>
+
+          {/* Category Filter */}
+          <div className="flex flex-wrap gap-3 mb-8">
+            <button
+              onClick={() => setSelectedCategory('')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                !selectedCategory 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Todas
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  selectedCategory === category.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {category.icon} {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando actividades...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredActivities.map((activity) => (
+              <div key={activity.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                <div className="relative h-48 overflow-hidden">
+                  <img 
+                    src={activity.image_url || '/logo.png'} 
+                    alt={activity.title}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-4 right-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${
+                      activity.status === 'active' ? 'bg-green-500' :
+                      activity.status === 'planning' ? 'bg-yellow-500' :
+                      activity.status === 'completed' ? 'bg-blue-500' :
+                      'bg-gray-500'
+                    }`}>
+                      {activity.status === 'active' ? 'Activo' :
+                       activity.status === 'planning' ? 'Planificando' :
+                       activity.status === 'completed' ? 'Completado' : 'Cancelado'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex items-center mb-3">
+                    {activity.activity_categories && (
+                      <span 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: activity.activity_categories.color }}
+                      >
+                        {activity.activity_categories.icon} {activity.activity_categories.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{activity.title}</h3>
+                  <p className="text-gray-600 mb-4 line-clamp-3">{activity.description}</p>
+
+                  {activity.location && (
+                    <p className="text-sm text-gray-500 mb-3">📍 {activity.location}</p>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Users className="h-4 w-4 mr-1" />
+                      <span>{activity.current_volunteers || 0}/{activity.max_volunteers || '∞'} voluntarios</span>
+                    </div>
+                    
+                    <Link
+                      to="/login"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      Participar
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {filteredActivities.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Calendar className="h-16 w-16 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay actividades disponibles</h3>
+            <p className="text-gray-600">
+              {selectedCategory ? 'No hay actividades en esta categoría.' : 'Pronto habrá nuevas actividades disponibles.'}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Componente principal de la App
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
