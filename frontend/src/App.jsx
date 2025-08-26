@@ -16,6 +16,191 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
+// API Functions inline - para evitar problemas de imports
+const authAPI = {
+  upsertUserProfile: async (userData) => {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .upsert(userData, { onConflict: 'id' })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error upserting user profile:', error);
+      throw error;
+    }
+  }
+};
+
+const activitiesAPI = {
+  getFeaturedActivities: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          *,
+          activity_categories (id, name, color, icon),
+          users!activities_created_by_fkey (first_name, last_name)
+        `)
+        .eq('visibility', 'public')
+        .eq('featured', true)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching featured activities:', error);
+      return [];
+    }
+  },
+
+  getPublicActivities: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          *,
+          activity_categories (id, name, color, icon),
+          users!activities_created_by_fkey (first_name, last_name),
+          activity_participants (id, status)
+        `)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching public activities:', error);
+      return [];
+    }
+  },
+
+  createActivity: async (activityData) => {
+    if (!supabase) throw new Error('Supabase not available');
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .insert(activityData)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      throw error;
+    }
+  },
+
+  deleteActivity: async (id) => {
+    if (!supabase) throw new Error('Supabase not available');
+    try {
+      const { error } = await supabase
+        .from('activities')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      throw error;
+    }
+  }
+};
+
+const categoriesAPI = {
+  getAllCategories: async () => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('activity_categories')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
+  }
+};
+
+const postsAPI = {
+  getPublicPosts: async (limit = 10) => {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          users!posts_author_id_fkey (id, first_name, last_name, avatar_url),
+          activities (id, title, status)
+        `)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching public posts:', error);
+      return [];
+    }
+  }
+};
+
+const statsAPI = {
+  getDashboardStats: async () => {
+    if (!supabase) {
+      return {
+        active_projects: 0,
+        completed_projects: 0,
+        total_volunteers: 0,
+        total_donations: 0,
+        lives_transformed: 0
+      };
+    }
+    
+    try {
+      const [activitiesResponse, volunteersResponse] = await Promise.all([
+        supabase.from('activities').select('status', { count: 'exact' }),
+        supabase.from('activity_participants').select('id', { count: 'exact' })
+      ]);
+
+      const activities = activitiesResponse.data || [];
+      const activeActivities = activities.filter(a => a.status === 'active').length;
+      const completedActivities = activities.filter(a => a.status === 'completed').length;
+      const totalVolunteers = volunteersResponse.count || 0;
+
+      return {
+        active_projects: activeActivities,
+        completed_projects: completedActivities,
+        total_volunteers: totalVolunteers,
+        total_donations: 0,
+        lives_transformed: Math.floor(totalVolunteers * 1.5)
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      return {
+        active_projects: 0,
+        completed_projects: 0,
+        total_volunteers: 0,
+        total_donations: 0,
+        lives_transformed: 0
+      };
+    }
+  }
+};
+
 // Auth hook
 function useAuth() {
   const [session, setSession] = useState(null);
@@ -135,7 +320,6 @@ function LandingPage() {
       try {
         // Cargar proyectos destacados desde Supabase
         try {
-          const { activitiesAPI, statsAPI } = await import('./lib/api.js');
           const activities = await activitiesAPI.getFeaturedActivities();
           const stats = await statsAPI.getDashboardStats();
           
@@ -1156,9 +1340,6 @@ function DashboardPage() {
     if (session) {
       const handleGoogleUser = async () => {
         try {
-          // Importar API functions
-          const { authAPI } = await import('./lib/api.js');
-          
           // Crear o actualizar perfil de usuario
           const userData = {
             id: session.user.id,
@@ -1205,7 +1386,7 @@ function DashboardPage() {
       try {
         // Cargar datos desde Supabase
         try {
-          const { postsAPI, activitiesAPI } = await import('./lib/api.js');
+          // Using inline API functions
           const [postsData, projectsData] = await Promise.all([
             postsAPI.getPublicPosts(10),
             activitiesAPI.getPublicActivities()
@@ -1490,7 +1671,6 @@ function ActivitiesPage() {
 
   const loadActivities = async () => {
     try {
-      const { activitiesAPI } = await import('./lib/api.js');
       const data = await activitiesAPI.getPublicActivities();
       setActivities(data || []);
     } catch (error) {
@@ -1502,7 +1682,6 @@ function ActivitiesPage() {
 
   const loadCategories = async () => {
     try {
-      const { categoriesAPI } = await import('./lib/api.js');
       const data = await categoriesAPI.getAllCategories();
       setCategories(data || []);
     } catch (error) {
