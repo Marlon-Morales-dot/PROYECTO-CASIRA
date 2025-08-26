@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings } from 'lucide-react';
+import { activitiesAPI, categoriesAPI, statsAPI } from '../lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -37,7 +38,6 @@ const AdminDashboard = ({ user, onLogout }) => {
   const loadAdminData = async () => {
     try {
       setIsLoading(true);
-      const { activitiesAPI, categoriesAPI, statsAPI } = await import('../lib/api.js');
       
       const [activitiesData, categoriesData, statsData] = await Promise.all([
         activitiesAPI.getPublicActivities(),
@@ -58,7 +58,6 @@ const AdminDashboard = ({ user, onLogout }) => {
   const handleCreateActivity = async (e) => {
     e.preventDefault();
     try {
-      const { activitiesAPI } = await import('../lib/api.js');
       
       const activityData = {
         ...formData,
@@ -104,7 +103,6 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta actividad?')) return;
     
     try {
-      const { activitiesAPI } = await import('../lib/api.js');
       await activitiesAPI.deleteActivity(activityId);
       await loadAdminData();
       alert('Actividad eliminada exitosamente');
