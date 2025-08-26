@@ -1,11 +1,20 @@
 // API functions for CASIRA - Simplified version with mock data
 // Simplified to avoid database complexity and ensure functionality
 
-// Global state management for mock data
+// Global state management for mock data with localStorage persistence
 class MockDataStore {
   constructor() {
     this.listeners = [];
-    this.activities = [
+    this.storageKey = 'casira-data';
+    
+    // Load data from localStorage or use defaults
+    this.loadFromStorage();
+  }
+
+  // Default data
+  getDefaultData() {
+    return {
+      activities: [
   {
     id: 1,
     title: "Reforestación Comunitaria",
@@ -75,25 +84,22 @@ class MockDataStore {
     activity_participants: [{ id: 4, status: "pending" }],
     posts: []
   }
-];
-
-    this.categories = [
-  { id: 1, name: "Medio Ambiente", color: "green", icon: "🌱" },
-  { id: 2, name: "Alimentación", color: "orange", icon: "🍞" },
-  { id: 3, name: "Educación", color: "blue", icon: "📚" },
-  { id: 4, name: "Salud", color: "red", icon: "❤️" },
-  { id: 5, name: "Vivienda", color: "purple", icon: "🏠" }
-];
-
-    this.stats = {
-  active_projects: 2,
-  completed_projects: 5,
-  total_volunteers: 150,
-  total_donations: 85000,
-  lives_transformed: 225
-};
-
-    this.posts = [
+],
+      categories: [
+        { id: 1, name: "Medio Ambiente", color: "green", icon: "🌱" },
+        { id: 2, name: "Alimentación", color: "orange", icon: "🍞" },
+        { id: 3, name: "Educación", color: "blue", icon: "📚" },
+        { id: 4, name: "Salud", color: "red", icon: "❤️" },
+        { id: 5, name: "Vivienda", color: "purple", icon: "🏠" }
+      ],
+      stats: {
+        active_projects: 2,
+        completed_projects: 5,
+        total_volunteers: 150,
+        total_donations: 85000,
+        lives_transformed: 225
+      },
+      posts: [
   {
     id: 1,
     title: "Gran éxito en la jornada de reforestación",
@@ -116,7 +122,54 @@ class MockDataStore {
     users: { id: "2", first_name: "María", last_name: "González", avatar_url: null },
     activities: { id: 2, title: "Alimentación Comunitaria", status: "active" }
   }
-];
+      ]
+    };
+  }
+
+  // Load data from localStorage or use defaults
+  loadFromStorage() {
+    try {
+      const savedData = localStorage.getItem(this.storageKey);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        this.activities = parsedData.activities || this.getDefaultData().activities;
+        this.categories = parsedData.categories || this.getDefaultData().categories;
+        this.stats = parsedData.stats || this.getDefaultData().stats;
+        this.posts = parsedData.posts || this.getDefaultData().posts;
+      } else {
+        // First time, use default data
+        const defaultData = this.getDefaultData();
+        this.activities = defaultData.activities;
+        this.categories = defaultData.categories;
+        this.stats = defaultData.stats;
+        this.posts = defaultData.posts;
+        this.saveToStorage(); // Save default data
+      }
+    } catch (error) {
+      console.error('Error loading data from localStorage:', error);
+      // Fallback to default data
+      const defaultData = this.getDefaultData();
+      this.activities = defaultData.activities;
+      this.categories = defaultData.categories;
+      this.stats = defaultData.stats;
+      this.posts = defaultData.posts;
+    }
+  }
+
+  // Save data to localStorage
+  saveToStorage() {
+    try {
+      const dataToSave = {
+        activities: this.activities,
+        categories: this.categories,
+        stats: this.stats,
+        posts: this.posts,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(this.storageKey, JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error('Error saving data to localStorage:', error);
+    }
   }
 
   // Methods to update stats automatically
@@ -149,10 +202,11 @@ class MockDataStore {
     this.listeners.forEach(callback => callback());
   }
 
-  // Enhanced methods that notify changes
+  // Enhanced methods that notify changes and persist data
   addActivity(activity) {
     this.activities.push(activity);
     this.updateStats();
+    this.saveToStorage();
     this.notify();
     return activity;
   }
@@ -162,6 +216,7 @@ class MockDataStore {
     if (index !== -1) {
       this.activities[index] = { ...this.activities[index], ...updates };
       this.updateStats();
+      this.saveToStorage();
       this.notify();
       return this.activities[index];
     }
@@ -173,10 +228,39 @@ class MockDataStore {
     if (index !== -1) {
       this.activities.splice(index, 1);
       this.updateStats();
+      this.saveToStorage();
       this.notify();
       return true;
     }
     throw new Error('Activity not found');
+  }
+
+  // Method to add posts with persistence
+  addPost(post) {
+    this.posts.push(post);
+    this.saveToStorage();
+    this.notify();
+    return post;
+  }
+
+  // Method to add categories with persistence
+  addCategory(category) {
+    this.categories.push(category);
+    this.saveToStorage();
+    this.notify();
+    return category;
+  }
+
+  // Method to reset data to defaults (useful for testing)
+  resetToDefaults() {
+    const defaultData = this.getDefaultData();
+    this.activities = defaultData.activities;
+    this.categories = defaultData.categories;
+    this.stats = defaultData.stats;
+    this.posts = defaultData.posts;
+    this.updateStats();
+    this.saveToStorage();
+    this.notify();
   }
 }
 
@@ -352,8 +436,7 @@ export const categoriesAPI = {
         id: Date.now(),
         ...categoryData
       };
-      dataStore.categories.push(newCategory);
-      return newCategory;
+      return dataStore.addCategory(newCategory);
     } catch (error) {
       console.error('Error creating category:', error);
       throw error;
@@ -395,8 +478,7 @@ export const postsAPI = {
         ...postData,
         created_at: new Date().toISOString()
       };
-      dataStore.posts.push(newPost);
-      return newPost;
+      return dataStore.addPost(newPost);
     } catch (error) {
       console.error('Error creating post:', error);
       throw error;
@@ -477,6 +559,11 @@ export const statsAPI = {
 
 // Export dataStore for subscriptions
 export { dataStore };
+
+// Utility function to reset data (for development/testing)
+export const resetDataToDefaults = () => {
+  dataStore.resetToDefaults();
+};
 
 // Export mock supabase object for compatibility
 export const supabase = {

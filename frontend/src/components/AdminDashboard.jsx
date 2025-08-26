@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings } from 'lucide-react';
-import { activitiesAPI, categoriesAPI, statsAPI } from '@/lib/api.js';
+import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw } from 'lucide-react';
+import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults } from '@/lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -270,6 +270,14 @@ const AdminDashboard = ({ user, onLogout }) => {
     });
   };
 
+  const handleResetData = () => {
+    if (confirm('¿Estás seguro de que quieres resetear todos los datos a los valores por defecto? Esta acción no se puede deshacer.')) {
+      resetDataToDefaults();
+      loadAdminData(); // Reload data after reset
+      alert('Datos reseteados exitosamente');
+    }
+  };
+
   const tabs = [
     { id: 'activities', label: 'Actividades', icon: Calendar },
     { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
@@ -531,7 +539,36 @@ const AdminDashboard = ({ user, onLogout }) => {
             {activeTab === 'settings' && (
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-6">Configuración del Sistema</h3>
-                <p className="text-gray-600">Configuraciones del sistema en desarrollo.</p>
+                
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h4 className="text-lg font-medium text-gray-900">Gestión de Datos</h4>
+                  </div>
+                  <div className="px-6 py-4">
+                    <div className="space-y-4">
+                      <div>
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">Resetear Datos</h5>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Restaura todos los datos a los valores por defecto. Esta acción eliminará todas las actividades, posts y cambios personalizados.
+                        </p>
+                        <button
+                          onClick={handleResetData}
+                          className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Resetear a Valores por Defecto
+                        </button>
+                      </div>
+                      
+                      <div className="border-t border-gray-200 pt-4">
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">Información de Almacenamiento</h5>
+                        <p className="text-sm text-gray-600">
+                          Los datos se guardan automáticamente en el navegador. Los cambios persisten entre sesiones.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
