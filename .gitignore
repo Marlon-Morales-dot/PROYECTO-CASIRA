@@ -46,7 +46,7 @@ firebase-adminsdk-*.json
 # ================================
 # 🤖 MCP Y AI/LLM ESPECÍFICOS (NUEVA SECCIÓN)
 # ================================
-# Model Context Protocol files
+# Model Context Protocol files  
 mcp/
 mcp-config/
 mcp-server/
@@ -55,6 +55,7 @@ mcp.json
 mcp-settings.json
 mcp-context.json
 mcp-cache/
+.mcp-server.js
 
 # Claude Code y AI configurations
 .claude/

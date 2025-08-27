@@ -6,6 +6,7 @@ import AdminDashboard from './components/AdminDashboard.jsx';
 import VolunteerDashboard from './components/VolunteerDashboard.jsx';
 import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
+import PublicSocialView from './components/PublicSocialView.jsx';
 import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
 import './App.css';
 
@@ -18,7 +19,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
 }
 
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Desactivar Supabase temporalmente para usar solo localStorage
+const supabase = null;
 
 // API Functions inline - para evitar problemas de imports
 const authAPI = {
@@ -42,22 +44,9 @@ const authAPI = {
 
 const activitiesAPI = {
   getFeaturedActivities: async () => {
-    if (!supabase) return [];
+    // Usar API local en lugar de Supabase
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          activity_categories (id, name, color, icon),
-          users!activities_created_by_fkey (first_name, last_name)
-        `)
-        .eq('visibility', 'public')
-        .eq('featured', true)
-        .order('created_at', { ascending: false })
-        .limit(6);
-      
-      if (error) throw error;
-      return data || [];
+      return await apiActivities.getFeaturedActivities();
     } catch (error) {
       console.error('Error fetching featured activities:', error);
       return [];
@@ -65,21 +54,9 @@ const activitiesAPI = {
   },
 
   getPublicActivities: async () => {
-    if (!supabase) return [];
+    // Usar API local en lugar de Supabase
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          activity_categories (id, name, color, icon),
-          users!activities_created_by_fkey (first_name, last_name),
-          activity_participants (id, status)
-        `)
-        .eq('visibility', 'public')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      return await apiActivities.getPublicActivities();
     } catch (error) {
       console.error('Error fetching public activities:', error);
       return [];
@@ -217,22 +194,24 @@ function useAuth() {
     }
 
     // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    // Comentado para evitar errores de Supabase
+    // supabase.auth.getSession().then(({ data: { session } }) => {
+    //   setSession(session);
+    //   setLoading(false);
+    // }).catch(() => {
+    //   setLoading(false);
+    // });
+    setLoading(false);
 
-    // Escuchar cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
+    // Escuchar cambios de autenticación - comentado para evitar errores
+    // const {
+    //   data: { subscription },
+    // } = supabase.auth.onAuthStateChange((_event, session) => {
+    //   setSession(session);
+    //   setLoading(false);
+    // });
 
-    return () => subscription.unsubscribe();
+    // return () => subscription.unsubscribe();
   }, []);
 
   return { session, loading };
@@ -1182,6 +1161,8 @@ function LoginPage() {
           // Navegar basado en el rol
           if (data.user.role === 'admin') {
             navigate('/admin');
+          } else if (data.user.role === 'visitor') {
+            navigate('/visitor');
           } else {
             navigate('/dashboard');
           }
@@ -1199,6 +1180,8 @@ function LoginPage() {
             // Navegar basado en el rol
             if (localUser.role === 'admin') {
               navigate('/admin');
+            } else if (localUser.role === 'visitor') {
+              navigate('/visitor');
             } else {
               navigate('/dashboard');
             }
@@ -1251,6 +1234,8 @@ function LoginPage() {
             
             if (localUser.role === 'admin') {
               navigate('/admin');
+            } else if (localUser.role === 'visitor') {
+              navigate('/visitor');
             } else {
               navigate('/dashboard');
             }
@@ -1780,6 +1765,27 @@ function LoginPage() {
   );
 }
 
+// Componente de Vista Social Pública
+function PublicSocialViewPage() {
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    // Verificar si hay usuario logueado
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      try {
+        setCurrentUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  }, []);
+
+  return <PublicSocialView currentUser={currentUser} />;
+}
+
 // Componente de Dashboard
 function DashboardPage() {
   const navigate = useNavigate();
@@ -1833,7 +1839,21 @@ function DashboardPage() {
         return;
       }
       
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      
+      // Redirect based on role after setting user
+      setTimeout(() => {
+        if (parsedUser.role === 'admin') {
+          navigate('/admin');
+          return;
+        } else if (parsedUser.role === 'visitor') {
+          // Visitors should go to their specific portal
+          navigate('/visitor');
+          return;
+        }
+        // Volunteers and donors stay on dashboard
+      }, 100);
     }
     
     // Cargar datos del dashboard
@@ -2759,6 +2779,50 @@ function AdminPanelPage() {
   return <AdminDashboard user={user} onLogout={handleLogout} />;
 }
 
+// Componente para el portal de visitantes
+function VisitorPortalPage() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (!token || !userData) {
+      navigate('/login');
+      return;
+    }
+
+    const parsedUser = JSON.parse(userData);
+    setUser(parsedUser);
+    setLoading(false);
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return <VisitorDashboard user={user} onLogout={handleLogout} />;
+}
+
 // Componente principal de la App
 function App() {
   return (
@@ -2766,7 +2830,9 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/activities" element={<ActivitiesPage />} />
+        <Route path="/social" element={<PublicSocialViewPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/visitor" element={<VisitorPortalPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/admin" element={<AdminPanelPage />} />
       </Routes>

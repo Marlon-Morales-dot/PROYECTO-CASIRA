@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Heart, MessageCircle, Share2, ThumbsUp, Camera, MapPin, Clock, Users, 
-  Bell, Settings, LogOut, Plus, Send, MoreHorizontal, UserPlus, CheckCircle
+  Bell, Settings, LogOut, Plus, Send, MoreHorizontal, UserPlus, CheckCircle, Award
 } from 'lucide-react';
 import { 
   usersAPI, volunteersAPI, activitiesAPI, categoriesAPI, 
   commentsAPI, photosAPI, dataStore 
 } from '../lib/api.js';
+import UniversalHeader from './UniversalHeader.jsx';
+import VolunteerResponsibilities from './VolunteerResponsibilities.jsx';
 
 const SocialDashboard = ({ user, onLogout }) => {
   const [posts, setPosts] = useState([]);
@@ -22,6 +24,7 @@ const SocialDashboard = ({ user, onLogout }) => {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'responsibilities'
 
   useEffect(() => {
     loadSocialData();

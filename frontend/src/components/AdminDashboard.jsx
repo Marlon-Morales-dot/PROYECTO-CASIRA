@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, authAPI } from '@/lib/api.js';
+import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI } from '@/lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -80,7 +80,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         statsAPI.getDashboardStats(),
         notificationsAPI.getAdminNotifications(),
         volunteersAPI.getAllRegistrations(),
-        authAPI.getAllUsers()
+        usersAPI.getAllUsers()
       ]);
       
       setActivities(activitiesData || []);
@@ -385,7 +385,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       if (!confirm(`¿Estás seguro de que quieres bloquear a ${userName}?\n\nEsta acción impedirá que el usuario acceda al sistema.`)) return;
       
       console.log('Blocking user:', userId);
-      await authAPI.blockUser(userId);
+      await usersAPI.blockUser(userId);
       await loadAdminData(); // Reload data
       alert(`✅ Usuario ${userName} bloqueado exitosamente.\n\nEl usuario no podrá acceder al sistema hasta que sea desbloqueado.`);
     } catch (error) {
@@ -400,7 +400,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       const userName = user ? `${user.first_name} ${user.last_name}` : 'este usuario';
       
       console.log('Unblocking user:', userId);
-      await authAPI.unblockUser(userId);
+      await usersAPI.unblockUser(userId);
       await loadAdminData(); // Reload data
       alert(`✅ Usuario ${userName} desbloqueado exitosamente.\n\nEl usuario puede acceder normalmente al sistema.`);
     } catch (error) {
