@@ -194,24 +194,25 @@ function useAuth() {
     }
 
     // Obtener sesión inicial
-    // Comentado para evitar errores de Supabase
-    // supabase.auth.getSession().then(({ data: { session } }) => {
-    //   setSession(session);
-    //   setLoading(false);
-    // }).catch(() => {
-    //   setLoading(false);
-    // });
-    setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📊 Initial session:', session);
+      setSession(session);
+      setLoading(false);
+    }).catch((error) => {
+      console.error('📊 Error getting session:', error);
+      setLoading(false);
+    });
 
-    // Escuchar cambios de autenticación - comentado para evitar errores
-    // const {
-    //   data: { subscription },
-    // } = supabase.auth.onAuthStateChange((_event, session) => {
-    //   setSession(session);
-    //   setLoading(false);
-    // });
+    // Escuchar cambios de autenticación
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('📊 Auth state change:', _event, session);
+      setSession(session);
+      setLoading(false);
+    });
 
-    // return () => subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   return { session, loading };
@@ -234,7 +235,7 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/dashboard',
+          redirectTo: window.location.origin,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -2895,10 +2896,59 @@ function VisitorPortalPage() {
   return <VisitorDashboard user={user} onLogout={handleLogout} />;
 }
 
+// Componente para manejar redirección automática después de OAuth
+function AuthRedirectHandler() {
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  useEffect(() => {
+    if (loading || hasRedirected) return;
+    
+    if (session) {
+      console.log('🔐 Session detected, processing user...');
+      
+      const userData = {
+        id: session.user.id,
+        email: session.user.email,
+        first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+        last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+        avatar_url: session.user.user_metadata.avatar_url,
+        role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+        bio: 'Usuario autenticado con Google'
+      };
+
+      // Guardar usuario
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', 'google-' + session.user.id);
+
+      // Mensaje de bienvenida
+      const welcomeMessage = userData.role === 'admin' 
+        ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
+        : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+      
+      alert(welcomeMessage);
+
+      // Navegar según rol
+      setHasRedirected(true);
+      if (userData.role === 'admin') {
+        navigate('/admin');
+      } else if (userData.role === 'visitor') {
+        navigate('/visitor');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [session, loading, navigate, hasRedirected]);
+
+  return null; // Este componente no renderiza nada visible
+}
+
 // Componente principal de la App
 function App() {
   return (
     <Router>
+      <AuthRedirectHandler />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/activities" element={<ActivitiesPage />} />
