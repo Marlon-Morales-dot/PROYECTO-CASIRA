@@ -1839,6 +1839,27 @@ function DashboardPage() {
           
           console.log('✅ Google user processed successfully:', userData);
           
+          // Mostrar mensaje de bienvenida bonito
+          const welcomeMessage = userData.role === 'admin' 
+            ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
+            : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+          
+          // Mostrar alerta elegante
+          setTimeout(() => {
+            alert(welcomeMessage);
+          }, 100);
+          
+          // Navegar automáticamente basado en el rol
+          setTimeout(() => {
+            if (userData.role === 'admin') {
+              navigate('/admin');
+            } else if (userData.role === 'visitor') {
+              navigate('/visitor');
+            } else {
+              navigate('/dashboard');
+            }
+          }, 1500);
+          
         } catch (error) {
           console.error('❌ Error handling Google OAuth user:', error);
           
@@ -1856,6 +1877,26 @@ function DashboardPage() {
           setUser(fallbackUser);
           localStorage.setItem('user', JSON.stringify(fallbackUser));
           localStorage.setItem('token', 'google-fallback-' + session.user.id);
+          
+          // Mensaje de bienvenida para fallback también
+          const fallbackWelcome = fallbackUser.role === 'admin' 
+            ? `🎉 ¡Bienvenido de nuevo, ${fallbackUser.first_name}!\n\n👑 Accediendo al panel de administración...`
+            : `🌟 ¡Hola ${fallbackUser.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta está lista.\n¡Comencemos a hacer la diferencia!`;
+          
+          setTimeout(() => {
+            alert(fallbackWelcome);
+          }, 100);
+          
+          // Navegar automáticamente para fallback también
+          setTimeout(() => {
+            if (fallbackUser.role === 'admin') {
+              navigate('/admin');
+            } else if (fallbackUser.role === 'visitor') {
+              navigate('/visitor');
+            } else {
+              navigate('/dashboard');
+            }
+          }, 1500);
         }
       };
       
