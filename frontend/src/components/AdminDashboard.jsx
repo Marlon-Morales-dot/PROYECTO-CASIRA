@@ -409,6 +409,30 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleChangeUserRole = async (userId, newRole) => {
+    try {
+      const user = Array.isArray(allUsers) ? allUsers.find(u => u.id == userId) : null;
+      const userName = user ? `${user.first_name} ${user.last_name}` : 'este usuario';
+      
+      const roleNames = {
+        'visitor': 'Visitante',
+        'volunteer': 'Voluntario',
+        'donor': 'Donante',
+        'admin': 'Administrador'
+      };
+      
+      if (!confirm(`¿Cambiar el rol de ${userName} a ${roleNames[newRole] || newRole}?`)) return;
+      
+      console.log('Changing user role:', userId, 'to', newRole);
+      await usersAPI.updateUserRole(userId, newRole);
+      await loadAdminData(); // Reload data
+      alert(`✅ Rol de ${userName} cambiado exitosamente a ${roleNames[newRole] || newRole}.`);
+    } catch (error) {
+      console.error('Error changing user role:', error);
+      alert('Error al cambiar rol del usuario. Por favor, intenta nuevamente.');
+    }
+  };
+
   const handleRemoveFromActivity = async (registrationId, activityId) => {
     try {
       if (!confirm('¿Estás seguro de que quieres remover este usuario de la actividad?')) return;
@@ -1232,6 +1256,24 @@ const AdminDashboard = ({ user, onLogout }) => {
                                           Bloquear
                                         </button>
                                       )}
+                                      
+                                      {/* Role Change Dropdown */}
+                                      <select
+                                        onChange={(e) => {
+                                          if (e.target.value !== user.role) {
+                                            handleChangeUserRole(user.id, e.target.value);
+                                            e.target.value = user.role; // Reset select
+                                          }
+                                        }}
+                                        defaultValue={user.role}
+                                        className="bg-blue-50 text-blue-800 text-xs px-2 py-1 rounded border-0 cursor-pointer hover:bg-blue-100"
+                                        title="Cambiar rol de usuario"
+                                      >
+                                        <option value={user.role} disabled>Cambiar rol...</option>
+                                        {user.role !== 'visitor' && <option value="visitor">👀 Visitante</option>}
+                                        {user.role !== 'volunteer' && <option value="volunteer">🤝 Voluntario</option>}
+                                        {user.role !== 'donor' && <option value="donor">💝 Donante</option>}
+                                      </select>
                                     </>
                                   )}
                                   <button

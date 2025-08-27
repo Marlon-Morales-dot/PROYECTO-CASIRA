@@ -317,6 +317,17 @@ export const usersAPI = {
       return dataStore.users[userIndex];
     }
     throw new Error('Usuario no encontrado');
+  },
+
+  updateUserRole: async (userId, newRole) => {
+    const userIndex = dataStore.users.findIndex(user => user.id == userId);
+    if (userIndex !== -1) {
+      dataStore.users[userIndex].role = newRole;
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return dataStore.users[userIndex];
+    }
+    throw new Error('Usuario no encontrado');
   }
 };
 
