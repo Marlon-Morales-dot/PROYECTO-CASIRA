@@ -19,8 +19,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Desactivar Supabase temporalmente para usar solo localStorage
-const supabase = null;
+// Activar Supabase para Google OAuth
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // API Functions inline - para evitar problemas de imports
 const authAPI = {
