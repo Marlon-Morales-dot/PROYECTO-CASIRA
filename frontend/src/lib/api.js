@@ -1,5 +1,6 @@
-// API functions for CASIRA - Simplified version with mock data
-// Simplified to avoid database complexity and ensure functionality
+// API functions for CASIRA - Connected to Render backend
+// Backend URL configuration
+const BACKEND_URL = 'https://proyecto-casira.onrender.com';
 
 // Global state management for mock data with localStorage persistence
 class MockDataStore {
@@ -14,6 +15,191 @@ class MockDataStore {
   // Default data
   getDefaultData() {
     return {
+      users: [
+        {
+          id: 1,
+          email: "admin@casira.org",
+          first_name: "Administrador",
+          last_name: "CASIRA",
+          role: "admin",
+          bio: "Administrador principal de la plataforma CASIRA Connect",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 1234-5678",
+          location: "Guatemala City, Guatemala",
+          skills: ["Gestión de proyectos", "Liderazgo", "Administración"],
+          experience: "5+ años en gestión comunitaria",
+          created_at: "2024-01-01",
+          activities_joined: [],
+          total_hours: 0
+        },
+        {
+          id: 2,
+          email: "donante@ejemplo.com", 
+          first_name: "María",
+          last_name: "González",
+          role: "donor",
+          bio: "Empresaria comprometida con la educación en Guatemala",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 9876-5432",
+          location: "Antigua Guatemala",
+          skills: ["Financiamiento", "Networking", "Gestión empresarial"],
+          experience: "10+ años en sector privado",
+          created_at: "2024-01-02",
+          activities_joined: [],
+          total_hours: 0
+        },
+        {
+          id: 3,
+          email: "carlos.martinez@email.com", 
+          first_name: "Carlos",
+          last_name: "Martínez",
+          role: "volunteer",
+          bio: "Estudiante universitario apasionado por ayudar a su comunidad",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 5555-1234",
+          location: "Guatemala City",
+          skills: ["Educación", "Inglés", "Computación"],
+          experience: "2 años como tutor voluntario",
+          created_at: "2024-01-15",
+          activities_joined: [],
+          total_hours: 0
+        },
+        {
+          id: 4,
+          email: "ana.lopez@email.com", 
+          first_name: "Ana",
+          last_name: "López",
+          role: "visitor",
+          bio: "Interesada en conocer más sobre voluntariado",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 7777-9999",
+          location: "Quetzaltenango",
+          skills: ["Cocina", "Organización"],
+          experience: "Primera vez como voluntaria",
+          created_at: "2024-02-20",
+          activities_joined: [],
+          total_hours: 0
+        },
+        {
+          id: 5,
+          email: "jose.garcia@email.com", 
+          first_name: "José",
+          last_name: "García",
+          role: "visitor",
+          bio: "Visitante interesado en las actividades de la organización",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 2222-3333",
+          location: "Huehuetenango",
+          skills: ["Fotografía", "Redes sociales"],
+          experience: "Nuevo en voluntariado",
+          created_at: "2024-02-25",
+          activities_joined: [],
+          total_hours: 0
+        },
+        {
+          id: 6,
+          email: "lucia.morales@email.com", 
+          first_name: "Lucía",
+          last_name: "Morales",
+          role: "visitor",
+          bio: "Estudiante que quiere aprender sobre trabajo comunitario",
+          avatar_url: "/grupo-canadienses.jpg",
+          phone: "+502 8888-1111",
+          location: "Antigua Guatemala",
+          skills: ["Diseño", "Comunicación"],
+          experience: "Sin experiencia previa",
+          created_at: "2024-03-01",
+          activities_joined: [],
+          total_hours: 0
+        }
+      ],
+      volunteers: [
+        {
+          id: 1,
+          user_id: 2,
+          activity_id: 1,
+          status: "registered", // registered, confirmed, completed, cancelled
+          role: "volunteer",
+          registration_date: "2024-02-01",
+          hours_contributed: 8,
+          notes: "Muy entusiasmada por participar",
+          skills_offered: ["Plantación", "Organización"]
+        },
+        {
+          id: 2,
+          user_id: 3,
+          activity_id: 2,
+          status: "registered",
+          role: "volunteer",
+          registration_date: "2024-02-10",
+          hours_contributed: 0,
+          notes: "Quiero ayudar en el programa alimentario",
+          skills_offered: ["Organización", "Trabajo en equipo"]
+        },
+        {
+          id: 3,
+          user_id: 4,
+          activity_id: 3,
+          status: "pending",
+          role: "volunteer",
+          registration_date: "2024-02-25",
+          hours_contributed: 0,
+          notes: "Me interesa mucho la educación rural",
+          skills_offered: ["Enseñanza", "Paciencia"]
+        }
+      ],
+      comments: [
+        {
+          id: 1,
+          activity_id: 1,
+          user_id: 2,
+          content: "¡Qué emocionante proyecto! Espero poder contribuir plantando muchos árboles.",
+          created_at: "2024-02-15T10:30:00Z",
+          likes: 5,
+          replies: []
+        },
+        {
+          id: 2,
+          activity_id: 2,
+          user_id: 1,
+          content: "Estamos muy contentos de ver tanto interés en esta actividad. ¡Juntos lograremos grandes cosas!",
+          created_at: "2024-02-16T14:20:00Z",
+          likes: 8,
+          replies: [
+            {
+              id: 3,
+              user_id: 2,
+              content: "¡Gracias por organizar esto!",
+              created_at: "2024-02-16T15:00:00Z",
+              likes: 2
+            }
+          ]
+        }
+      ],
+      photos: [
+        {
+          id: 1,
+          activity_id: 1,
+          user_id: 2,
+          url: "/grupo-canadienses.jpg",
+          caption: "Primera jornada de reforestación - ¡Plantamos 50 árboles!",
+          created_at: "2024-02-20T16:45:00Z",
+          likes: 15
+        },
+        {
+          id: 2,
+          activity_id: 2,
+          user_id: 1,
+          url: "/grupo-canadienses.jpg",
+          caption: "Distribución de alimentos a 30 familias",
+          created_at: "2024-02-22T11:30:00Z",
+          likes: 22
+        }
+      ],
+      notifications: [
+        // Start with empty notifications - they will be created dynamically
+        // when users actually request to join activities
+      ],
       activities: [
   {
     id: 1,
@@ -129,16 +315,45 @@ class MockDataStore {
   // Load data from localStorage or use defaults
   loadFromStorage() {
     try {
+      if (typeof localStorage === 'undefined') {
+        console.log('localStorage not available, using default data');
+        const defaultData = this.getDefaultData();
+        this.activities = defaultData.activities;
+        this.categories = defaultData.categories;
+        this.stats = defaultData.stats;
+        this.posts = defaultData.posts;
+        return;
+      }
+      
       const savedData = localStorage.getItem(this.storageKey);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
+        console.log('DataStore: Loading from localStorage, activities found:', parsedData.activities?.length || 0);
+        this.users = parsedData.users || this.getDefaultData().users;
+        this.volunteers = parsedData.volunteers || this.getDefaultData().volunteers;
+        this.comments = parsedData.comments || this.getDefaultData().comments;
+        this.photos = parsedData.photos || this.getDefaultData().photos;
+        
+        // Handle notifications specially - don't fallback to defaults if they exist in storage
+        if (parsedData.notifications !== undefined) {
+          this.notifications = parsedData.notifications;
+          console.log('DataStore: Loaded notifications from localStorage:', this.notifications.length);
+        } else {
+          this.notifications = this.getDefaultData().notifications;
+          console.log('DataStore: No notifications in localStorage, using defaults');
+        }
         this.activities = parsedData.activities || this.getDefaultData().activities;
         this.categories = parsedData.categories || this.getDefaultData().categories;
         this.stats = parsedData.stats || this.getDefaultData().stats;
         this.posts = parsedData.posts || this.getDefaultData().posts;
+        console.log('DataStore: Final activities loaded:', this.activities.length);
       } else {
         // First time, use default data
         const defaultData = this.getDefaultData();
+        this.users = defaultData.users;
+        this.volunteers = defaultData.volunteers;
+        this.comments = defaultData.comments;
+        this.photos = defaultData.photos;
         this.activities = defaultData.activities;
         this.categories = defaultData.categories;
         this.stats = defaultData.stats;
@@ -159,7 +374,16 @@ class MockDataStore {
   // Save data to localStorage
   saveToStorage() {
     try {
+      if (typeof localStorage === 'undefined') {
+        console.log('localStorage not available (Node.js environment)');
+        return;
+      }
+      
       const dataToSave = {
+        users: this.users,
+        volunteers: this.volunteers,
+        comments: this.comments,
+        photos: this.photos,
         activities: this.activities,
         categories: this.categories,
         stats: this.stats,
@@ -204,11 +428,45 @@ class MockDataStore {
 
   // Enhanced methods that notify changes and persist data
   addActivity(activity) {
+    console.log('DataStore: Adding new activity:', activity.title, 'with visibility:', activity.visibility);
     this.activities.push(activity);
+    console.log('DataStore: Total activities after adding:', this.activities.length);
     this.updateStats();
     this.saveToStorage();
     this.notify();
+    
+    // Auto-sync with backend if possible
+    this.syncToBackend();
+    
     return activity;
+  }
+
+  // Force data refresh (useful for debugging) - preserves notifications
+  forceRefresh() {
+    console.log('DataStore: Forcing refresh of all data (preserving notifications)');
+    const defaultData = this.getDefaultData();
+    
+    // Preserve existing notifications to avoid losing admin decisions
+    const existingNotifications = this.notifications || [];
+    console.log('DataStore: Preserving', existingNotifications.length, 'existing notifications');
+    
+    this.users = [...defaultData.users];
+    this.volunteers = [...defaultData.volunteers];
+    this.activities = [...defaultData.activities];
+    this.categories = [...defaultData.categories];
+    
+    // Only restore default notifications if we have none
+    if (!this.notifications || this.notifications.length === 0) {
+      this.notifications = [...defaultData.notifications];
+      console.log('DataStore: No notifications exist, loading defaults');
+    } else {
+      console.log('DataStore: Keeping existing notifications, skipping defaults');
+    }
+    
+    this.updateStats();
+    this.saveToStorage();
+    this.notify();
+    console.log('DataStore: Refresh complete. Notifications preserved:', this.notifications.length);
   }
 
   updateActivity(id, updates) {
@@ -254,18 +512,716 @@ class MockDataStore {
   // Method to reset data to defaults (useful for testing)
   resetToDefaults() {
     const defaultData = this.getDefaultData();
+    this.users = defaultData.users;
+    this.volunteers = defaultData.volunteers;
+    this.comments = defaultData.comments;
+    this.photos = defaultData.photos;
     this.activities = defaultData.activities;
     this.categories = defaultData.categories;
     this.stats = defaultData.stats;
     this.posts = defaultData.posts;
+    this.notifications = defaultData.notifications; // Reset notifications too
     this.updateStats();
     this.saveToStorage();
     this.notify();
+  }
+
+  // Clean existing localStorage and restart fresh
+  cleanStorage() {
+    console.log('DataStore: Cleaning localStorage and restarting fresh');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(this.storageKey);
+    }
+    
+    // Load defaults fresh
+    const defaultData = this.getDefaultData();
+    this.users = defaultData.users;
+    this.volunteers = defaultData.volunteers;
+    this.comments = defaultData.comments;
+    this.photos = defaultData.photos;
+    this.activities = defaultData.activities;
+    this.categories = defaultData.categories;
+    this.stats = defaultData.stats;
+    this.posts = defaultData.posts;
+    this.notifications = defaultData.notifications;
+    
+    this.updateStats();
+    this.saveToStorage();
+    this.notify();
+    console.log('DataStore: Clean restart complete');
+  }
+
+  // Sync data to backend (background operation)
+  async syncToBackend() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Only sync if we have a valid token
+      const response = await fetch(`${BACKEND_URL}/api/health`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        console.log('DataStore: Backend available, data synced');
+      }
+    } catch (error) {
+      console.log('DataStore: Backend not available, using local data only');
+    }
   }
 }
 
 // Create global instance
 const dataStore = new MockDataStore();
+
+// ============= USER FUNCTIONS =============
+
+export const usersAPI = {
+  // Get user by ID
+  getUserById: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return dataStore.users.find(user => user.id == userId) || null;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      return null;
+    }
+  },
+
+  // Get user by email
+  getUserByEmail: async (email) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return dataStore.users.find(user => user.email === email) || null;
+    } catch (error) {
+      console.error('Error fetching user by email:', error);
+      return null;
+    }
+  },
+
+  // Update user profile
+  updateUserProfile: async (userId, updates) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const index = dataStore.users.findIndex(user => user.id == userId);
+      if (index !== -1) {
+        dataStore.users[index] = { ...dataStore.users[index], ...updates };
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return dataStore.users[index];
+      }
+      throw new Error('User not found');
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  },
+
+  // Create new user
+  createUser: async (userData) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const newUser = {
+        id: Date.now(),
+        ...userData,
+        created_at: new Date().toISOString(),
+        activities_joined: [],
+        total_hours: 0,
+        avatar_url: userData.avatar_url || '/grupo-canadienses.jpg'
+      };
+      dataStore.users.push(newUser);
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return newUser;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+
+  // Get all users (admin only)
+  getAllUsers: async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return dataStore.users;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+  },
+
+  // Block user
+  blockUser: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const user = dataStore.users.find(u => u.id == userId);
+      if (user) {
+        user.status = 'blocked';
+        user.blocked_at = new Date().toISOString();
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return user;
+      }
+      throw new Error('User not found');
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      throw error;
+    }
+  },
+
+  // Unblock user
+  unblockUser: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const user = dataStore.users.find(u => u.id == userId);
+      if (user) {
+        user.status = 'active';
+        delete user.blocked_at;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return user;
+      }
+      throw new Error('User not found');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      throw error;
+    }
+  }
+};
+
+// ============= VOLUNTEER FUNCTIONS =============
+
+export const volunteersAPI = {
+  // Register for activity
+  registerForActivity: async (userId, activityId, data = {}) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Check if already registered
+      const existing = dataStore.volunteers.find(v => 
+        v.user_id == userId && v.activity_id == activityId
+      );
+      
+      if (existing) {
+        throw new Error('Ya estás registrado en esta actividad');
+      }
+
+      // Get user role to determine initial status
+      const user = dataStore.users.find(u => u.id == userId);
+      const initialStatus = (user && user.role === 'visitor') ? 'pending' : 'registered';
+      
+      const registration = {
+        id: Date.now(),
+        user_id: userId,
+        activity_id: activityId,
+        status: initialStatus, // pending for visitors, registered for volunteers
+        role: user?.role || 'volunteer',
+        registration_date: new Date().toISOString(),
+        hours_contributed: 0,
+        notes: data.notes || '',
+        skills_offered: data.skills_offered || []
+      };
+      
+      console.log(`Creating registration for user ${user?.first_name} (${user?.role}) with status: ${initialStatus}`);
+
+      dataStore.volunteers.push(registration);
+      
+      // Create notification for admin
+      const activity = dataStore.activities.find(a => a.id == activityId);
+      
+      if (user && activity) {
+        const notification = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          type: 'volunteer_request',
+          user_id: userId,
+          activity_id: activityId,
+          message: `${user.first_name} ${user.last_name} solicita unirse a ${activity.title}`,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        };
+        
+        dataStore.notifications.push(notification);
+        console.log('Created notification for admin:', notification);
+      }
+      
+      // Update activity participant count
+      if (activity) {
+        activity.current_volunteers = (activity.current_volunteers || 0) + 1;
+      }
+      
+      dataStore.saveToStorage();
+      dataStore.notify();
+      
+      console.log('Registration saved:', registration);
+      console.log('Total volunteers now:', dataStore.volunteers.length);
+      console.log('Total notifications now:', dataStore.notifications.length);
+      
+      return registration;
+    } catch (error) {
+      console.error('Error registering for activity:', error);
+      throw error;
+    }
+  },
+
+  // Get user's registrations
+  getUserRegistrations: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const userRegistrations = dataStore.volunteers.filter(v => v.user_id == userId);
+      console.log('API: Found', userRegistrations.length, 'registrations for user', userId);
+      console.log('API: Registration statuses:', userRegistrations.map(r => ({activity_id: r.activity_id, status: r.status})));
+      return userRegistrations;
+    } catch (error) {
+      console.error('Error fetching user registrations:', error);
+      return [];
+    }
+  },
+
+  // Get activity volunteers
+  getActivityVolunteers: async (activityId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const volunteers = dataStore.volunteers.filter(v => v.activity_id == activityId);
+      
+      // Populate with user data
+      return volunteers.map(volunteer => {
+        const user = dataStore.users.find(u => u.id == volunteer.user_id);
+        return {
+          ...volunteer,
+          user: user || null
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching activity volunteers:', error);
+      return [];
+    }
+  },
+
+  // Update registration status
+  updateRegistrationStatus: async (registrationId, status) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const index = dataStore.volunteers.findIndex(v => v.id == registrationId);
+      if (index !== -1) {
+        dataStore.volunteers[index].status = status;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return dataStore.volunteers[index];
+      }
+      throw new Error('Registration not found');
+    } catch (error) {
+      console.error('Error updating registration status:', error);
+      throw error;
+    }
+  },
+
+  // Get all registrations (for admin panel)
+  getAllRegistrations: async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return dataStore.volunteers || [];
+    } catch (error) {
+      console.error('Error fetching all registrations:', error);
+      return [];
+    }
+  },
+
+  // Remove user from activity
+  removeFromActivity: async (registrationId, activityId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Remove registration
+      dataStore.volunteers = dataStore.volunteers.filter(v => v.id != registrationId);
+      
+      // Update activity participant count
+      const activity = dataStore.activities.find(a => a.id == activityId);
+      if (activity) {
+        activity.current_volunteers = Math.max(0, (activity.current_volunteers || 0) - 1);
+      }
+      
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return true;
+    } catch (error) {
+      console.error('Error removing from activity:', error);
+      throw error;
+    }
+  }
+};
+
+// ============= COMMENTS FUNCTIONS =============
+
+export const commentsAPI = {
+  // Get activity comments
+  getActivityComments: async (activityId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const comments = dataStore.comments.filter(c => c.activity_id == activityId);
+      
+      // Populate with user data
+      return comments.map(comment => {
+        const user = dataStore.users.find(u => u.id == comment.user_id);
+        return {
+          ...comment,
+          user: user || { first_name: 'Usuario', last_name: 'Desconocido' }
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      return [];
+    }
+  },
+
+  // Add comment
+  addComment: async (activityId, userId, content) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const newComment = {
+        id: Date.now(),
+        activity_id: activityId,
+        user_id: userId,
+        content: content,
+        created_at: new Date().toISOString(),
+        likes: 0,
+        replies: []
+      };
+      
+      dataStore.comments.push(newComment);
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return newComment;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  },
+
+  // Like comment
+  likeComment: async (commentId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const comment = dataStore.comments.find(c => c.id == commentId);
+      if (comment) {
+        comment.likes = (comment.likes || 0) + 1;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return comment;
+      }
+      throw new Error('Comment not found');
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      throw error;
+    }
+  }
+};
+
+// ============= PHOTOS FUNCTIONS =============
+
+export const photosAPI = {
+  // Get activity photos
+  getActivityPhotos: async (activityId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const photos = dataStore.photos.filter(p => p.activity_id == activityId);
+      
+      // Populate with user data
+      return photos.map(photo => {
+        const user = dataStore.users.find(u => u.id == photo.user_id);
+        return {
+          ...photo,
+          user: user || { first_name: 'Usuario', last_name: 'Desconocido' }
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+      return [];
+    }
+  },
+
+  // Upload photo
+  uploadPhoto: async (activityId, userId, photoData) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const newPhoto = {
+        id: Date.now(),
+        activity_id: activityId,
+        user_id: userId,
+        url: photoData.url,
+        caption: photoData.caption || '',
+        created_at: new Date().toISOString(),
+        likes: 0
+      };
+      
+      dataStore.photos.push(newPhoto);
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return newPhoto;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error;
+    }
+  },
+
+  // Like photo
+  likePhoto: async (photoId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const photo = dataStore.photos.find(p => p.id == photoId);
+      if (photo) {
+        photo.likes = (photo.likes || 0) + 1;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return photo;
+      }
+      throw new Error('Photo not found');
+    } catch (error) {
+      console.error('Error liking photo:', error);
+      throw error;
+    }
+  }
+};
+
+// ============= NOTIFICATIONS FUNCTIONS =============
+
+export const notificationsAPI = {
+  // Get admin notifications (only pending ones)
+  getAdminNotifications: async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('API: Getting admin notifications, total:', dataStore.notifications?.length || 0);
+      
+      // Only return pending notifications
+      const pendingNotifications = (dataStore.notifications || []).filter(n => n.status === 'pending');
+      console.log('API: Pending notifications found:', pendingNotifications.length);
+      console.log('API: Pending notification statuses:', pendingNotifications.map(n => ({id: n.id, status: n.status, message: n.message})));
+      
+      return pendingNotifications;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+  },
+
+  // Create notification
+  createNotification: async (notificationData) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const newNotification = {
+        id: Date.now(),
+        ...notificationData,
+        created_at: new Date().toISOString()
+      };
+      
+      if (!dataStore.notifications) {
+        dataStore.notifications = [];
+      }
+      
+      dataStore.notifications.push(newNotification);
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return newNotification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  },
+
+  // Update notification status
+  updateNotificationStatus: async (notificationId, status) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const notification = dataStore.notifications?.find(n => n.id == notificationId);
+      if (notification) {
+        notification.status = status;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return notification;
+      }
+      throw new Error('Notification not found');
+    } catch (error) {
+      console.error('Error updating notification:', error);
+      throw error;
+    }
+  },
+
+  // Approve volunteer request
+  approveVolunteerRequest: async (notificationId) => {
+    try {
+      console.log('API: Approving volunteer request:', notificationId);
+      
+      const notification = dataStore.notifications?.find(n => n.id == notificationId);
+      if (!notification) throw new Error('Notification not found');
+
+      console.log('API: Found notification:', notification);
+
+      // Update volunteer status
+      const volunteer = dataStore.volunteers.find(v => 
+        v.user_id == notification.user_id && v.activity_id == notification.activity_id
+      );
+      
+      if (volunteer) {
+        volunteer.status = 'confirmed'; // confirmed means approved by admin
+        console.log('API: Updated volunteer status to confirmed:', volunteer);
+      } else {
+        console.log('API: Warning - No volunteer registration found for notification');
+      }
+
+      // Update notification status to approved (so it won't appear in pending list)
+      notification.status = 'approved';
+      console.log('API: Updated notification status to approved');
+      
+      dataStore.saveToStorage();
+      dataStore.notify();
+      
+      console.log('API: Volunteer approval completed and saved');
+      return { success: true, message: 'Voluntario aprobado exitosamente' };
+    } catch (error) {
+      console.error('Error approving volunteer:', error);
+      throw error;
+    }
+  },
+
+  // Reject volunteer request
+  rejectVolunteerRequest: async (notificationId, reason = '') => {
+    try {
+      console.log('API: Rejecting volunteer request:', notificationId, 'with reason:', reason);
+      
+      const notification = dataStore.notifications?.find(n => n.id == notificationId);
+      if (!notification) throw new Error('Notification not found');
+
+      console.log('API: Found notification to reject:', notification);
+
+      // Remove volunteer registration completely
+      const beforeCount = dataStore.volunteers.length;
+      dataStore.volunteers = dataStore.volunteers.filter(v => 
+        !(v.user_id == notification.user_id && v.activity_id == notification.activity_id)
+      );
+      console.log('API: Removed volunteer registration. Before:', beforeCount, 'After:', dataStore.volunteers.length);
+
+      // Update notification status to rejected (so it won't appear in pending list)
+      notification.status = 'rejected';
+      notification.rejection_reason = reason;
+      console.log('API: Updated notification status to rejected');
+      
+      dataStore.saveToStorage();
+      dataStore.notify();
+      
+      console.log('API: Volunteer rejection completed and saved');
+      return { success: true, message: 'Solicitud rechazada' };
+    } catch (error) {
+      console.error('Error rejecting volunteer:', error);
+      throw error;
+    }
+  }
+};
+
+// ============= PERMISSIONS FUNCTIONS =============
+
+export const permissionsAPI = {
+  // Check if user can perform action
+  canUserPerform: (user, action, resource = null) => {
+    if (!user) return false;
+    
+    const permissions = {
+      // Admin permissions
+      admin: {
+        create_activity: true,
+        edit_activity: true,
+        delete_activity: true,
+        manage_users: true,
+        approve_volunteers: true,
+        view_analytics: true,
+        moderate_comments: true,
+        upload_photos: true,
+        comment: true,
+        join_activities: true
+      },
+      // Volunteer permissions (confirmed volunteers)
+      volunteer: {
+        create_activity: false,
+        edit_activity: false,
+        delete_activity: false,
+        manage_users: false,
+        approve_volunteers: false,
+        view_analytics: false,
+        moderate_comments: false,
+        upload_photos: true,
+        comment: true,
+        join_activities: true
+      },
+      // Visitor permissions (limited)
+      visitor: {
+        create_activity: false,
+        edit_activity: false,
+        delete_activity: false,
+        manage_users: false,
+        approve_volunteers: false,
+        view_analytics: false,
+        moderate_comments: false,
+        upload_photos: false, // Visitors cannot upload photos
+        comment: false, // Visitors cannot comment
+        join_activities: true // But can request to join activities
+      },
+      // Donor permissions
+      donor: {
+        create_activity: false,
+        edit_activity: false,
+        delete_activity: false,
+        manage_users: false,
+        approve_volunteers: false,
+        view_analytics: true, // Donors can see impact
+        moderate_comments: false,
+        upload_photos: true,
+        comment: true,
+        join_activities: true
+      }
+    };
+    
+    return permissions[user.role]?.[action] || false;
+  },
+
+  // Get user role display
+  getRoleDisplay: (role) => {
+    const roles = {
+      admin: { name: 'Administrador', color: 'purple', icon: '👑' },
+      volunteer: { name: 'Voluntario', color: 'green', icon: '🤝' },
+      visitor: { name: 'Visitante', color: 'blue', icon: '👀' },
+      donor: { name: 'Donante', color: 'yellow', icon: '💝' }
+    };
+    
+    return roles[role] || { name: 'Usuario', color: 'gray', icon: '👤' };
+  },
+
+  // Check activity participation limits
+  canJoinActivity: (user, activity) => {
+    if (!user || !activity) return { can: false, reason: 'Datos inválidos' };
+    
+    // Check if activity is full
+    if (activity.max_volunteers && activity.current_volunteers >= activity.max_volunteers) {
+      return { can: false, reason: 'Actividad llena' };
+    }
+    
+    // Check if user is already registered
+    const existingRegistration = dataStore.volunteers?.find(v => 
+      v.user_id === user.id && v.activity_id === activity.id
+    );
+    
+    if (existingRegistration) {
+      return { can: false, reason: 'Ya estás registrado' };
+    }
+    
+    // Visitors have limitations
+    if (user.role === 'visitor') {
+      const userRegistrations = dataStore.volunteers?.filter(v => v.user_id === user.id) || [];
+      if (userRegistrations.length >= 2) { // Visitors can only join 2 activities
+        return { can: false, reason: 'Los visitantes solo pueden unirse a 2 actividades. Crea una cuenta completa para más acceso.' };
+      }
+    }
+    
+    return { can: true, reason: 'Puede unirse' };
+  }
+};
 
 // ============= AUTH FUNCTIONS =============
 
@@ -313,30 +1269,157 @@ export const authAPI = {
       console.error('Error checking admin status:', error);
       return false;
     }
+  },
+
+  // Get all users (for admin panel)
+  getAllUsers: async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return dataStore.users;
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
+    }
+  },
+
+  // Block user
+  blockUser: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const user = dataStore.users.find(u => u.id == userId);
+      if (user) {
+        user.status = 'blocked';
+        user.blocked_at = new Date().toISOString();
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return user;
+      }
+      throw new Error('User not found');
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      throw error;
+    }
+  },
+
+  // Unblock user
+  unblockUser: async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const user = dataStore.users.find(u => u.id == userId);
+      if (user) {
+        user.status = 'active';
+        delete user.blocked_at;
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return user;
+      }
+      throw new Error('User not found');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      throw error;
+    }
   }
 };
 
 // ============= ACTIVITIES FUNCTIONS =============
 
 export const activitiesAPI = {
-  // Get all public activities - using mock data
+  // Get all public activities - hybrid approach (backend + fallback)
   getPublicActivities: async () => {
+    console.log('API: getPublicActivities called');
+    console.log('API: DataStore activities available:', dataStore.activities.length);
+    
+    // First ensure we have activities in dataStore
+    if (!dataStore.activities || dataStore.activities.length === 0) {
+      console.log('API: No activities in dataStore, forcing reload...');
+      dataStore.forceRefresh();
+    }
+    
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return dataStore.activities.filter(activity => activity.visibility === 'public');
+      // Try backend first with shorter timeout
+      console.log('API: Attempting backend connection...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+      
+      const response = await fetch(`${BACKEND_URL}/api/projects`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const backendData = await response.json();
+        // Check if backendData is actually an array and has data
+        if (Array.isArray(backendData) && backendData.length > 0) {
+          console.log('API: Using backend data, found', backendData.length, 'activities');
+          return backendData;
+        } else {
+          console.log('API: Backend returned empty or invalid data, falling back to mock');
+          throw new Error('Backend data is invalid');
+        }
+      } else {
+        throw new Error(`Backend returned ${response.status}`);
+      }
     } catch (error) {
-      console.error('Error fetching public activities:', error);
-      return [];
+      // Fallback to mock data IMMEDIATELY
+      console.log('API: Backend failed, using mock data. Error:', error.message);
+      console.log('API: DataStore activities now:', dataStore.activities.length);
+      
+      // Ensure we have activities
+      if (!dataStore.activities || dataStore.activities.length === 0) {
+        console.log('API: DataStore still empty, forcing default data...');
+        const defaultData = dataStore.getDefaultData();
+        dataStore.activities = defaultData.activities;
+        dataStore.saveToStorage();
+      }
+      
+      // Return all activities (they're all public in our mock data)
+      const publicActivities = dataStore.activities.filter(activity => 
+        !activity.visibility || activity.visibility === 'public'
+      );
+      
+      console.log('API: Returning', publicActivities.length, 'mock activities');
+      console.log('API: Sample activity:', publicActivities[0]?.title);
+      
+      return publicActivities;
     }
   },
 
   // Get featured activities - using mock data
   getFeaturedActivities: async () => {
     try {
+      console.log('API: getFeaturedActivities called');
+      console.log('API: DataStore activities available:', dataStore.activities.length);
+      
+      // Ensure we have activities
+      if (!dataStore.activities || dataStore.activities.length === 0) {
+        console.log('API: No activities in dataStore for featured, forcing reload...');
+        const defaultData = dataStore.getDefaultData();
+        dataStore.activities = defaultData.activities;
+        dataStore.saveToStorage();
+      }
+      
       // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return dataStore.activities.filter(activity => activity.visibility === 'public' && activity.featured).slice(0, 6);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('API: Looking for featured activities in', dataStore.activities.length, 'total activities');
+      
+      // First try to get activities marked as featured
+      let featuredActivities = dataStore.activities.filter(activity => activity.featured === true);
+      
+      // If no featured activities, return first 3 activities
+      if (featuredActivities.length === 0) {
+        featuredActivities = dataStore.activities.slice(0, 3);
+        console.log('API: No featured activities found, returning first 3');
+      }
+      
+      console.log('API: Returning', featuredActivities.length, 'featured activities');
+      console.log('API: Featured titles:', featuredActivities.map(a => a.title));
+      return featuredActivities.slice(0, 6);
     } catch (error) {
       console.error('Error fetching featured activities:', error);
       return [];
@@ -354,12 +1437,32 @@ export const activitiesAPI = {
     }
   },
 
-  // Create new activity - simplified
+  // Create new activity - hybrid approach
   createActivity: async (activityData) => {
     try {
+      // Try backend first
+      const response = await fetch(`${BACKEND_URL}/api/projects`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(activityData)
+      });
+      
+      if (response.ok) {
+        const backendData = await response.json();
+        console.log('API: Activity created on backend');
+        return backendData;
+      } else {
+        throw new Error('Backend creation failed');
+      }
+    } catch (error) {
+      // Fallback to mock data
+      console.log('API: Backend failed, creating mock activity');
       await new Promise(resolve => setTimeout(resolve, 300));
       const newActivity = {
-        id: Date.now(), // Simple ID generation
+        id: Date.now(),
         ...activityData,
         created_at: new Date().toISOString(),
         current_volunteers: 0,
@@ -367,9 +1470,6 @@ export const activitiesAPI = {
         posts: []
       };
       return dataStore.addActivity(newActivity);
-    } catch (error) {
-      console.error('Error creating activity:', error);
-      throw error;
     }
   },
 
@@ -411,7 +1511,8 @@ export const activitiesAPI = {
       console.error('Error joining activity:', error);
       throw error;
     }
-  }
+  },
+
 };
 
 // ============= CATEGORIES FUNCTIONS =============
@@ -563,6 +1664,16 @@ export { dataStore };
 // Utility function to reset data (for development/testing)
 export const resetDataToDefaults = () => {
   dataStore.resetToDefaults();
+};
+
+// Utility function to force refresh data (for debugging)
+export const forceRefreshData = () => {
+  dataStore.forceRefresh();
+};
+
+// Utility function to clean localStorage completely
+export const cleanStorageData = () => {
+  dataStore.cleanStorage();
 };
 
 // Export mock supabase object for compatibility

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar } from 'lucide-react';
+import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar, Search, Filter, MapPin, Clock, User } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import AdminDashboard from './components/AdminDashboard.jsx';
+import VolunteerDashboard from './components/VolunteerDashboard.jsx';
+import SocialDashboard from './components/SocialDashboard.jsx';
+import VisitorDashboard from './components/VisitorDashboard.jsx';
+import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
 import './App.css';
 
 // Supabase configuration with fallbacks and validation
@@ -236,6 +240,8 @@ function useAuth() {
 
 // Google OAuth Button Component
 const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  
   const handleGoogleSignIn = async () => {
     if (!supabase) {
       const error = new Error('Supabase not configured');
@@ -244,6 +250,7 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       return;
     }
 
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -259,6 +266,7 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       if (error) {
         console.error('Error with Google OAuth:', error);
         if (onError) onError(error);
+        setIsLoading(false);
         return;
       }
 
@@ -268,41 +276,74 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
     } catch (error) {
       console.error('Google OAuth error:', error);
       if (onError) onError(error);
+      setIsLoading(false);
     }
   };
 
+  const isButtonDisabled = disabled || isLoading;
+
   return (
-    <button
-      type="button"
-      onClick={handleGoogleSignIn}
-      disabled={disabled}
-      className="group relative w-full overflow-hidden py-4 px-6 text-lg font-semibold rounded-2xl text-gray-700 bg-white border-2 border-gray-300 hover:border-blue-500 hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
-    >
-      {/* Efecto de brillo */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent transform skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+    <div className="relative">
+      {/* Glow effect background */}
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 rounded-2xl opacity-20 group-hover:opacity-40 blur-sm transition-opacity duration-500"></div>
       
-      <span className="relative flex items-center justify-center">
-        <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
-          <path
-            fill="#4285F4"
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-          />
-          <path
-            fill="#34A853"
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-          />
-          <path
-            fill="#FBBC05"
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-          />
-          <path
-            fill="#EA4335"
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-          />
-        </svg>
-        {disabled ? 'Iniciando sesión...' : 'Continuar con Google'}
-      </span>
-    </button>
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={isButtonDisabled}
+        className="group relative w-full overflow-hidden py-4 px-6 text-lg font-semibold rounded-2xl text-gray-800 bg-white/95 backdrop-blur-md border-2 border-gray-200/50 hover:border-gray-300 hover:bg-white hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:opacity-50 shadow-lg transform hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 disabled:hover:transform-none disabled:hover:scale-100"
+      >
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent transform skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+        
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+              <span className="text-blue-600 font-medium">Redirigiendo...</span>
+            </div>
+          </div>
+        )}
+        
+        <span className="relative flex items-center justify-center">
+          {/* Google Logo with enhanced styling */}
+          <div className="relative mr-3">
+            <div className="absolute -inset-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 rounded-full opacity-20 blur-sm"></div>
+            <svg className="relative w-6 h-6" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+          </div>
+          
+          <span className="bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent font-bold">
+            {isLoading ? 'Conectando con Google...' : 'Continuar con Google'}
+          </span>
+          
+          {/* Arrow icon */}
+          {!isLoading && (
+            <ArrowRight className="ml-3 h-5 w-5 text-gray-500 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-300" />
+          )}
+        </span>
+        
+        {/* Bottom accent line */}
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-blue-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+      </button>
+    </div>
   );
 };
 
@@ -1091,11 +1132,20 @@ function LandingPage() {
 function LoginPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    first_name: '',
+    last_name: '',
+    bio: '',
+    phone: '',
+    location: '',
+    role: 'volunteer'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Redireccionar si ya está autenticado
   useEffect(() => {
@@ -1107,35 +1157,125 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
     try {
-      const response = await fetch('https://proyecto-casira.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/dashboard');
+      if (isLogin) {
+        // Login con backend de Render
+        const response = await fetch('https://proyecto-casira.onrender.com/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          localStorage.setItem('token', data.access_token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          // Navegar basado en el rol
+          if (data.user.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/dashboard');
+          }
+        } else {
+          // Fallback: Intentar con usuarios locales
+          console.log('Backend login failed, trying local users...');
+          const localUser = await usersAPI.getUserByEmail(formData.email);
+          
+          if (localUser) {
+            console.log('Found local user:', localUser);
+            // Para usuarios locales, aceptamos cualquier contraseña (datos demo)
+            localStorage.setItem('token', 'local-token-' + Date.now());
+            localStorage.setItem('user', JSON.stringify(localUser));
+            
+            // Navegar basado en el rol
+            if (localUser.role === 'admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
+          } else {
+            setError('Usuario no encontrado. Verifica tu email o regístrate.');
+          }
+        }
       } else {
-        alert(data.error || 'Error en el inicio de sesión');
+        // Registro de nuevo usuario
+        if (!formData.first_name || !formData.last_name) {
+          setError('Nombre y apellido son requeridos');
+          return;
+        }
+        
+        // Verificar si el email ya existe
+        const existingUser = await usersAPI.getUserByEmail(formData.email);
+        if (existingUser) {
+          setError('Este email ya está registrado');
+          return;
+        }
+        
+        // Crear nuevo usuario
+        const newUser = await usersAPI.createUser({
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: formData.role,
+          bio: formData.bio,
+          phone: formData.phone,
+          location: formData.location
+        });
+        
+        // Simular token de acceso
+        const fakeToken = `fake_token_${newUser.id}`;
+        localStorage.setItem('token', fakeToken);
+        localStorage.setItem('user', JSON.stringify(newUser));
+        navigate('/dashboard');
       }
     } catch (error) {
-      alert('Error de conexión');
+      console.log('Network error, trying local fallback...');
+      // Si hay error de red, intentar con usuarios locales
+      if (isLogin) {
+        try {
+          const localUser = await usersAPI.getUserByEmail(formData.email);
+          if (localUser) {
+            console.log('Found local user after network error:', localUser);
+            // Para usuarios locales, aceptamos cualquier contraseña (datos demo)
+            localStorage.setItem('token', 'local-token-' + Date.now());
+            localStorage.setItem('user', JSON.stringify(localUser));
+            
+            if (localUser.role === 'admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
+            return; // Exit successfully
+          }
+        } catch (localError) {
+          console.error('Local user lookup failed:', localError);
+        }
+      }
+      
+      setError(error.message || 'Error de conexión. Verifica tu conexión a internet.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fillDemoAccount = (email, password) => {
+    setFormData({ email, password });
+    setError('');
+  };
+
   const demoAccounts = [
     { email: 'admin@casira.org', password: 'admin123', role: 'Administrador' },
-    { email: 'donante@ejemplo.com', password: 'donante123', role: 'Donante' }
+    { email: 'donante@ejemplo.com', password: 'donante123', role: 'Donante' },
+    { email: 'ana.lopez@email.com', password: 'visitante123', role: 'Visitante' }
   ];
 
   return (
@@ -1178,31 +1318,145 @@ function LoginPage() {
           </div>
         
           {/* Cuentas Demo con diseño premium */}
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-200/50 rounded-2xl p-6 mb-6 shadow-lg">
+          <div className="relative bg-gradient-to-br from-sky-50/80 to-blue-50/80 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl p-6 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
+            {/* Decorative elements */}
+            <div className="absolute top-2 right-2 w-16 h-16 bg-gradient-to-br from-sky-400/20 to-blue-500/20 rounded-full blur-xl"></div>
+            
             <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
-                <Users className="w-4 h-4 text-white" />
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg opacity-60 blur-sm"></div>
+                <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                  <Users className="w-4 h-4 text-sky-600" />
+                </div>
               </div>
-              <h3 className="font-bold text-sky-800">Cuentas de Demostración</h3>
+              <h3 className="ml-3 font-bold text-sky-800 text-lg">Cuentas de Demostración</h3>
+              <div className="ml-auto flex space-x-1">
+                <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+              </div>
             </div>
+            
             <div className="space-y-3">
               {demoAccounts.map((account, index) => (
-                <div key={index} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-sky-200/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-sky-700 text-sm">{account.role}</div>
-                      <div className="text-xs text-gray-600">{account.email}</div>
+                <div 
+                  key={index} 
+                  className="group relative bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-sky-200/30 hover:bg-white/90 hover:border-sky-300/50 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                  onClick={() => fillDemoAccount(account.email, account.password)}
+                >
+                  {/* Hover glow effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-hover:from-sky-500/20 group-hover:to-blue-500/20 rounded-xl transition-all duration-300"></div>
+                  
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        account.role === 'Administrador' 
+                          ? 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20 text-purple-600'
+                          : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 text-green-600'
+                      }`}>
+                        {account.role === 'Administrador' ? '👑' : '💝'}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sky-700 text-sm group-hover:text-sky-800 transition-colors">
+                          {account.role}
+                        </div>
+                        <div className="text-xs text-gray-600 group-hover:text-gray-700 transition-colors">
+                          {account.email}
+                        </div>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-gray-500">Contraseña:</div>
-                      <div className="font-mono text-sm bg-sky-100 text-sky-700 px-2 py-1 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Click para usar</div>
+                      <div className="font-mono text-sm bg-sky-100/80 group-hover:bg-sky-200/80 text-sky-700 px-3 py-1.5 rounded-lg transition-all duration-200">
                         {account.password}
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Click indicator */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <ArrowRight className="w-4 h-4 text-sky-500" />
+                  </div>
                 </div>
               ))}
             </div>
+            
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500 bg-white/50 rounded-lg px-3 py-2">
+                💡 Haz click en cualquier cuenta para rellenar automáticamente
+              </p>
+            </div>
+          </div>
+
+          {/* Error message */}
+          {error && (
+            <div className="relative bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200/50 rounded-2xl p-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-sm font-bold">!</span>
+                </div>
+                <div>
+                  <p className="text-red-800 font-medium text-sm">{error}</p>
+                </div>
+                <button
+                  onClick={() => setError('')}
+                  className="ml-auto text-red-500 hover:text-red-700 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Navigation */}
+          <div className="flex bg-gray-100 rounded-2xl p-1 mb-8">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(true);
+                setError('');
+                setFormData({
+                  email: '',
+                  password: '',
+                  first_name: '',
+                  last_name: '',
+                  bio: '',
+                  phone: '',
+                  location: '',
+                  role: 'volunteer'
+                });
+              }}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                isLogin
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              🔑 Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(false);
+                setError('');
+                setFormData({
+                  email: '',
+                  password: '',
+                  first_name: '',
+                  last_name: '',
+                  bio: '',
+                  phone: '',
+                  location: '',
+                  role: 'volunteer'
+                });
+              }}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                !isLogin
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              ✨ Registrarse
+            </button>
           </div>
 
           {/* Formulario mejorado */}
@@ -1210,47 +1464,242 @@ function LoginPage() {
             <div className="space-y-6">
               {/* Campo Email */}
               <div className="relative">
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                  <span className="w-2 h-2 bg-sky-400 rounded-full mr-2 animate-pulse"></span>
                   Correo Electrónico
                 </label>
-                <div className="relative">
+                <div className="relative group">
                   <input
                     id="email"
                     name="email"
                     type="email"
                     required
-                    className="w-full px-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-300 text-lg"
+                    className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
                     placeholder="tu@email.com"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                   />
+                  {/* Email icon */}
                   <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                    <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></div>
+                    <div className="w-5 h-5 text-sky-400 opacity-50 group-focus-within:opacity-100 transition-opacity">
+                      📧
+                    </div>
                   </div>
+                  
+                  {/* Focus glow effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
                 </div>
               </div>
 
               {/* Campo Contraseña */}
               <div className="relative">
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '0.5s'}}></span>
                   Contraseña
                 </label>
-                <div className="relative">
+                <div className="relative group">
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    className="w-full px-4 py-4 bg-white/60 backdrop-blur-sm border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-300 text-lg"
+                    className="w-full px-6 py-4 pr-16 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
                     placeholder="Tu contraseña"
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                   />
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-                  </div>
+                  {/* Show/Hide password button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-sky-600 transition-colors duration-200"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                  
+                  {/* Focus glow effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
                 </div>
               </div>
+
+              {/* Campos adicionales para registro */}
+              {!isLogin && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Campo Nombre */}
+                    <div className="relative">
+                      <label htmlFor="first_name" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '1s'}}></span>
+                        Nombre
+                      </label>
+                      <div className="relative group">
+                        <input
+                          id="first_name"
+                          name="first_name"
+                          type="text"
+                          required={!isLogin}
+                          className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
+                          placeholder="Tu nombre"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                        />
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
+                      </div>
+                    </div>
+
+                    {/* Campo Apellido */}
+                    <div className="relative">
+                      <label htmlFor="last_name" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '1.5s'}}></span>
+                        Apellido
+                      </label>
+                      <div className="relative group">
+                        <input
+                          id="last_name"
+                          name="last_name"
+                          type="text"
+                          required={!isLogin}
+                          className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
+                          placeholder="Tu apellido"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                        />
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Campo Teléfono */}
+                  <div className="relative">
+                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2s'}}></span>
+                      Teléfono (Opcional)
+                    </label>
+                    <div className="relative group">
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
+                        placeholder="+502 1234-5678"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      />
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
+                    </div>
+                  </div>
+
+                  {/* Campo Ubicación */}
+                  <div className="relative">
+                    <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2.5s'}}></span>
+                      Ubicación (Opcional)
+                    </label>
+                    <div className="relative group">
+                      <input
+                        id="location"
+                        name="location"
+                        type="text"
+                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
+                        placeholder="Ciudad, País"
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      />
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
+                    </div>
+                  </div>
+
+                  {/* Campo Tipo de Usuario */}
+                  <div className="relative">
+                    <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2.5s'}}></span>
+                      ¿Cómo te quieres unir?
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div 
+                        className={`p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                          formData.role === 'volunteer' 
+                            ? 'border-green-500 bg-green-50' 
+                            : 'border-gray-200 hover:border-green-300'
+                        }`}
+                        onClick={() => setFormData({...formData, role: 'volunteer'})}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="text-2xl">🤝</div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900">Voluntario</h4>
+                            <p className="text-xs text-gray-600">Participar activamente, comentar, subir fotos</p>
+                          </div>
+                          <input
+                            type="radio"
+                            name="role"
+                            value="volunteer"
+                            checked={formData.role === 'volunteer'}
+                            onChange={(e) => setFormData({...formData, role: e.target.value})}
+                            className="ml-auto"
+                          />
+                        </div>
+                      </div>
+
+                      <div 
+                        className={`p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                          formData.role === 'visitor' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                        onClick={() => setFormData({...formData, role: 'visitor'})}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="text-2xl">👀</div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900">Visitante</h4>
+                            <p className="text-xs text-gray-600">Solo explorar y unirse (límites aplicados)</p>
+                          </div>
+                          <input
+                            type="radio"
+                            name="role"
+                            value="visitor"
+                            checked={formData.role === 'visitor'}
+                            onChange={(e) => setFormData({...formData, role: e.target.value})}
+                            className="ml-auto"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {formData.role === 'visitor' && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-700">
+                          <strong>Limitaciones de visitante:</strong> Solo puedes unirte a 2 actividades, no puedes comentar ni subir fotos. 
+                          Cambia a Voluntario para acceso completo.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Campo Biografía */}
+                  <div className="relative">
+                    <label htmlFor="bio" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '3s'}}></span>
+                      Cuéntanos sobre ti (Opcional)
+                    </label>
+                    <div className="relative group">
+                      <textarea
+                        id="bio"
+                        name="bio"
+                        rows={3}
+                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80 resize-none"
+                        placeholder={formData.role === 'volunteer' 
+                          ? "Descríbete brevemente, tus intereses, motivaciones para ser voluntario..."
+                          : "Cuéntanos qué te interesa de nuestras actividades..."}
+                        value={formData.bio}
+                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                      />
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Botón mejorado */}
@@ -1267,11 +1716,11 @@ function LoginPage() {
                   {isLoading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-                      Iniciando sesión...
+                      {isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'}
                     </>
                   ) : (
                     <>
-                      Iniciar Sesión
+                      {isLogin ? '🔑 Iniciar Sesión' : '✨ Crear Cuenta'}
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
@@ -1279,14 +1728,20 @@ function LoginPage() {
               </button>
             </div>
 
-            {/* Divisor */}
+            {/* Divisor mejorado */}
             <div className="pt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white/80 text-gray-500 font-medium">O continúa con</span>
+                <div className="relative flex justify-center">
+                  <div className="bg-white/90 backdrop-blur-sm px-6 py-2 rounded-full border border-gray-200/50 shadow-sm">
+                    <span className="text-gray-500 font-medium text-sm flex items-center space-x-2">
+                      <span className="w-2 h-2 bg-gradient-to-r from-sky-400 to-blue-500 rounded-full animate-pulse"></span>
+                      <span>O continúa con</span>
+                      <span className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></span>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1482,6 +1937,16 @@ function DashboardPage() {
     return <AdminDashboard user={user} onLogout={handleLogout} />;
   }
 
+  // Si es visitante, mostrar VisitorDashboard especial
+  if (user.role === 'visitor') {
+    return <VisitorDashboard user={user} onLogout={handleLogout} />;
+  }
+
+  // Si es voluntario o donante, mostrar SocialDashboard (Facebook-style)
+  if (user.role === 'volunteer' || user.role === 'donor') {
+    return <SocialDashboard user={user} onLogout={handleLogout} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1663,15 +2128,30 @@ function ActivitiesPage() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadActivities();
     loadCategories();
+    
+    // Subscribe to store changes for real-time updates
+    const unsubscribe = dataStore.subscribe(() => {
+      console.log('Store updated, refreshing activities...');
+      loadActivities();
+    });
+    
+    return unsubscribe;
   }, []);
 
   const loadActivities = async () => {
     try {
-      const data = await activitiesAPI.getPublicActivities();
+      const data = await apiActivities.getPublicActivities();
+      console.log('ActivitiesPage: Loaded activities count:', data?.length || 0);
+      console.log('ActivitiesPage: Activities:', data?.map(a => a.title) || []);
+      console.log('ActivitiesPage: Full dataStore activities:', dataStore.activities.length);
       setActivities(data || []);
     } catch (error) {
       console.error('Error loading activities:', error);
@@ -1682,16 +2162,32 @@ function ActivitiesPage() {
 
   const loadCategories = async () => {
     try {
-      const data = await categoriesAPI.getAllCategories();
+      const data = await apiCategories.getAllCategories();
       setCategories(data || []);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
   };
 
-  const filteredActivities = selectedCategory 
-    ? activities.filter(activity => activity.category_id === selectedCategory)
-    : activities;
+  const filteredActivities = activities.filter(activity => {
+    const matchesCategory = !selectedCategory || activity.category_id === selectedCategory;
+    const matchesSearch = !searchTerm || 
+      activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.location?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || activity.status === statusFilter;
+    return matchesCategory && matchesSearch && matchesStatus;
+  });
+
+  const openActivityModal = (activity) => {
+    setSelectedActivity(activity);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setSelectedActivity(null);
+    setShowModal(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1714,36 +2210,128 @@ function ActivitiesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Actividades y Proyectos</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Actividades y Proyectos</h1>
+            <button 
+              onClick={() => {
+                console.log('Forcing activities refresh...');
+                loadActivities();
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Actualizar actividades"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Actualizar</span>
+            </button>
+          </div>
           <p className="text-xl text-gray-600 mb-6">
             Descubre todas las oportunidades para ser parte del cambio en tu comunidad
           </p>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-3 mb-8">
-            <button
-              onClick={() => setSelectedCategory('')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                !selectedCategory 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Todas
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  selectedCategory === category.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {category.icon} {category.name}
-              </button>
-            ))}
+          {/* Search and Filters */}
+          <div className="space-y-6 mb-8">
+            {/* Search Section */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-center mb-4">
+                <Search className="h-5 w-5 text-blue-600 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">Buscar Actividades</h3>
+              </div>
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Search Bar */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre, descripción o ubicación..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 focus:bg-white"
+                  />
+                </div>
+                
+                {/* Status Filter */}
+                <div className="relative lg:w-48">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-gray-50 focus:bg-white"
+                  >
+                    <option value="">📋 Todos los estados</option>
+                    <option value="active">🟢 Activo</option>
+                    <option value="planning">🟡 Planificando</option>
+                    <option value="completed">🔵 Completado</option>
+                  </select>
+                  <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 pointer-events-none" />
+                </div>
+                
+                {/* Clear Filters Button */}
+                {(searchTerm || statusFilter || selectedCategory) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('');
+                      setSelectedCategory('');
+                    }}
+                    className="lg:w-auto px-4 py-3 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors font-medium border border-red-200"
+                  >
+                    🗑️ Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-center mb-4">
+                <Filter className="h-5 w-5 text-purple-600 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">Filtrar por Categoría</h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setSelectedCategory('')}
+                  className={`px-6 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 transform hover:scale-105 ${
+                    !selectedCategory 
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                  }`}
+                >
+                  📋 Todas las categorías
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setSelectedCategory(category.id)}
+                    className={`px-6 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 transform hover:scale-105 border ${
+                      selectedCategory === category.id
+                        ? 'text-white shadow-lg scale-105'
+                        : 'text-gray-700 hover:bg-gray-50 border-gray-200 bg-white'
+                    }`}
+                    style={{
+                      backgroundColor: selectedCategory === category.id ? category.color || '#6366f1' : undefined,
+                      borderColor: selectedCategory === category.id ? category.color || '#6366f1' : undefined
+                    }}
+                  >
+                    <span className="text-lg mr-2">{category.icon}</span>
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Results Counter */}
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-gray-600">
+              {filteredActivities.length === activities.length 
+                ? `${activities.length} actividades disponibles`
+                : `${filteredActivities.length} de ${activities.length} actividades`
+              }
+            </p>
+            <div className="text-sm text-gray-500">
+              {searchTerm && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Búsqueda: "{searchTerm}"</span>}
+            </div>
           </div>
         </div>
 
@@ -1752,61 +2340,142 @@ function ActivitiesPage() {
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Cargando actividades...</p>
           </div>
+        ) : filteredActivities.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 mx-auto mb-4 text-gray-300">
+                <Search className="w-full h-full" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No se encontraron actividades</h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm ? `No hay actividades que coincidan con "${searchTerm}"` 
+                : selectedCategory ? 'No hay actividades en esta categoría' 
+                : 'No hay actividades disponibles en este momento'}
+              </p>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('');
+                  setStatusFilter('');
+                }}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredActivities.map((activity) => (
-              <div key={activity.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                <div className="relative h-48 overflow-hidden">
+              <div 
+                key={activity.id} 
+                className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+                onClick={() => openActivityModal(activity)}
+              >
+                <div className="relative h-56 overflow-hidden">
                   <img 
-                    src={activity.image_url || '/logo.png'} 
+                    src={activity.image_url || '/grupo-canadienses.jpg'} 
                     alt={activity.title}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                   <div className="absolute top-4 right-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                      activity.status === 'active' ? 'bg-green-500' :
-                      activity.status === 'planning' ? 'bg-yellow-500' :
-                      activity.status === 'completed' ? 'bg-blue-500' :
-                      'bg-gray-500'
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold text-white backdrop-blur-sm ${
+                      activity.status === 'active' ? 'bg-green-500/90' :
+                      activity.status === 'planning' ? 'bg-yellow-500/90' :
+                      activity.status === 'completed' ? 'bg-blue-500/90' :
+                      'bg-gray-500/90'
                     }`}>
                       {activity.status === 'active' ? 'Activo' :
                        activity.status === 'planning' ? 'Planificando' :
                        activity.status === 'completed' ? 'Completado' : 'Cancelado'}
                     </span>
                   </div>
+                  {activity.featured && (
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-yellow-500/90 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center backdrop-blur-sm">
+                        <Star className="w-3 h-3 mr-1" /> Destacado
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6">
-                  <div className="flex items-center mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     {activity.activity_categories && (
                       <span 
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-                        style={{ backgroundColor: activity.activity_categories.color }}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{ backgroundColor: activity.activity_categories.color || '#6B7280' }}
                       >
                         {activity.activity_categories.icon} {activity.activity_categories.name}
                       </span>
                     )}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      activity.priority === 'high' ? 'bg-red-100 text-red-800' :
+                      activity.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {activity.priority === 'high' ? 'Alta' :
+                       activity.priority === 'medium' ? 'Media' : 'Baja'} prioridad
+                    </span>
                   </div>
 
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{activity.title}</h3>
-                  <p className="text-gray-600 mb-4 line-clamp-3">{activity.description}</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+                    {activity.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4 line-clamp-2 leading-relaxed">
+                    {activity.description}
+                  </p>
 
-                  {activity.location && (
-                    <p className="text-sm text-gray-500 mb-3">📍 {activity.location}</p>
-                  )}
+                  <div className="space-y-3 mb-6">
+                    {activity.location && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>{activity.location}</span>
+                      </div>
+                    )}
+                    
+                    {activity.start_date && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock className="h-4 w-4 mr-2 text-green-500" />
+                        <span>Inicia: {new Date(activity.start_date).toLocaleDateString('es-ES')}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center text-gray-600">
+                        <Users className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>{activity.current_volunteers || 0}/{activity.max_volunteers || '∞'} voluntarios</span>
+                      </div>
+                      
+                      {activity.budget && (
+                        <div className="text-gray-600 font-medium">
+                          Presupuesto: ${activity.budget?.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center text-sm text-gray-500">
-                      <Users className="h-4 w-4 mr-1" />
-                      <span>{activity.current_volunteers || 0}/{activity.max_volunteers || '∞'} voluntarios</span>
+                      {activity.users && (
+                        <>
+                          <User className="h-4 w-4 mr-1" />
+                          <span>Por {activity.users.first_name} {activity.users.last_name}</span>
+                        </>
+                      )}
                     </div>
                     
-                    <Link
-                      to="/login"
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Navigate to login for now
+                        window.location.href = '/login';
+                      }}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
-                      Participar
-                    </Link>
+                      Ver Detalles
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1825,9 +2494,269 @@ function ActivitiesPage() {
             </p>
           </div>
         )}
+        
+        {/* Activity Details Modal */}
+        {showModal && selectedActivity && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closeModal}>
+            <div 
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative">
+                {/* Header Image */}
+                <div className="relative h-64 overflow-hidden">
+                  <img 
+                    src={selectedActivity.image_url || '/grupo-canadienses.jpg'} 
+                    alt={selectedActivity.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <button 
+                    onClick={closeModal}
+                    className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-white/30 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                  <div className="absolute bottom-4 left-6">
+                    <h2 className="text-3xl font-bold text-white mb-2">{selectedActivity.title}</h2>
+                    <div className="flex items-center space-x-3">
+                      {selectedActivity.activity_categories && (
+                        <span 
+                          className="px-3 py-1 rounded-full text-sm font-semibold text-white backdrop-blur-sm"
+                          style={{ backgroundColor: selectedActivity.activity_categories.color + '90' || 'rgba(107, 114, 128, 0.9)' }}
+                        >
+                          {selectedActivity.activity_categories.icon} {selectedActivity.activity_categories.name}
+                        </span>
+                      )}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold text-white backdrop-blur-sm ${
+                        selectedActivity.status === 'active' ? 'bg-green-500/90' :
+                        selectedActivity.status === 'planning' ? 'bg-yellow-500/90' :
+                        selectedActivity.status === 'completed' ? 'bg-blue-500/90' :
+                        'bg-gray-500/90'
+                      }`}>
+                        {selectedActivity.status === 'active' ? 'Activo' :
+                         selectedActivity.status === 'planning' ? 'Planificando' :
+                         selectedActivity.status === 'completed' ? 'Completado' : 'Cancelado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="p-8 max-h-[calc(90vh-16rem)] overflow-y-auto">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Descripción</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          {selectedActivity.detailed_description || selectedActivity.description}
+                        </p>
+                      </div>
+                      
+                      {selectedActivity.requirements && selectedActivity.requirements.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Requisitos</h3>
+                          <ul className="list-disc list-inside space-y-1 text-gray-600">
+                            {selectedActivity.requirements.map((req, index) => (
+                              <li key={index}>{req}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {selectedActivity.benefits && selectedActivity.benefits.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Beneficios</h3>
+                          <ul className="list-disc list-inside space-y-1 text-gray-600">
+                            {selectedActivity.benefits.map((benefit, index) => (
+                              <li key={index}>{benefit}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Sidebar */}
+                    <div className="space-y-6">
+                      <div className="bg-gray-50 rounded-2xl p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Información</h3>
+                        <div className="space-y-4">
+                          {selectedActivity.location && (
+                            <div className="flex items-start">
+                              <MapPin className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900">Ubicación</p>
+                                <p className="text-gray-600">{selectedActivity.location}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {selectedActivity.start_date && (
+                            <div className="flex items-start">
+                              <Clock className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900">Fecha de inicio</p>
+                                <p className="text-gray-600">
+                                  {new Date(selectedActivity.start_date).toLocaleDateString('es-ES', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {selectedActivity.end_date && (
+                            <div className="flex items-start">
+                              <Calendar className="h-5 w-5 text-purple-500 mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900">Fecha de fin</p>
+                                <p className="text-gray-600">
+                                  {new Date(selectedActivity.end_date).toLocaleDateString('es-ES', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start">
+                            <Users className="h-5 w-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-gray-900">Voluntarios</p>
+                              <p className="text-gray-600">
+                                {selectedActivity.current_volunteers || 0} de {selectedActivity.max_volunteers || '∞'} registrados
+                              </p>
+                              {selectedActivity.max_volunteers && (
+                                <div className="mt-2">
+                                  <div className="bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                      style={{
+                                        width: `${Math.min((selectedActivity.current_volunteers || 0) / selectedActivity.max_volunteers * 100, 100)}%`
+                                      }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {selectedActivity.budget && (
+                            <div className="flex items-start">
+                              <Building className="h-5 w-5 text-yellow-500 mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900">Presupuesto</p>
+                                <p className="text-gray-600">${selectedActivity.budget.toLocaleString()}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start">
+                            <Star className="h-5 w-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-gray-900">Prioridad</p>
+                              <p className={`font-semibold ${
+                                selectedActivity.priority === 'high' ? 'text-red-600' :
+                                selectedActivity.priority === 'medium' ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {selectedActivity.priority === 'high' ? 'Alta' :
+                                 selectedActivity.priority === 'medium' ? 'Media' : 'Baja'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {selectedActivity.users && (
+                            <div className="flex items-start">
+                              <User className="h-5 w-5 text-indigo-500 mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900">Organizado por</p>
+                                <p className="text-gray-600">
+                                  {selectedActivity.users.first_name} {selectedActivity.users.last_name}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => window.location.href = '/login'}
+                          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                        >
+                          Unirse como Voluntario
+                        </button>
+                        <button
+                          className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
+                          Compartir Actividad
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+// Admin Panel Page
+function AdminPanelPage() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is logged in and is admin
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      if (userData.role === 'admin') {
+        setUser(userData);
+      } else {
+        navigate('/dashboard');
+      }
+    } else {
+      navigate('/login');
+    }
+    setLoading(false);
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando panel administrativo...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return <AdminDashboard user={user} onLogout={handleLogout} />;
 }
 
 // Componente principal de la App
@@ -1839,6 +2768,7 @@ function App() {
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/admin" element={<AdminPanelPage />} />
       </Routes>
     </Router>
   );
