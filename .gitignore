@@ -300,6 +300,12 @@ dev-config.json
 personal-settings.json
 casira-local.json
 
+# Scripts y archivos técnicos (no funcionales para producción)
+*.sql
+supabase_*.sql
+.mcp.json
+mcp-*.json
+
 # Flask específico
 instance/
 .webassets-cache
