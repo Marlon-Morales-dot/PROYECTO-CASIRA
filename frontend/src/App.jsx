@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar, Search, Filter, MapPin, Clock, User } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { hybridData } from './lib/supabase-integration.js';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import VolunteerDashboard from './components/VolunteerDashboard.jsx';
 import SocialDashboard from './components/SocialDashboard.jsx';
@@ -1801,30 +1802,38 @@ function DashboardPage() {
     if (session) {
       const handleGoogleUser = async () => {
         try {
-          // Crear o actualizar perfil de usuario
-          const userData = {
-            id: session.user.id,
-            email: session.user.email,
-            first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-            last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
-            avatar_url: session.user.user_metadata.avatar_url,
-            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer'
-          };
+          console.log('🔐 Processing Google OAuth user:', session.user.id);
           
-          // Upsert user profile
-          await authAPI.upsertUserProfile(userData);
-          setUser(userData);
+          // Usar el nuevo sistema híbrido para manejar autenticación
+          const userData = await hybridData.handleGoogleAuth(session);
+          
+          if (userData) {
+            console.log('✅ Google user processed successfully:', userData);
+            setUser(userData);
+            
+            // Guardar también en localStorage como respaldo
+            localStorage.setItem('user', JSON.stringify(userData));
+            localStorage.setItem('token', 'google-' + session.user.id);
+          } else {
+            throw new Error('Failed to process Google user');
+          }
         } catch (error) {
-          console.error('Error handling Google OAuth user:', error);
-          const googleUser = {
+          console.error('❌ Error handling Google OAuth user:', error);
+          
+          // Fallback: crear usuario básico
+          const fallbackUser = {
             id: session.user.id,
             first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
             last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
             email: session.user.email,
             role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
-            bio: 'Usuario autenticado con Google'
+            bio: 'Usuario autenticado con Google',
+            avatar_url: session.user.user_metadata.avatar_url
           };
-          setUser(googleUser);
+          
+          setUser(fallbackUser);
+          localStorage.setItem('user', JSON.stringify(fallbackUser));
+          localStorage.setItem('token', 'google-fallback-' + session.user.id);
         }
       };
       
