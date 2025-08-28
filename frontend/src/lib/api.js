@@ -2,6 +2,9 @@
 // Backend URL configuration
 const BACKEND_URL = 'https://proyecto-casira.onrender.com';
 
+// Import Supabase storage utilities
+import { storageAPI } from './supabase.js';
+
 // ============= DATA STORE SIMPLIFICADO =============
 class CASIRADataStore {
   constructor() {
@@ -781,7 +784,6 @@ export const photosAPI = {
     if (photoData.file) {
       // Use Supabase storage for file uploads
       try {
-        const { storageAPI } = await import('./supabase.js');
         const uploadResult = await storageAPI.uploadImage(
           photoData.file, 
           photoData.user_id, 
@@ -835,7 +837,6 @@ export const photosAPI = {
       // Try to delete from Supabase storage if it's a Supabase URL
       if (photo.url && photo.url.includes('supabase')) {
         try {
-          const { storageAPI } = await import('./supabase.js');
           await storageAPI.deleteImage(photo.file_name);
         } catch (error) {
           console.error('Error deleting from Supabase:', error);
