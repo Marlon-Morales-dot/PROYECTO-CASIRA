@@ -1,12 +1,18 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && npm install",
+  "functions": {
+    "frontend/dist/**": {
+      "runtime": "@vercel/static"
+    }
+  },
   "routes": [
     {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/$1"
+    },
+    {
       "src": "/[^.]+",
-      "dest": "/",
-      "status": 200
+      "dest": "/frontend/dist/index.html"
     }
-  ]
+  ],
+  "buildCommand": "cd frontend && npm ci && npm run build"
 }
