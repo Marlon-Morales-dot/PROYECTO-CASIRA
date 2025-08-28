@@ -358,7 +358,9 @@ internal-docs/
 *confidential*
 *token*
 *credential*
-*auth*
+auth.json
+oauth-config.json
+auth-config.json
 
 # Configuraciones que pueden ser sensibles
 config-prod.json
