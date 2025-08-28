@@ -380,6 +380,7 @@ settings-private.json
 !supabase-schema.sql
 !mcp-server.js
 !frontend/src/
+!frontend/src/lib/
 !backend/app*.py
 !backend/requirements*.txt
 !backend/Procfile
