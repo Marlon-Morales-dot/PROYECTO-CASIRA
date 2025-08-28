@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, MessageCircle, Share2, ThumbsUp, Camera, MapPin, Clock, Users, 
   Bell, Settings, LogOut, Plus, Send, MoreHorizontal, UserPlus, CheckCircle, Award
@@ -24,6 +25,7 @@ const SocialDashboard = ({ user, onLogout }) => {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [sendingComment, setSendingComment] = useState({});
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'responsibilities'
 
   useEffect(() => {
@@ -191,12 +193,22 @@ const SocialDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const [likedPosts, setLikedPosts] = useState({});
+
   const handleLikePost = (postId) => {
+    // Add visual feedback
+    setLikedPosts(prev => ({ ...prev, [postId]: true }));
+    
     setPosts(prev => prev.map(post => 
       post.id === postId 
         ? { ...post, likes: (post.likes || 0) + 1 }
         : post
     ));
+
+    // Remove visual feedback after animation
+    setTimeout(() => {
+      setLikedPosts(prev => ({ ...prev, [postId]: false }));
+    }, 600);
   };
 
   // Handle comment functionality
@@ -218,6 +230,9 @@ const SocialDashboard = ({ user, onLogout }) => {
         return;
       }
 
+      // Set sending state
+      setSendingComment(prev => ({ ...prev, [postId]: true }));
+
       // For activity posts, use the activity_id to add comment
       const post = posts.find(p => p.id === postId);
       if (post && post.activity) {
@@ -236,10 +251,20 @@ const SocialDashboard = ({ user, onLogout }) => {
           [postId]: ''
         }));
 
+        // Success feedback
+        setSendingComment(prev => ({ ...prev, [postId]: 'success' }));
+        setTimeout(() => {
+          setSendingComment(prev => ({ ...prev, [postId]: false }));
+        }, 1000);
+
         // Reload data to get the new comment
         loadSocialData();
       }
     } catch (error) {
+      setSendingComment(prev => ({ ...prev, [postId]: 'error' }));
+      setTimeout(() => {
+        setSendingComment(prev => ({ ...prev, [postId]: false }));
+      }, 2000);
       alert('Error al agregar comentario: ' + error.message);
     }
   };
@@ -328,62 +353,108 @@ const SocialDashboard = ({ user, onLogout }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando feed social...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 border-4 border-gradient-to-r from-blue-600 to-blue-800 border-t-transparent rounded-full mx-auto mb-4"
+            style={{ borderImage: "linear-gradient(45deg, #2563eb, #1d4ed8) 1" }}
+          ></motion.div>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-gray-600 font-medium"
+          >
+            Cargando feed social...
+          </motion.p>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="h-1 bg-gradient-to-r from-blue-600 to-blue-800 rounded-full mx-auto mt-4 max-w-xs"
+          />
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Facebook-style Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      {/* Enhanced Header */}
+      <header className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-blue-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
+            {/* Enhanced Logo */}
             <div className="flex items-center">
-              <img src="/logo.png" alt="CASIRA" className="h-8 w-auto mr-2" />
-              <h1 className="text-xl font-bold text-blue-600">CASIRA Social</h1>
+              <img src="/logo.png" alt="CASIRA" className="h-8 w-auto mr-3" />
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                  CASIRA Social
+                </h1>
+                <div className="h-1 bg-gradient-to-r from-blue-600 to-transparent rounded-full" />
+              </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="flex-1 max-w-lg mx-4">
+            {/* Enhanced Search Bar */}
+            <div className="flex-1 max-w-lg mx-4 relative">
               <input
                 type="text"
                 placeholder="Buscar actividades, personas..."
-                className="w-full px-4 py-2 bg-gray-100 rounded-full border-none outline-none focus:bg-white focus:shadow-md transition-all"
+                className="w-full px-6 py-3 bg-gradient-to-r from-blue-50 to-blue-50 rounded-full border border-blue-200 outline-none focus:bg-white focus:border-blue-400 focus:shadow-lg transition-all duration-300 placeholder-blue-400"
               />
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
-              <button className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative p-2 rounded-full hover:bg-blue-50 transition-colors"
+              >
                 <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                >
                   {notifications.length || ''}
-                </span>
-              </button>
+                </motion.span>
+              </motion.button>
               
-              <div className="flex items-center space-x-2">
-                <img
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="flex items-center space-x-2"
+              >
+                <motion.img
+                  whileHover={{ scale: 1.1 }}
                   src={user.avatar_url || '/grupo-canadienses.jpg'}
                   alt={user.first_name}
-                  className="h-8 w-8 rounded-full object-cover"
+                  className="h-8 w-8 rounded-full object-cover border-2 border-blue-200 hover:border-blue-400 transition-colors"
                 />
                 <span className="text-sm font-medium text-gray-700">
                   {user.first_name} {user.last_name}
                 </span>
-              </div>
+              </motion.div>
 
-              <button
+              <motion.button
                 onClick={onLogout}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                whileHover={{ scale: 1.05, rotate: 2 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-2 rounded-full hover:bg-red-50 transition-colors"
               >
-                <LogOut className="h-5 w-5 text-gray-600" />
-              </button>
+                <LogOut className="h-5 w-5 text-gray-600 hover:text-red-600 transition-colors" />
+              </motion.button>
             </div>
           </div>
         </div>
@@ -395,37 +466,68 @@ const SocialDashboard = ({ user, onLogout }) => {
           <div className="lg:col-span-1">
             <div className="space-y-4">
               {/* User Profile Card */}
-              <div className="bg-white rounded-lg shadow p-4">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4 }}
+                className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-blue-100"
+              >
                 <div className="flex items-center space-x-3 mb-4">
-                  <img
+                  <motion.img
+                    whileHover={{ scale: 1.05 }}
                     src={user.avatar_url || '/grupo-canadienses.jpg'}
                     alt={user.first_name}
-                    className="h-12 w-12 rounded-full object-cover"
+                    className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
                   />
                   <div>
                     <h3 className="font-semibold text-gray-900">
                       {user.first_name} {user.last_name}
                     </h3>
-                    <p className="text-sm text-gray-500 capitalize">{user.role}</p>
+                    <span className="px-2 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs rounded-full capitalize font-medium">
+                      {user.role}
+                    </span>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>📍 {user.location || 'Guatemala'}</p>
-                  <p>⏱️ {user.total_hours || 0} horas contribuidas</p>
-                  <p>🎯 {myActivities.length} actividades</p>
+                <div className="text-sm space-y-2">
+                  <div className="flex items-center text-blue-600">
+                    <span className="mr-2">📍</span>
+                    <span className="text-gray-700">{user.location || 'Guatemala'}</span>
+                  </div>
+                  <div className="flex items-center text-blue-600">
+                    <span className="mr-2">⏱️</span>
+                    <span className="text-gray-700">{user.total_hours || 0} horas contribuidas</span>
+                  </div>
+                  <div className="flex items-center text-blue-600">
+                    <span className="mr-2">🎯</span>
+                    <span className="text-gray-700">{myActivities.length} actividades</span>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* My Activities */}
-              <div className="bg-white rounded-lg shadow p-4">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-blue-100"
+              >
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Mis Actividades
+                  <Users className="h-4 w-4 mr-2 text-blue-600" />
+                  <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    Mis Actividades
+                  </span>
                 </h3>
                 <div className="space-y-2">
-                  {myActivities.slice(0, 3).map((activity) => (
-                    <div key={activity.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50">
-                      <div className="w-8 h-8 rounded-lg overflow-hidden">
+                  {myActivities.slice(0, 3).map((activity, index) => (
+                    <motion.div 
+                      key={activity.id} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ scale: 1.02, backgroundColor: "rgba(59, 130, 246, 0.05)" }}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-50 transition-all"
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden border border-blue-200">
                         <img
                           src={activity.image_url || '/grupo-canadienses.jpg'}
                           alt={activity.title}
@@ -436,17 +538,21 @@ const SocialDashboard = ({ user, onLogout }) => {
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {activity.title}
                         </p>
-                        <p className="text-xs text-gray-500">{activity.location}</p>
+                        <p className="text-xs text-blue-600">{activity.location}</p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                   {myActivities.length > 3 && (
-                    <p className="text-xs text-gray-500 text-center py-2">
+                    <motion.p 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-xs text-blue-500 text-center py-2 font-medium"
+                    >
                       +{myActivities.length - 3} más
-                    </p>
+                    </motion.p>
                   )}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
 
@@ -454,19 +560,26 @@ const SocialDashboard = ({ user, onLogout }) => {
           <div className="lg:col-span-2">
             <div className="space-y-6">
               {/* Create Post */}
-              <div className="bg-white rounded-lg shadow p-4">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4"
+              >
                 <div className="flex items-center space-x-3 mb-4">
-                  <img
+                  <motion.img
+                    whileHover={{ scale: 1.1, rotate: 2 }}
                     src={user.avatar_url || '/grupo-canadienses.jpg'}
                     alt={user.first_name}
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="h-10 w-10 rounded-full object-cover border-2 border-blue-200"
                   />
                   <div className="flex-1">
-                    <textarea
+                    <motion.textarea
+                      whileFocus={{ scale: 1.02 }}
                       value={newPost}
                       onChange={(e) => setNewPost(e.target.value)}
                       placeholder={`¿Qué estás pensando, ${user.first_name}?`}
-                      className="w-full px-4 py-2 bg-gray-100 rounded-full resize-none outline-none focus:bg-white focus:shadow-md transition-all"
+                      className="w-full px-4 py-2 bg-gray-100 rounded-full resize-none outline-none focus:bg-white focus:shadow-md focus:border-blue-300 border-2 border-transparent transition-all"
                       rows={1}
                     />
                   </div>
@@ -512,10 +625,24 @@ const SocialDashboard = ({ user, onLogout }) => {
                         </p>
                       )}
                       {uploadingPhoto && (
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                          <span className="text-sm text-blue-600">Subiendo...</span>
-                        </div>
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"
+                        >
+                          <motion.div 
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"
+                          />
+                          <span className="text-sm text-blue-700 font-medium">Subiendo foto...</span>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                            className="ml-3 h-1 bg-blue-600 rounded-full w-16"
+                          />
+                        </motion.div>
                       )}
                     </div>
                   </div>
@@ -538,20 +665,31 @@ const SocialDashboard = ({ user, onLogout }) => {
                       <span className="text-sm">Ubicación</span>
                     </button>
                   </div>
-                  <button
+                  <motion.button
                     onClick={handleCreatePost}
                     disabled={!newPost.trim()}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-full font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     Publicar
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Posts Feed */}
               <div className="space-y-6">
-                {posts.map((post) => (
-                  <div key={post.id} className="bg-white rounded-lg shadow">
+                <AnimatePresence>
+                  {posts.map((post, index) => (
+                    <motion.div 
+                      key={post.id} 
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -30 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                      whileHover={{ scale: 1.01, shadow: "0 10px 25px rgba(0,0,0,0.1)" }}
+                      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                    >
                     {/* Post Header */}
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -590,37 +728,62 @@ const SocialDashboard = ({ user, onLogout }) => {
                     {/* Post Image */}
                     {post.photo && (
                       <div className="px-4 pb-3">
-                        <img
-                          src={post.photo.url}
-                          alt={post.photo.caption}
-                          className="w-full rounded-lg object-cover max-h-96"
-                        />
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          className="overflow-hidden rounded-lg"
+                        >
+                          <motion.img
+                            src={post.photo.url}
+                            alt={post.photo.caption}
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ duration: 0.3 }}
+                            className="w-full object-cover max-h-96 cursor-pointer"
+                          />
+                        </motion.div>
                       </div>
                     )}
 
                     {/* Activity Card */}
                     {post.type === 'activity' && post.activity && (
                       <div className="px-4 pb-3">
-                        <div className="border rounded-lg overflow-hidden">
-                          <img
-                            src={post.activity.image_url || '/grupo-canadienses.jpg'}
-                            alt={post.activity.title}
-                            className="w-full h-48 object-cover"
-                          />
+                        <motion.div 
+                          whileHover={{ 
+                            scale: 1.02,
+                            boxShadow: "0 10px 25px rgba(59, 130, 246, 0.15)"
+                          }}
+                          className="border border-blue-100 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-white"
+                        >
+                          <motion.div className="overflow-hidden">
+                            <motion.img
+                              src={post.activity.image_url || '/grupo-canadienses.jpg'}
+                              alt={post.activity.title}
+                              whileHover={{ scale: 1.05 }}
+                              transition={{ duration: 0.3 }}
+                              className="w-full h-48 object-cover"
+                            />
+                          </motion.div>
                           <div className="p-4">
-                            <h5 className="font-semibold text-gray-900 mb-2">{post.activity.title}</h5>
+                            <h5 className="font-semibold text-gray-900 mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                              {post.activity.title}
+                            </h5>
                             <div className="flex items-center text-sm text-gray-600 space-x-4">
-                              <div className="flex items-center">
-                                <MapPin className="h-4 w-4 mr-1" />
+                              <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                className="flex items-center"
+                              >
+                                <MapPin className="h-4 w-4 mr-1 text-blue-600" />
                                 {post.activity.location}
-                              </div>
-                              <div className="flex items-center">
-                                <Users className="h-4 w-4 mr-1" />
+                              </motion.div>
+                              <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                className="flex items-center"
+                              >
+                                <Users className="h-4 w-4 mr-1 text-blue-600" />
                                 {post.activity.current_volunteers || 0}/{post.activity.max_volunteers || '∞'}
-                              </div>
+                              </motion.div>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       </div>
                     )}
 
@@ -638,24 +801,59 @@ const SocialDashboard = ({ user, onLogout }) => {
                     {/* Post Actions */}
                     <div className="px-4 py-3 border-t border-gray-100">
                       <div className="flex justify-around">
-                        <button
+                        <motion.button
                           onClick={() => handleLikePost(post.id)}
-                          className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-blue-600"
+                          whileHover={{ scale: 1.05, backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                          whileTap={{ scale: 0.95 }}
+                          animate={likedPosts[post.id] ? { 
+                            backgroundColor: "rgba(59, 130, 246, 0.15)",
+                            color: "#2563eb"
+                          } : {}}
+                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all text-gray-600 hover:text-blue-600 ${likedPosts[post.id] ? 'bg-blue-50 text-blue-600' : ''}`}
                         >
-                          <ThumbsUp className="h-4 w-4" />
+                          <motion.div 
+                            whileHover={{ rotate: 10 }}
+                            animate={likedPosts[post.id] ? { 
+                              scale: [1, 1.3, 1],
+                              rotate: [0, 15, 0]
+                            } : {}}
+                            transition={{ duration: 0.6 }}
+                          >
+                            <ThumbsUp className={`h-4 w-4 ${likedPosts[post.id] ? 'fill-blue-600' : ''}`} />
+                          </motion.div>
                           <span className="text-sm font-medium">Me gusta</span>
-                        </button>
-                        <button 
+                          {likedPosts[post.id] && (
+                            <motion.span
+                              initial={{ opacity: 0, scale: 0 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0 }}
+                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full"
+                            >
+                              +1
+                            </motion.span>
+                          )}
+                        </motion.button>
+                        <motion.button 
                           onClick={() => handleToggleComments(post.id)}
-                          className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-green-600"
+                          whileHover={{ scale: 1.05, backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                          whileTap={{ scale: 0.95 }}
+                          className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-green-50 transition-all text-gray-600 hover:text-green-600"
                         >
-                          <MessageCircle className="h-4 w-4" />
+                          <motion.div whileHover={{ rotate: -10 }}>
+                            <MessageCircle className="h-4 w-4" />
+                          </motion.div>
                           <span className="text-sm font-medium">Comentar</span>
-                        </button>
-                        <button className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-purple-600">
-                          <Share2 className="h-4 w-4" />
+                        </motion.button>
+                        <motion.button 
+                          whileHover={{ scale: 1.05, backgroundColor: "rgba(147, 51, 234, 0.1)" }}
+                          whileTap={{ scale: 0.95 }}
+                          className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-purple-50 transition-all text-gray-600 hover:text-purple-600"
+                        >
+                          <motion.div whileHover={{ rotate: 15 }}>
+                            <Share2 className="h-4 w-4" />
+                          </motion.div>
                           <span className="text-sm font-medium">Compartir</span>
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
 
@@ -684,13 +882,48 @@ const SocialDashboard = ({ user, onLogout }) => {
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                             />
                             {user.role !== 'visitor' && (
-                              <button
+                              <motion.button
                                 onClick={() => handleAddComment(post.id)}
-                                disabled={!commentInputs[post.id]?.trim()}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!commentInputs[post.id]?.trim() || sendingComment[post.id]}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                animate={
+                                  sendingComment[post.id] === 'success' ? {
+                                    backgroundColor: "#10b981",
+                                    scale: [1, 1.1, 1]
+                                  } : sendingComment[post.id] === 'error' ? {
+                                    backgroundColor: "#ef4444",
+                                    scale: [1, 1.1, 1]
+                                  } : {}
+                                }
+                                className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                               >
-                                <Send className="h-4 w-4" />
-                              </button>
+                                {sendingComment[post.id] === true ? (
+                                  <motion.div 
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    className="h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                                  />
+                                ) : sendingComment[post.id] === 'success' ? (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="h-4 w-4"
+                                  >
+                                    ✓
+                                  </motion.div>
+                                ) : sendingComment[post.id] === 'error' ? (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="h-4 w-4"
+                                  >
+                                    ✗
+                                  </motion.div>
+                                ) : (
+                                  <Send className="h-4 w-4" />
+                                )}
+                              </motion.button>
                             )}
                           </div>
                         </div>
@@ -738,8 +971,9 @@ const SocialDashboard = ({ user, onLogout }) => {
                         )}
                       </div>
                     )}
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -748,24 +982,33 @@ const SocialDashboard = ({ user, onLogout }) => {
           <div className="lg:col-span-1">
             <div className="space-y-4">
               {/* Quick Join Activities */}
-              <div className="bg-white rounded-lg shadow p-4">
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-blue-100"
+              >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900 flex items-center">
-                    <UserPlus className="h-4 w-4 mr-2 text-green-600" />
-                    {user.role === 'visitor' ? 'Eventos para Asistir' : 'Únete Rápido'}
+                  <h3 className="font-semibold flex items-center">
+                    <UserPlus className="h-4 w-4 mr-2 text-blue-600" />
+                    <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                      {user.role === 'visitor' ? 'Eventos para Asistir' : 'Únete Rápido'}
+                    </span>
                   </h3>
-                  <button 
+                  <motion.button 
                     onClick={() => {
                       console.log('Refreshing social data...');
                       loadSocialData();
                     }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    whileHover={{ scale: 1.1, rotate: 180 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="text-blue-400 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-blue-50"
                     title="Actualizar actividades"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                  </button>
+                  </motion.button>
                 </div>
                 
                 {/* Visitor Limitations Info */}
@@ -816,8 +1059,15 @@ const SocialDashboard = ({ user, onLogout }) => {
                   {activities
                     .filter(a => !myActivities.find(ma => ma.id === a.id))
                     .slice(0, 5)
-                    .map((activity) => (
-                      <div key={activity.id} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                    .map((activity, index) => (
+                      <motion.div 
+                        key={activity.id}
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)" }}
+                        className="border border-blue-100 rounded-lg p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white transition-all"
+                      >
                         <div className="flex items-center space-x-3 mb-2">
                           <div className="w-10 h-10 rounded-lg overflow-hidden">
                             <img
@@ -837,47 +1087,66 @@ const SocialDashboard = ({ user, onLogout }) => {
                           <div className="text-xs text-gray-500">
                             {activity.current_volunteers || 0}/{activity.max_volunteers || '∞'} vol.
                           </div>
-                          <button
+                          <motion.button
                             onClick={() => handleJoinActivity(activity.id)}
                             disabled={user.role === 'visitor' && myActivities.length >= 2}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all shadow-sm hover:shadow-md ${
                               user.role === 'visitor' && myActivities.length >= 2
                                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                : 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800'
                             }`}
                           >
                             {user.role === 'visitor' 
                               ? (myActivities.length >= 2 ? 'Límite alcanzado' : 'Asistir') 
                               : 'Unirme'}
-                          </button>
+                          </motion.button>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                 </div>
-              </div>
+              </motion.div>
 
               {/* Activity Categories */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="font-semibold text-gray-900 mb-4">Categorías</h3>
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-blue-100"
+              >
+                <h3 className="font-semibold mb-4 flex items-center">
+                  <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    Categorías
+                  </span>
+                </h3>
                 <div className="space-y-2">
-                  {(dataStore.categories || []).map((category) => (
-                    <div key={category.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white"
+                  {(dataStore.categories || []).map((category, index) => (
+                    <motion.div 
+                      key={category.id} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ scale: 1.02, backgroundColor: "rgba(59, 130, 246, 0.05)" }}
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-50 cursor-pointer transition-all"
+                    >
+                      <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm"
                         style={{ backgroundColor: category.color }}
                       >
                         {category.icon}
-                      </div>
+                      </motion.div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{category.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-blue-600">
                           {activities.filter(a => a.category_id === category.id).length} actividades
                         </p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>

@@ -570,6 +570,111 @@ export const postsAPI = {
     return dataStore.posts
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, limit);
+  },
+
+  createPost: async (postData) => {
+    const user = dataStore.getUserById(postData.author_id);
+    if (!user) throw new Error('Usuario no encontrado');
+
+    const post = {
+      id: Date.now(),
+      author_id: postData.author_id,
+      activity_id: postData.activity_id || null,
+      title: postData.title || '',
+      content: postData.content,
+      post_type: postData.post_type || 'update',
+      images: postData.images || [],
+      visibility: postData.visibility || 'public',
+      likes_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      featured: postData.featured || false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user: user
+    };
+
+    dataStore.posts.push(post);
+    dataStore.saveToStorage();
+    dataStore.notify();
+    return post;
+  },
+
+  likePost: async (postId, userId) => {
+    const existingLike = dataStore.likes.find(l => 
+      l.post_id == postId && l.user_id == userId && l.type === 'post'
+    );
+    
+    if (existingLike) {
+      // Remove like
+      dataStore.likes = dataStore.likes.filter(l => l.id !== existingLike.id);
+      
+      // Update post likes count
+      const postIndex = dataStore.posts.findIndex(p => p.id == postId);
+      if (postIndex !== -1) {
+        dataStore.posts[postIndex].likes_count = Math.max(0, (dataStore.posts[postIndex].likes_count || 1) - 1);
+      }
+    } else {
+      // Add like
+      const newLike = {
+        id: Date.now(),
+        post_id: postId,
+        user_id: userId,
+        type: 'post',
+        created_at: new Date().toISOString()
+      };
+      dataStore.likes.push(newLike);
+      
+      // Update post likes count
+      const postIndex = dataStore.posts.findIndex(p => p.id == postId);
+      if (postIndex !== -1) {
+        dataStore.posts[postIndex].likes_count = (dataStore.posts[postIndex].likes_count || 0) + 1;
+      }
+    }
+
+    dataStore.saveToStorage();
+    dataStore.notify();
+    return { 
+      liked: !existingLike, 
+      totalLikes: dataStore.likes.filter(l => l.post_id == postId && l.type === 'post').length 
+    };
+  },
+
+  addCommentToPost: async (postId, userId, content) => {
+    const user = dataStore.getUserById(userId);
+    if (!user) throw new Error('Usuario no encontrado');
+
+    const comment = {
+      id: Date.now(),
+      post_id: postId,
+      user_id: userId,
+      content: content,
+      created_at: new Date().toISOString(),
+      likes: 0,
+      user: user
+    };
+
+    dataStore.comments.push(comment);
+    
+    // Update post comments count
+    const postIndex = dataStore.posts.findIndex(p => p.id == postId);
+    if (postIndex !== -1) {
+      dataStore.posts[postIndex].comments_count = (dataStore.posts[postIndex].comments_count || 0) + 1;
+    }
+
+    dataStore.saveToStorage();
+    dataStore.notify();
+    return comment;
+  },
+
+  getPostComments: async (postId) => {
+    return dataStore.comments
+      .filter(c => c.post_id == postId)
+      .map(comment => {
+        const user = dataStore.getUserById(comment.user_id);
+        return { ...comment, user: user || { first_name: 'Usuario', last_name: 'Desconocido' } };
+      })
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }
 };
 
@@ -660,22 +765,46 @@ export const categoriesAPI = {
   }
 };
 
-// Photos API (simplified)
+// Photos API (with Supabase Storage integration)
 export const photosAPI = {
   getActivityPhotos: async (activityId) => {
     return dataStore.photos.filter(p => p.activity_id == activityId);
   },
 
-  uploadPhoto: async (activityId, userId, photoData) => {
-    const user = dataStore.getUserById(userId);
+  uploadPhoto: async (photoData) => {
+    const user = dataStore.getUserById(photoData.user_id);
     if (!user) throw new Error('Usuario no encontrado');
+
+    // Check if it's a file upload or base64 data
+    let imageUrl;
+    
+    if (photoData.file) {
+      // Use Supabase storage for file uploads
+      try {
+        const { storageAPI } = await import('./supabase.js');
+        const uploadResult = await storageAPI.uploadImage(
+          photoData.file, 
+          photoData.user_id, 
+          photoData.activity_id
+        );
+        imageUrl = uploadResult.url;
+      } catch (error) {
+        console.error('Error uploading to Supabase:', error);
+        // Fallback to base64 if Supabase fails
+        imageUrl = photoData.image_data;
+      }
+    } else {
+      // Use provided URL or base64 data
+      imageUrl = photoData.image_data || photoData.url;
+    }
 
     const photo = {
       id: Date.now(),
-      activity_id: activityId,
-      user_id: userId,
-      url: photoData.url,
+      activity_id: photoData.activity_id,
+      user_id: photoData.user_id,
+      url: imageUrl,
       caption: photoData.caption || '',
+      file_name: photoData.file_name || `photo_${Date.now()}`,
       created_at: new Date().toISOString(),
       likes: 0,
       user: user
@@ -694,6 +823,29 @@ export const photosAPI = {
       dataStore.saveToStorage();
       dataStore.notify();
       return dataStore.photos[photoIndex];
+    }
+    throw new Error('Foto no encontrada');
+  },
+
+  deletePhoto: async (photoId) => {
+    const photoIndex = dataStore.photos.findIndex(p => p.id == photoId);
+    if (photoIndex !== -1) {
+      const photo = dataStore.photos[photoIndex];
+      
+      // Try to delete from Supabase storage if it's a Supabase URL
+      if (photo.url && photo.url.includes('supabase')) {
+        try {
+          const { storageAPI } = await import('./supabase.js');
+          await storageAPI.deleteImage(photo.file_name);
+        } catch (error) {
+          console.error('Error deleting from Supabase:', error);
+        }
+      }
+      
+      dataStore.photos.splice(photoIndex, 1);
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return photo;
     }
     throw new Error('Foto no encontrada');
   }
