@@ -2217,6 +2217,7 @@ function DashboardPage() {
 
 // Componente de Activities Page
 function ActivitiesPage() {
+  const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -2563,7 +2564,7 @@ function ActivitiesPage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         // Navigate to login for now
-                        window.location.href = '/login';
+                        navigate('/login');
                       }}
                       className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
@@ -2783,7 +2784,7 @@ function ActivitiesPage() {
                       {/* Action Buttons */}
                       <div className="space-y-3">
                         <button
-                          onClick={() => window.location.href = '/login'}
+                          onClick={() => navigate('/login')}
                           className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                         >
                           Unirse como Voluntario
