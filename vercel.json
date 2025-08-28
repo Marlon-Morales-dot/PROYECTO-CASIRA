@@ -1,18 +1,18 @@
 {
-  "functions": {
-    "frontend/dist/**": {
-      "runtime": "@vercel/static"
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/$1"
-    },
-    {
-      "src": "/[^.]+",
-      "dest": "/frontend/dist/index.html"
+      "dest": "/frontend/$1"
     }
-  ],
-  "buildCommand": "cd frontend && npm ci && npm run build"
+  ]
 }
