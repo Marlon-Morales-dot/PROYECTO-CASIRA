@@ -1,1 +1,5 @@
-{"functions": {"frontend/**": {"excludeFiles": "{node_modules/**,src/**}"}}, "rewrites": [{"source": "/(.*)", "destination": "/frontend/index.html"}]}
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
