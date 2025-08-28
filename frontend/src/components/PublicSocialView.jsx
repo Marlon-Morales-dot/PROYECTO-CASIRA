@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Users, MapPin, Calendar, Clock, Send, Star, Eye, ThumbsUp, Smile } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { activitiesAPI, commentsAPI, photosAPI, dataStore } from '@/lib/api.js';
 
 const PublicSocialView = ({ currentUser = null }) => {
+  const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [comments, setComments] = useState({});
@@ -416,7 +418,7 @@ const PublicSocialView = ({ currentUser = null }) => {
               </p>
               <div className="space-y-3">
                 <button
-                  onClick={() => window.location.href = '/login'}
+                  onClick={() => navigate('/login')}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-medium"
                 >
                   Crear cuenta gratis

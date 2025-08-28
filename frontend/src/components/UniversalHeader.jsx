@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Heart, MessageCircle, Search, User, LogOut, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import UserNotifications from './UserNotifications.jsx';
 import { volunteersAPI } from '@/lib/api.js';
 
 const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
+  const navigate = useNavigate();
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [userStats, setUserStats] = useState({
@@ -194,13 +196,13 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => window.location.href = '/login'}
+                    onClick={() => navigate('/login')}
                     className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2"
                   >
                     Iniciar Sesión
                   </button>
                   <button
-                    onClick={() => window.location.href = '/login'}
+                    onClick={() => navigate('/login')}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm px-4 py-2 rounded-full hover:from-blue-700 hover:to-purple-700 transition-all"
                   >
                     Únete Gratis
