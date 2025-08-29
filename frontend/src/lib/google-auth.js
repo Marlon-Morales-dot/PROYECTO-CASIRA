@@ -27,19 +27,31 @@ class GoogleAuthManager {
   async initializeGoogleAuth() {
     try {
       console.log('🚀 CASIRA Google Auth: Iniciando inicialización...');
+      console.log('🔍 CASIRA Google Auth: Verificando disponibilidad de window.gapi...', typeof window.gapi);
       
       // Verificar si ya existe la API de Google
       if (typeof window.gapi !== 'undefined') {
+        console.log('✅ CASIRA Google Auth: gapi ya disponible, configurando...');
         await this.setupGoogleAPI();
         return;
       }
 
       // Cargar Google API si no está disponible
+      console.log('📦 CASIRA Google Auth: gapi no disponible, cargando...');
       await this.loadGoogleAPI();
+      
+      console.log('🔧 CASIRA Google Auth: API cargada, configurando Auth2...');
       await this.setupGoogleAPI();
+      
+      console.log('🎉 CASIRA Google Auth: Inicialización completada exitosamente!');
       
     } catch (error) {
       console.error('❌ CASIRA Google Auth: Error en inicialización:', error);
+      console.error('📋 CASIRA Google Auth: Detalles del error:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       this.handleInitializationError(error);
     }
   }

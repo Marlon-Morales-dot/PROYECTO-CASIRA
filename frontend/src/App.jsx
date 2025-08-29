@@ -232,6 +232,35 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       
       console.log('🔐 Starting Google Authentication...');
       
+      // Force initialization if not ready
+      if (!enhancedAPI.googleAuth.isInitialized) {
+        console.log('⚡ Google Auth not initialized, forcing initialization...');
+        try {
+          await enhancedAPI.googleAuth.initializeGoogleAuth();
+          console.log('✅ Forced initialization completed');
+        } catch (initError) {
+          console.error('❌ Forced initialization failed:', initError);
+          throw new Error('No se pudo inicializar Google Auth. Por favor recarga la página e intenta de nuevo.');
+        }
+      }
+      
+      // Wait for Google Auth to be ready (with timeout)
+      console.log('⏳ Waiting for Google Auth to be ready...');
+      let attempts = 0;
+      const maxAttempts = 20; // 10 seconds max
+      
+      while (!enhancedAPI.googleAuth.isInitialized && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+        console.log(`🔄 Google Auth readiness check ${attempts}/${maxAttempts}`);
+      }
+      
+      if (!enhancedAPI.googleAuth.isInitialized) {
+        throw new Error('Google Auth no se pudo inicializar. Por favor recarga la página, verifica tu conexión a internet, e intenta nuevamente.');
+      }
+      
+      console.log('✅ Google Auth is ready, proceeding with sign in...');
+      
       // Get Google user through the working auth system
       const googleUser = await enhancedAPI.googleAuth.signIn();
       
@@ -247,7 +276,21 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       }
     } catch (error) {
       console.error('❌ Google OAuth error:', error);
-      if (onError) onError(error);
+      let errorMessage = 'Error al iniciar sesión con Google. Por favor intenta de nuevo.';
+      
+      if (error.message?.includes('initialize')) {
+        errorMessage = '⏱️ Google Auth está cargando. Por favor espera un momento y vuelve a intentar.';
+      } else if (error.message?.includes('popup')) {
+        errorMessage = '😫 La ventana de Google se cerró. Por favor intenta de nuevo.';
+      } else if (error.message?.includes('network')) {
+        errorMessage = '🌐 Error de conexión. Verifica tu internet e intenta de nuevo.';
+      }
+      
+      // Create error with user-friendly message
+      const userFriendlyError = new Error(errorMessage);
+      userFriendlyError.originalError = error;
+      
+      if (onError) onError(userFriendlyError);
     } finally {
       setIsLoading(false);
     }
