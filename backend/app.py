@@ -370,8 +370,9 @@ def serve_react_app():
             
             # Asegurar que script-src-elem esté incluido en CSP
             if 'script-src-elem' not in content:
+                # Buscar el patrón actual en la página desplegada
                 content = content.replace(
-                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com data: blob:;',
+                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com data: blob:;',
                     'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com data: blob:;\n      script-src-elem \'self\' \'unsafe-inline\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com;'
                 )
             
