@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import os
 import json
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 CORS(app, origins=["*"])
 
 # Datos simulados para el despliegue
@@ -247,22 +247,123 @@ def get_projects_stats():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/')
-def index():
-    return jsonify({
-        'message': 'CASIRA Connect API',
-        'version': '1.0.0',
-        'status': 'running',
-        'endpoints': [
-            '/api/health',
-            '/api/auth/login',
-            '/api/auth/register',
-            '/api/posts',
-            '/api/projects',
-            '/api/projects/featured',
-            '/api/projects/stats'
-        ]
-    })
+# Nuevas rutas para autenticación con Google
+@app.route('/api/auth/google', methods=['POST'])
+def google_auth():
+    try:
+        data = request.get_json()
+        google_user = data.get('user', {})
+        
+        if not google_user.get('email'):
+            return jsonify({'error': 'Email requerido'}), 400
+            
+        # Buscar usuario existente por email
+        existing_user = None
+        for user in SAMPLE_DATA['users']:
+            if user['email'].lower() == google_user['email'].lower():
+                existing_user = user
+                break
+        
+        # Si no existe, crear nuevo usuario visitor
+        if not existing_user:
+            new_user = {
+                'id': len(SAMPLE_DATA['users']) + 1,
+                'email': google_user['email'],
+                'first_name': google_user.get('given_name', ''),
+                'last_name': google_user.get('family_name', ''),
+                'role': 'visitor',
+                'google_id': google_user.get('id'),
+                'picture': google_user.get('picture'),
+                'created_at': datetime.now().isoformat(),
+                'bio': 'Usuario registrado mediante Google'
+            }
+            SAMPLE_DATA['users'].append(new_user)
+            existing_user = new_user
+        else:
+            # Actualizar datos del usuario existente con info de Google
+            existing_user.update({
+                'google_id': google_user.get('id'),
+                'picture': google_user.get('picture'),
+                'first_name': google_user.get('given_name', existing_user.get('first_name')),
+                'last_name': google_user.get('family_name', existing_user.get('last_name'))
+            })
+        
+        return jsonify({
+            'success': True,
+            'user': existing_user,
+            'message': 'Autenticación con Google exitosa'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/profile', methods=['POST'])
+def update_user_profile():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'user_id requerido'}), 400
+        
+        # Buscar usuario
+        user = None
+        for u in SAMPLE_DATA['users']:
+            if u['id'] == user_id:
+                user = u
+                break
+                
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+        # Actualizar campos permitidos
+        updatable_fields = ['first_name', 'last_name', 'phone', 'location', 'bio', 'skills']
+        for field in updatable_fields:
+            if field in data:
+                user[field] = data[field]
+        
+        return jsonify({
+            'success': True,
+            'user': user,
+            'message': 'Perfil actualizado exitosamente'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Servir archivos estáticos del frontend React
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'static'), filename)
+
+# Servir el frontend React para todas las rutas no-API
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react_app(path):
+    # Si es una ruta de API, no interceptar
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Servir index.html para todas las rutas del frontend
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except FileNotFoundError:
+        # Fallback si no existe el build de React
+        return jsonify({
+            'message': 'CASIRA Connect API',
+            'version': '1.0.0',
+            'status': 'running',
+            'note': 'Frontend not built yet. Run npm run build in frontend folder.',
+            'endpoints': [
+                '/api/health',
+                '/api/auth/login',
+                '/api/auth/register',
+                '/api/posts',
+                '/api/projects',
+                '/api/projects/featured',
+                '/api/projects/stats'
+            ]
+        })
 
 if __name__ == '__main__':
     # Para desarrollo local

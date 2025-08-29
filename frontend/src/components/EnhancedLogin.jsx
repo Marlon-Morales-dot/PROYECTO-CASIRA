@@ -176,20 +176,35 @@ const EnhancedLogin = () => {
     }
   };
 
-  const handleSuccessfulAuth = (user) => {
+  const handleSuccessfulAuth = async (user) => {
     console.log('🎉 Autenticación exitosa, redirigiendo usuario:', {
       email: user.email,
       role: user.role,
       provider: user.provider
     });
 
-    // Guardar datos de sesión
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('casira-current-user', JSON.stringify(user));
+    let processedUser = user;
+    
+    // Si es un usuario de Google, usar el endpoint del backend
+    if (user.id && (user.id.includes('google') || user.google_id)) {
+      try {
+        console.log('🔐 Autenticando usuario de Google via backend...');
+        processedUser = await enhancedAPI.usersAPI.authenticateWithGoogle(user);
+        console.log('✅ Usuario de Google procesado:', processedUser);
+      } catch (error) {
+        console.error('❌ Error autenticando con backend:', error);
+        setError('Error conectando con el servidor. Inténtalo de nuevo.');
+        return;
+      }
     }
 
-    // Redirigir basado en el rol del usuario
-    switch (user.role) {
+    // Guardar datos de sesión
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('casira-current-user', JSON.stringify(processedUser));
+    }
+
+    // Redirigir basado en el rol del usuario procesado
+    switch (processedUser.role) {
       case 'admin':
         navigate('/admin');
         break;

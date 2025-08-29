@@ -40,6 +40,42 @@ class EnhancedCASIRAAPI {
         return users.find(user => user.id == id);
       },
 
+      // Autenticación con Google a través del backend
+      authenticateWithGoogle: async (googleUser) => {
+        try {
+          console.log('🔐 CASIRA API: Autenticando con Google via backend...', googleUser.email);
+          
+          const response = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user: googleUser })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Error del servidor: ${response.status}`);
+          }
+
+          const result = await response.json();
+          
+          if (result.success) {
+            console.log('✅ CASIRA API: Autenticación Google exitosa:', result.user.email);
+            
+            // Actualizar storage local
+            this.storageManager.set('currentUser', result.user);
+            this.storageManager.set('isAuthenticated', true);
+            
+            return result.user;
+          } else {
+            throw new Error(result.message || 'Error en autenticación');
+          }
+        } catch (error) {
+          console.error('❌ CASIRA API: Error en autenticación Google:', error);
+          throw error;
+        }
+      },
+
       createUser: async (userData) => {
         try {
           const users = this.storageManager.get('users') || [];
