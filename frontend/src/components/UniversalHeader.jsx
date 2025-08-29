@@ -51,7 +51,7 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
         return { name: 'Donante', color: 'yellow', icon: '💝' };
       default:
         return { name: 'Usuario', color: 'gray', icon: '👤' };
-    }
+     }
   };
 
   const roleInfo = getRoleDisplay(user?.role);
