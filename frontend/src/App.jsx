@@ -225,17 +225,32 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const handleGoogleSignIn = async () => {
-    if (!supabase) {
-      const error = new Error('Supabase not configured');
-      console.error('Google OAuth error: Supabase not available');
+    setIsLoading(true);
+    try {
+      // Use the working Google Auth system
+      const { enhancedAPI } = await import('./lib/api-enhanced.js');
+      
+      console.log('🔐 Starting Google Authentication...');
+      
+      // Get Google user through the working auth system
+      const googleUser = await enhancedAPI.googleAuth.signInWithPopup();
+      
+      if (googleUser) {
+        console.log('✅ Google Auth success:', googleUser.email);
+        
+        // Authenticate with backend
+        const authenticatedUser = await enhancedAPI.usersAPI.authenticateWithGoogle(googleUser);
+        
+        if (onSuccess) onSuccess(authenticatedUser);
+      } else {
+        throw new Error('No user returned from Google Auth');
+      }
+    } catch (error) {
+      console.error('❌ Google OAuth error:', error);
       if (onError) onError(error);
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    // Google Auth is temporarily disabled in App.jsx
-    // Users should use the Enhanced Login page which has working Google Auth
-    console.log('Redirecting to Enhanced Login for Google Auth...');
-    window.location.href = '/enhanced-login';
   };
 
   const isButtonDisabled = disabled || isLoading;
@@ -1710,11 +1725,10 @@ function LoginPage() {
               </div>
             </div>
 
-            {/* Google OAuth Button - Solo si Supabase está configurado */}
-            {supabase && (
-              <div className="pt-6">
-                <GoogleOAuthButton
-                  onSuccess={(data) => {
+            {/* Google OAuth Button - Now using direct Google Auth */}
+            <div className="pt-6">
+              <GoogleOAuthButton
+                onSuccess={(data) => {
                     console.log('✅ Google OAuth iniciado exitosamente:', data);
                     console.log('🚀 Redirigiendo a Google para autenticación...');
                     // La redirección se manejará automáticamente por el hook useAuth
@@ -1743,7 +1757,6 @@ function LoginPage() {
                   disabled={isLoading}
                 />
               </div>
-            )}
 
             {/* Link de retorno mejorado */}
             <div className="text-center pt-4">
