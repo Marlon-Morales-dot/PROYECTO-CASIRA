@@ -224,11 +224,7 @@ const SocialDashboard = ({ user, onLogout }) => {
     if (!commentText) return;
 
     try {
-      // Check if user has permission to comment
-      if (user.role === 'visitor') {
-        alert('Los visitantes no pueden comentar. Cambia a rol Voluntario para comentar.');
-        return;
-      }
+      // Visitors can now comment
 
       // Set sending state
       setSendingComment(prev => ({ ...prev, [postId]: true }));
@@ -870,7 +866,7 @@ const SocialDashboard = ({ user, onLogout }) => {
                           <div className="flex-1 flex space-x-2">
                             <input
                               type="text"
-                              placeholder={user.role === 'visitor' ? 'Los visitantes no pueden comentar' : 'Escribe un comentario...'}
+                              placeholder="Escribe un comentario..."
                               value={commentInputs[post.id] || ''}
                               onChange={(e) => handleCommentInputChange(post.id, e.target.value)}
                               onKeyPress={(e) => {
@@ -878,10 +874,10 @@ const SocialDashboard = ({ user, onLogout }) => {
                                   handleAddComment(post.id);
                                 }
                               }}
-                              disabled={user.role === 'visitor'}
+                              disabled={false}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                             />
-                            {user.role !== 'visitor' && (
+                            {(
                               <motion.button
                                 onClick={() => handleAddComment(post.id)}
                                 disabled={!commentInputs[post.id]?.trim() || sendingComment[post.id]}

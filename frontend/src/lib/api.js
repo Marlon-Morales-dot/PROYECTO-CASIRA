@@ -172,19 +172,43 @@ class CASIRADataStore {
 
   loadFromStorage() {
     try {
+      console.log('🔍 CASIRA: Starting to load from storage...');
+      
       if (typeof localStorage === 'undefined') {
+        console.log('❌ CASIRA: localStorage not available, initializing with defaults');
         this.initializeWithDefaults();
         return;
       }
       
       const savedData = localStorage.getItem(this.storageKey);
+      console.log('📦 CASIRA: Raw saved data length:', savedData?.length || 0);
+      
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         
         // Load with fallbacks to defaults
-        this.users = parsedData.users && parsedData.users.length > 0 ? parsedData.users : this.getDefaultData().users;
-        this.activities = parsedData.activities && parsedData.activities.length > 0 ? parsedData.activities : this.getDefaultData().activities;
-        this.categories = parsedData.categories && parsedData.categories.length > 0 ? parsedData.categories : this.getDefaultData().categories;
+        // IMPORTANTE: Mantener usuarios existentes y combinar con defaults si es necesario
+        const defaultData = this.getDefaultData();
+        
+        // Para usuarios: mantener todos los existentes + agregar defaults si no existen
+        this.users = parsedData.users || [];
+        if (this.users.length === 0) {
+          this.users = [...defaultData.users];
+        } else {
+          // Mantener usuarios existentes y agregar usuarios default que no existan
+          const existingEmails = new Set(this.users.map(u => u.email));
+          const missingDefaults = defaultData.users.filter(u => !existingEmails.has(u.email));
+          this.users.push(...missingDefaults);
+        }
+        
+        // Para actividades: similar lógica
+        this.activities = parsedData.activities || [];
+        if (this.activities.length === 0) {
+          this.activities = [...defaultData.activities];
+        }
+        
+        // Para categorías: siempre mantener las por defecto si no hay
+        this.categories = parsedData.categories && parsedData.categories.length > 0 ? parsedData.categories : defaultData.categories;
         this.posts = parsedData.posts || this.getDefaultData().posts;
         this.volunteers = parsedData.volunteers || [];
         this.comments = parsedData.comments || [];
@@ -193,43 +217,84 @@ class CASIRADataStore {
         this.notifications = parsedData.notifications || [];
         this.stats = parsedData.stats || this.getDefaultData().stats;
         
-        console.log('CASIRA: Data loaded from localStorage');
+        console.log('✅ CASIRA: Data loaded from localStorage successfully', {
+          users: this.users?.length || 0,
+          activities: this.activities?.length || 0,
+          volunteers: this.volunteers?.length || 0,
+          notifications: this.notifications?.length || 0
+        });
       } else {
+        console.log('⚠️ CASIRA: No saved data found, initializing with defaults');
         this.initializeWithDefaults();
       }
     } catch (error) {
-      console.error('CASIRA: Error loading from localStorage:', error);
+      console.error('❌ CASIRA: Error loading from localStorage:', error);
+      console.error('Error details:', error.message);
       this.initializeWithDefaults();
     }
   }
 
   initializeWithDefaults() {
+    console.log('🔄 CASIRA: Initializing with default data...');
+    console.trace('Call stack for initializeWithDefaults:'); // Esto nos mostrará de dónde se está llamando
+    
     const defaultData = this.getDefaultData();
     Object.assign(this, defaultData);
     this.saveToStorage();
-    console.log('CASIRA: Initialized with default data');
+    console.log('✅ CASIRA: Initialized with default data successfully', {
+      users: this.users?.length || 0,
+      activities: this.activities?.length || 0
+    });
   }
 
   saveToStorage() {
     try {
-      if (typeof localStorage === 'undefined') return;
+      if (typeof localStorage === 'undefined') {
+        console.warn('CASIRA: localStorage not available');
+        return;
+      }
       
       const dataToSave = {
-        users: this.users,
-        activities: this.activities,
-        categories: this.categories,
-        posts: this.posts,
-        volunteers: this.volunteers,
-        comments: this.comments,
-        photos: this.photos,
-        likes: this.likes,
-        notifications: this.notifications,
-        stats: this.stats
+        users: this.users || [],
+        activities: this.activities || [],
+        categories: this.categories || [],
+        posts: this.posts || [],
+        volunteers: this.volunteers || [],
+        comments: this.comments || [],
+        photos: this.photos || [],
+        likes: this.likes || [],
+        notifications: this.notifications || [],
+        stats: this.stats || {}
       };
       
-      localStorage.setItem(this.storageKey, JSON.stringify(dataToSave));
+      const serializedData = JSON.stringify(dataToSave);
+      localStorage.setItem(this.storageKey, serializedData);
+      
+      console.log('✅ CASIRA: Data saved to localStorage', {
+        users: this.users?.length || 0,
+        activities: this.activities?.length || 0,
+        volunteers: this.volunteers?.length || 0,
+        notifications: this.notifications?.length || 0
+      });
     } catch (error) {
-      console.error('CASIRA: Error saving to localStorage:', error);
+      console.error('❌ CASIRA: Error saving to localStorage:', error);
+      
+      // Try to recover storage space if it's full
+      if (error.name === 'QuotaExceededError') {
+        try {
+          // Clear some non-essential data
+          const essentialData = {
+            users: this.users || [],
+            activities: this.activities || [],
+            volunteers: this.volunteers || [],
+            notifications: this.notifications || []
+          };
+          localStorage.setItem(this.storageKey, JSON.stringify(essentialData));
+          console.log('⚠️ CASIRA: Saved essential data only due to quota limit');
+        } catch (retryError) {
+          console.error('❌ CASIRA: Failed to save even essential data:', retryError);
+        }
+      }
     }
   }
 
@@ -974,24 +1039,45 @@ export const statsAPI = {
 
 // Utility functions for admin management
 export const forceRefreshData = () => {
+  console.warn('⚠️ CASIRA: forceRefreshData called - this will reset all data!');
+  console.trace('Call stack for forceRefreshData:');
+  
+  // Solo permitir si es explícitamente solicitado
+  if (window.confirm && !window.confirm('¿Estás seguro de que quieres forzar la actualización? Esto eliminará todos los datos actuales.')) {
+    console.log('❌ CASIRA: forceRefreshData cancelled by user');
+    return;
+  }
+  
   dataStore.initializeWithDefaults();
-  console.log('CASIRA: Data forcefully refreshed');
+  console.log('✅ CASIRA: Data forcefully refreshed');
 };
 
 export const resetDataToDefaults = () => {
+  console.warn('⚠️ CASIRA: resetDataToDefaults called - this will reset all data!');
+  console.trace('Call stack for resetDataToDefaults:');
+  
+  // Solo permitir si es explícitamente solicitado
+  if (window.confirm && !window.confirm('¿Estás seguro de que quieres resetear todos los datos? Esta acción no se puede deshacer.')) {
+    console.log('❌ CASIRA: resetDataToDefaults cancelled by user');
+    return;
+  }
+  
   dataStore.initializeWithDefaults();
-  console.log('CASIRA: Data reset to defaults');
+  console.log('✅ CASIRA: Data reset to defaults');
 };
 
 export const cleanStorageData = () => {
+  console.warn('⚠️ CASIRA: cleanStorageData called - this will delete all saved data!');
+  console.trace('Call stack for cleanStorageData:');
+  
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('casira-data');
-      console.log('CASIRA: Storage data cleaned');
+      console.log('🧹 CASIRA: Storage data cleaned');
     }
     dataStore.initializeWithDefaults();
   } catch (error) {
-    console.error('CASIRA: Error cleaning storage:', error);
+    console.error('❌ CASIRA: Error cleaning storage:', error);
   }
 };
 

@@ -1831,7 +1831,7 @@ function DashboardPage() {
             first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
             last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
             avatar_url: session.user.user_metadata.avatar_url,
-            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
             bio: 'Usuario autenticado con Google',
             created_at: new Date().toISOString()
           };
@@ -1866,7 +1866,7 @@ function DashboardPage() {
                 first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
                 last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
                 avatar_url: session.user.user_metadata.avatar_url,
-                role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+                role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
                 bio: 'Usuario autenticado con Google',
                 provider: 'google',
                 google_id: session.user.id
@@ -1930,7 +1930,7 @@ function DashboardPage() {
             first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
             last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
             email: session.user.email,
-            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
             bio: 'Usuario autenticado con Google',
             avatar_url: session.user.user_metadata.avatar_url
           };
@@ -2978,7 +2978,7 @@ function AuthRedirectHandler() {
           first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
           last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
           avatar_url: session.user.user_metadata.avatar_url,
-          role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+          role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
           bio: 'Usuario autenticado con Google'
         };
 

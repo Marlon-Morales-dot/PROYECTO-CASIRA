@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Storage - CASIRA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover { background: #3367d6; }
+        .danger { background: #dc3545; }
+        .danger:hover { background: #c82333; }
+        .success { background: #28a745; }
+        .success:hover { background: #218838; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.good { background: #d4edda; color: #155724; }
+        .status.bad { background: #f8d7da; color: #721c24; }
+        .status.warn { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Storage - CASIRA</h1>
+    
+    <div class="card">
+        <h2>🗂️ Estado del localStorage</h2>
+        <div id="storage-status"></div>
+        
+        <div>
+            <button class="button" onclick="checkStorage()">🔍 Revisar Storage</button>
+            <button class="button success" onclick="testSaveData()">💾 Probar Guardado</button>
+            <button class="button danger" onclick="clearStorage()">🧹 Limpiar Storage</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 Datos Actuales</h2>
+        <div id="current-data"></div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Pruebas de Persistencia</h2>
+        <div>
+            <button class="button" onclick="addTestUser()">👤 Agregar Usuario de Prueba</button>
+            <button class="button" onclick="addTestActivity()">📅 Agregar Actividad de Prueba</button>
+            <button class="button" onclick="simulateRefresh()">🔄 Simular Recarga</button>
+        </div>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="card">
+        <h2>📝 Logs en Tiempo Real</h2>
+        <button class="button" onclick="clearLogs()">🧹 Limpiar Logs</button>
+        <pre id="console-logs"></pre>
+    </div>
+
+    <script>
+        // Capturar console.log para mostrar en la página
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const logs = [];
+
+        function addLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            logs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            updateLogsDisplay();
+            
+            // Llamar al método original
+            if (type === 'log') originalLog(...args);
+            else if (type === 'error') originalError(...args);
+            else if (type === 'warn') originalWarn(...args);
+        }
+
+        console.log = (...args) => addLog('log', ...args);
+        console.error = (...args) => addLog('error', ...args);
+        console.warn = (...args) => addLog('warn', ...args);
+
+        function updateLogsDisplay() {
+            document.getElementById('console-logs').textContent = logs.slice(-50).join('\n');
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            updateLogsDisplay();
+        }
+
+        function checkStorage() {
+            const status = document.getElementById('storage-status');
+            const currentData = document.getElementById('current-data');
+            
+            let html = '';
+            
+            // Verificar localStorage
+            try {
+                const casiraData = localStorage.getItem('casira-data');
+                const userData = localStorage.getItem('user');
+                const token = localStorage.getItem('token');
+                
+                html += `<div class="status ${casiraData ? 'good' : 'bad'}">`;
+                html += `<strong>CASIRA DataStore:</strong> ${casiraData ? 'Presente' : 'No encontrado'}<br>`;
+                html += `<strong>Tamaño:</strong> ${casiraData ? (casiraData.length / 1024).toFixed(2) + ' KB' : '0 KB'}`;
+                html += `</div>`;
+                
+                html += `<div class="status ${userData ? 'good' : 'warn'}">`;
+                html += `<strong>Usuario Actual:</strong> ${userData ? 'Presente' : 'No encontrado'}`;
+                html += `</div>`;
+                
+                html += `<div class="status ${token ? 'good' : 'warn'}">`;
+                html += `<strong>Token:</strong> ${token ? 'Presente' : 'No encontrado'}`;
+                html += `</div>`;
+                
+                // Mostrar datos actuales
+                if (casiraData) {
+                    try {
+                        const parsed = JSON.parse(casiraData);
+                        currentData.innerHTML = `
+                            <h3>📊 Contenido del DataStore:</h3>
+                            <div class="status good">
+                                <strong>Usuarios:</strong> ${parsed.users?.length || 0}<br>
+                                <strong>Actividades:</strong> ${parsed.activities?.length || 0}<br>
+                                <strong>Voluntarios:</strong> ${parsed.volunteers?.length || 0}<br>
+                                <strong>Notificaciones:</strong> ${parsed.notifications?.length || 0}
+                            </div>
+                            <details>
+                                <summary>Ver datos completos</summary>
+                                <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                            </details>
+                        `;
+                    } catch (e) {
+                        currentData.innerHTML = `<div class="status bad">Error al parsear datos: ${e.message}</div>`;
+                    }
+                } else {
+                    currentData.innerHTML = `<div class="status warn">No hay datos en el DataStore</div>`;
+                }
+                
+            } catch (error) {
+                html += `<div class="status bad">Error: ${error.message}</div>`;
+            }
+            
+            status.innerHTML = html;
+        }
+
+        function testSaveData() {
+            try {
+                const testData = {
+                    users: [
+                        {
+                            id: 'test-user-1',
+                            email: 'test@example.com',
+                            first_name: 'Usuario',
+                            last_name: 'Prueba',
+                            role: 'volunteer',
+                            created_at: new Date().toISOString()
+                        }
+                    ],
+                    activities: [
+                        {
+                            id: 'test-activity-1',
+                            title: 'Actividad de Prueba',
+                            description: 'Esta es una actividad de prueba',
+                            created_at: new Date().toISOString()
+                        }
+                    ],
+                    volunteers: [],
+                    notifications: [],
+                    comments: [],
+                    photos: [],
+                    likes: [],
+                    posts: [],
+                    categories: [],
+                    stats: {}
+                };
+                
+                localStorage.setItem('casira-data', JSON.stringify(testData));
+                console.log('✅ Datos de prueba guardados exitosamente');
+                checkStorage();
+                
+            } catch (error) {
+                console.error('❌ Error al guardar datos de prueba:', error);
+            }
+        }
+
+        function addTestUser() {
+            try {
+                const casiraData = localStorage.getItem('casira-data');
+                let data = casiraData ? JSON.parse(casiraData) : { users: [], activities: [], volunteers: [], notifications: [] };
+                
+                const newUser = {
+                    id: 'test-user-' + Date.now(),
+                    email: `test${Date.now()}@example.com`,
+                    first_name: 'Nuevo',
+                    last_name: 'Usuario',
+                    role: 'volunteer',
+                    created_at: new Date().toISOString()
+                };
+                
+                data.users = data.users || [];
+                data.users.push(newUser);
+                
+                localStorage.setItem('casira-data', JSON.stringify(data));
+                console.log('✅ Usuario de prueba agregado:', newUser.email);
+                checkStorage();
+                
+            } catch (error) {
+                console.error('❌ Error al agregar usuario:', error);
+            }
+        }
+
+        function addTestActivity() {
+            try {
+                const casiraData = localStorage.getItem('casira-data');
+                let data = casiraData ? JSON.parse(casiraData) : { users: [], activities: [], volunteers: [], notifications: [] };
+                
+                const newActivity = {
+                    id: 'test-activity-' + Date.now(),
+                    title: 'Actividad ' + new Date().toLocaleTimeString(),
+                    description: 'Actividad creada para prueba',
+                    created_at: new Date().toISOString()
+                };
+                
+                data.activities = data.activities || [];
+                data.activities.push(newActivity);
+                
+                localStorage.setItem('casira-data', JSON.stringify(data));
+                console.log('✅ Actividad de prueba agregada:', newActivity.title);
+                checkStorage();
+                
+            } catch (error) {
+                console.error('❌ Error al agregar actividad:', error);
+            }
+        }
+
+        function simulateRefresh() {
+            console.log('🔄 Simulando recarga de página...');
+            
+            // Guardar estado actual
+            const beforeData = localStorage.getItem('casira-data');
+            console.log('📦 Datos antes de la "recarga":', beforeData ? 'Presentes' : 'Ausentes');
+            
+            // Simular un pequeño delay
+            setTimeout(() => {
+                const afterData = localStorage.getItem('casira-data');
+                console.log('📦 Datos después de la "recarga":', afterData ? 'Presentes' : 'Ausentes');
+                
+                if (beforeData === afterData) {
+                    console.log('✅ Los datos persisten correctamente');
+                } else {
+                    console.error('❌ Los datos cambiaron durante la recarga');
+                }
+                
+                checkStorage();
+            }, 100);
+        }
+
+        function clearStorage() {
+            if (confirm('¿Limpiar todo el localStorage?')) {
+                localStorage.clear();
+                console.log('🧹 localStorage limpiado');
+                checkStorage();
+            }
+        }
+
+        // Cargar estado inicial
+        checkStorage();
+        
+        // Auto-refresh cada 30 segundos
+        setInterval(checkStorage, 30000);
+    </script>
+</body>
+</html>
