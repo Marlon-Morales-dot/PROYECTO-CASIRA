@@ -2,8 +2,8 @@
 // Backend URL configuration
 const BACKEND_URL = 'https://proyecto-casira.onrender.com';
 
-// Import Supabase storage utilities
-import { storageAPI } from './supabase.js';
+// Disable Supabase for now - use only Render backend
+// import { storageAPI } from './supabase.js';
 
 // ============= DATA STORE SIMPLIFICADO =============
 class CASIRADataStore {

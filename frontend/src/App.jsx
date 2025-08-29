@@ -21,8 +21,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Activar Supabase para Google OAuth
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Temporarily disable Supabase to fix CSP and connection issues
+const supabase = null; // createClient(supabaseUrl, supabaseAnonKey);
 
 // API Functions inline - para evitar problemas de imports
 const authAPI = {
@@ -46,9 +46,13 @@ const authAPI = {
 
 const activitiesAPI = {
   getFeaturedActivities: async () => {
-    // Usar API local en lugar de Supabase
     try {
-      return await apiActivities.getFeaturedActivities();
+      const response = await fetch('https://proyecto-casira.onrender.com/api/projects/featured');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.projects || [];
     } catch (error) {
       console.error('Error fetching featured activities:', error);
       return [];
@@ -56,9 +60,13 @@ const activitiesAPI = {
   },
 
   getPublicActivities: async () => {
-    // Usar API local en lugar de Supabase
     try {
-      return await apiActivities.getPublicActivities();
+      const response = await fetch('https://proyecto-casira.onrender.com/api/projects');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.projects || [];
     } catch (error) {
       console.error('Error fetching public activities:', error);
       return [];
@@ -119,21 +127,13 @@ const categoriesAPI = {
 
 const postsAPI = {
   getPublicPosts: async (limit = 10) => {
-    if (!supabase) return [];
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          users!posts_author_id_fkey (id, first_name, last_name, avatar_url),
-          activities (id, title, status)
-        `)
-        .eq('visibility', 'public')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) throw error;
-      return data || [];
+      const response = await fetch('https://proyecto-casira.onrender.com/api/posts');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.posts || [];
     } catch (error) {
       console.error('Error fetching public posts:', error);
       return [];
@@ -232,34 +232,10 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      });
-
-      if (error) {
-        console.error('Error with Google OAuth:', error);
-        if (onError) onError(error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (onSuccess) {
-        onSuccess(data);
-      }
-    } catch (error) {
-      console.error('Google OAuth error:', error);
-      if (onError) onError(error);
-      setIsLoading(false);
-    }
+    // Google Auth is temporarily disabled in App.jsx
+    // Users should use the Enhanced Login page which has working Google Auth
+    console.log('Redirecting to Enhanced Login for Google Auth...');
+    window.location.href = '/enhanced-login';
   };
 
   const isButtonDisabled = disabled || isLoading;
