@@ -217,12 +217,26 @@ class CASIRADataStore {
         this.notifications = parsedData.notifications || [];
         this.stats = parsedData.stats || this.getDefaultData().stats;
         
+        // Show detailed user info for debugging Google auth persistence
+        const googleUsers = this.users.filter(u => u.provider === 'google');
+        const internalUsers = this.users.filter(u => u.provider !== 'google');
+        
         console.log('✅ CASIRA: Data loaded from localStorage successfully', {
-          users: this.users?.length || 0,
+          totalUsers: this.users?.length || 0,
+          googleUsers: googleUsers.length,
+          internalUsers: internalUsers.length,
           activities: this.activities?.length || 0,
           volunteers: this.volunteers?.length || 0,
           notifications: this.notifications?.length || 0
         });
+        
+        if (googleUsers.length > 0) {
+          console.log('📧 CASIRA: Google users loaded:', googleUsers.map(u => ({
+            id: u.id,
+            email: u.email,
+            role: u.role
+          })));
+        }
       } else {
         console.log('⚠️ CASIRA: No saved data found, initializing with defaults');
         this.initializeWithDefaults();
@@ -270,12 +284,26 @@ class CASIRADataStore {
       const serializedData = JSON.stringify(dataToSave);
       localStorage.setItem(this.storageKey, serializedData);
       
+      // Show detailed user info for debugging Google auth persistence
+      const googleUsers = this.users.filter(u => u.provider === 'google');
+      const internalUsers = this.users.filter(u => u.provider !== 'google');
+      
       console.log('✅ CASIRA: Data saved to localStorage', {
-        users: this.users?.length || 0,
+        totalUsers: this.users?.length || 0,
+        googleUsers: googleUsers.length,
+        internalUsers: internalUsers.length,
         activities: this.activities?.length || 0,
         volunteers: this.volunteers?.length || 0,
         notifications: this.notifications?.length || 0
       });
+      
+      if (googleUsers.length > 0) {
+        console.log('📧 CASIRA: Google users being saved:', googleUsers.map(u => ({
+          id: u.id,
+          email: u.email,
+          role: u.role
+        })));
+      }
     } catch (error) {
       console.error('❌ CASIRA: Error saving to localStorage:', error);
       
@@ -353,9 +381,21 @@ export const usersAPI = {
       ...userData,
       created_at: userData.created_at || new Date().toISOString()
     };
+    
+    console.log('🔍 CASIRA: createUser called with data:', {
+      id: newUser.id,
+      email: newUser.email,
+      provider: newUser.provider,
+      role: newUser.role
+    });
+    
     dataStore.users.push(newUser);
+    console.log('📦 CASIRA: User added to dataStore. Total users now:', dataStore.users.length);
+    
     dataStore.saveToStorage();
     dataStore.notify();
+    
+    console.log('✅ CASIRA: User creation completed and saved');
     return newUser;
   },
 

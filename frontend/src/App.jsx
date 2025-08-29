@@ -7,7 +7,9 @@ import VolunteerDashboard from './components/VolunteerDashboard.jsx';
 import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
+import EnhancedLogin from './components/EnhancedLogin.jsx';
 import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
+import { enhancedAPI } from './lib/api-enhanced.js';
 import './App.css';
 
 // Supabase configuration with fallbacks and validation
@@ -3045,6 +3047,7 @@ function App() {
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/social" element={<PublicSocialViewPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/enhanced-login" element={<EnhancedLogin />} />
         <Route path="/visitor" element={<VisitorPortalPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/admin" element={<AdminPanelPage />} />
