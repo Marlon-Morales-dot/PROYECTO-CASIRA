@@ -4,7 +4,15 @@ import os
 import json
 from datetime import datetime
 
-app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
+# Configurar la ruta correcta del static folder
+if os.path.exists('../frontend/dist'):
+    static_folder = '../frontend/dist'
+elif os.path.exists('./frontend/dist'):
+    static_folder = './frontend/dist'
+else:
+    static_folder = 'static'  # fallback
+
+app = Flask(__name__, static_folder=static_folder, static_url_path='')
 CORS(app, origins=["*"])
 
 # Datos simulados para el despliegue
@@ -332,8 +340,14 @@ def update_user_profile():
         return jsonify({'error': str(e)}), 500
 
 # Servir archivos estáticos del frontend React
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """Sirve archivos CSS y JS del build de Vite"""
+    return send_from_directory(os.path.join(app.static_folder, 'assets'), filename)
+
 @app.route('/static/<path:filename>')
 def static_files(filename):
+    """Sirve archivos estáticos como imágenes, etc."""
     return send_from_directory(os.path.join(app.static_folder, 'static'), filename)
 
 # Servir el frontend React para rutas específicas del SPA

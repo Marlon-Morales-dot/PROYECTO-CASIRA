@@ -3,19 +3,36 @@ services:
     name: casira-connect
     runtime: python
     buildCommand: |
+      set -e
+      echo "🏗️ Building CASIRA Connect for Render..."
+      
+      # Install Node.js (if not present)
+      if ! command -v node &> /dev/null; then
+        echo "Installing Node.js..."
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+      fi
+      
       # Install frontend dependencies and build
+      echo "📦 Building frontend..."
       cd frontend
-      npm ci
+      npm ci --only=production
       npm run build
+      ls -la dist/  # Debug: list built files
       cd ..
       
-      # Install Python dependencies
-      cd backend
+      # Install Python dependencies  
+      echo "🐍 Installing Python dependencies..."
       pip install -r requirements.txt
-    startCommand: cd backend && gunicorn app:app
+      
+      echo "✅ Build completed!"
+      
+    startCommand: |
+      echo "🚀 Starting CASIRA Connect..."
+      cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
     plan: free
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.16
+        value: 3.9.19
       - key: NODE_VERSION
         value: 18.19.0
