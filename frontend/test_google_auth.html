@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Google Auth - CASIRA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #3367d6;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #218838;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Herramienta de Diagnóstico - Google Auth</h1>
+    
+    <div class="card">
+        <h2>📊 Estado Actual del Sistema</h2>
+        <div id="status"></div>
+        
+        <h3>🗂️ Datos en localStorage</h3>
+        <div id="localStorage-data"></div>
+        
+        <h3>👥 Usuarios en DataStore</h3>
+        <div id="datastore-data"></div>
+        
+        <div style="margin: 20px 0;">
+            <button class="button" onclick="checkStatus()">🔍 Revisar Estado</button>
+            <button class="button danger" onclick="clearData()">🧹 Limpiar Datos</button>
+            <button class="button success" onclick="testGoogleAuth()">🚀 Ir a App Principal</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Instrucciones de Prueba</h2>
+        <ol>
+            <li><strong>Limpiar Datos:</strong> Usa el botón "🧹 Limpiar Datos" para resetear el sistema</li>
+            <li><strong>Autenticar:</strong> Haz clic en "🚀 Ir a App Principal" y luego autentícate con Google</li>
+            <li><strong>Verificar Admin:</strong> Ve al panel de administración y verifica que tu usuario aparezca en la lista</li>
+            <li><strong>Revisar Logs:</strong> Abre la consola del navegador (F12) para ver los mensajes de sincronización</li>
+        </ol>
+        
+        <div class="info-box">
+            <strong>💡 Búsqueda de Logs:</strong>
+            <pre>✅ Usuario de Google agregado al dataStore local
+✅ Usuario de Google actualizado en dataStore local</pre>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🐛 Solución de Problemas</h2>
+        <div class="info-box">
+            <strong>Si los usuarios aún no aparecen en el admin:</strong>
+            <ul>
+                <li>Verifica que se muestren los logs de sincronización en la consola</li>
+                <li>Asegúrate de que el dataStore se esté guardando correctamente</li>
+                <li>Revisa que el AdminDashboard esté leyendo del dataStore correcto</li>
+                <li>Comprueba que no haya errores en la consola durante el login</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function checkStatus() {
+            const status = document.getElementById('status');
+            const localStorageData = document.getElementById('localStorage-data');
+            const datastoreData = document.getElementById('datastore-data');
+            
+            // Revisar localStorage
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            const casiraData = localStorage.getItem('casira-data');
+            
+            let statusHTML = '<div class="info-box">';
+            statusHTML += user ? '✅ Usuario autenticado encontrado<br>' : '❌ No hay usuario autenticado<br>';
+            statusHTML += token ? '✅ Token de sesión presente<br>' : '❌ No hay token de sesión<br>';
+            statusHTML += casiraData ? '✅ DataStore encontrado<br>' : '❌ No hay dataStore<br>';
+            statusHTML += '</div>';
+            
+            status.innerHTML = statusHTML;
+            
+            // Mostrar datos de localStorage
+            let localData = '<div class="info-box">';
+            if (user) {
+                const parsedUser = JSON.parse(user);
+                localData += `<strong>Usuario:</strong> ${parsedUser.first_name} ${parsedUser.last_name}<br>`;
+                localData += `<strong>Email:</strong> ${parsedUser.email}<br>`;
+                localData += `<strong>Rol:</strong> ${parsedUser.role}<br>`;
+                localData += `<strong>ID:</strong> ${parsedUser.id}<br>`;
+            } else {
+                localData += 'No hay datos de usuario en localStorage';
+            }
+            localData += '</div>';
+            localStorageData.innerHTML = localData;
+            
+            // Mostrar datos del dataStore
+            let datastoreHTML = '<div class="info-box">';
+            if (casiraData) {
+                try {
+                    const dataStore = JSON.parse(casiraData);
+                    datastoreHTML += `<strong>Total de usuarios en dataStore:</strong> ${dataStore.users?.length || 0}<br><br>`;
+                    
+                    if (dataStore.users && dataStore.users.length > 0) {
+                        datastoreHTML += '<strong>Usuarios registrados:</strong><br>';
+                        dataStore.users.forEach(user => {
+                            datastoreHTML += `• ${user.first_name} ${user.last_name} (${user.email}) - ${user.role}<br>`;
+                        });
+                    }
+                } catch (e) {
+                    datastoreHTML += 'Error al parsear dataStore: ' + e.message;
+                }
+            } else {
+                datastoreHTML += 'No hay dataStore disponible';
+            }
+            datastoreHTML += '</div>';
+            datastoreData.innerHTML = datastoreHTML;
+        }
+        
+        function clearData() {
+            if (confirm('¿Estás seguro de que quieres limpiar todos los datos? Esto eliminará la sesión actual.')) {
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                localStorage.removeItem('casira-data');
+                alert('✅ Datos limpiados. Ahora puedes hacer una nueva autenticación.');
+                checkStatus();
+            }
+        }
+        
+        function testGoogleAuth() {
+            window.location.href = '/';
+        }
+        
+        // Cargar estado inicial
+        checkStatus();
+        
+        // Auto-refresh cada 5 segundos
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>

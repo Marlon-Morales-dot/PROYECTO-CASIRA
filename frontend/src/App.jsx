@@ -1853,6 +1853,41 @@ function DashboardPage() {
             }
           }
           
+          // IMPORTANTE: Agregar usuario al dataStore local para que aparezca en AdminDashboard
+          try {
+            // Verificar si el usuario ya existe en dataStore
+            const existingUser = await usersAPI.getUserById(session.user.id);
+            
+            if (!existingUser) {
+              // Si no existe, agregarlo al dataStore
+              await usersAPI.createUser({
+                id: session.user.id, // Usar el ID de Google para consistency
+                email: session.user.email,
+                first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+                last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+                avatar_url: session.user.user_metadata.avatar_url,
+                role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+                bio: 'Usuario autenticado con Google',
+                provider: 'google',
+                google_id: session.user.id
+              });
+              console.log('✅ Usuario de Google agregado al dataStore local');
+            } else {
+              // Si existe, actualizar la información
+              await usersAPI.updateUserProfile(session.user.id, {
+                email: session.user.email,
+                first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+                last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+                avatar_url: session.user.user_metadata.avatar_url,
+                provider: 'google',
+                google_id: session.user.id
+              });
+              console.log('✅ Usuario de Google actualizado en dataStore local');
+            }
+          } catch (dataStoreError) {
+            console.error('❌ Error al sincronizar con dataStore:', dataStoreError);
+          }
+          
           // Siempre guardar en localStorage como respaldo
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
@@ -1899,6 +1934,22 @@ function DashboardPage() {
             bio: 'Usuario autenticado con Google',
             avatar_url: session.user.user_metadata.avatar_url
           };
+          
+          // También agregar al dataStore en el fallback
+          try {
+            const existingUser = await usersAPI.getUserById(session.user.id);
+            if (!existingUser) {
+              await usersAPI.createUser({
+                id: session.user.id,
+                ...fallbackUser,
+                provider: 'google',
+                google_id: session.user.id
+              });
+              console.log('✅ Usuario de Google (fallback) agregado al dataStore local');
+            }
+          } catch (fallbackError) {
+            console.error('❌ Error en fallback dataStore sync:', fallbackError);
+          }
           
           setUser(fallbackUser);
           localStorage.setItem('user', JSON.stringify(fallbackUser));
@@ -2918,38 +2969,66 @@ function AuthRedirectHandler() {
     if (loading || hasRedirected) return;
     
     if (session) {
-      console.log('🔐 Session detected, processing user...');
-      
-      const userData = {
-        id: session.user.id,
-        email: session.user.email,
-        first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-        last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
-        avatar_url: session.user.user_metadata.avatar_url,
-        role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
-        bio: 'Usuario autenticado con Google'
+      const handleSessionUser = async () => {
+        console.log('🔐 Session detected, processing user...');
+        
+        const userData = {
+          id: session.user.id,
+          email: session.user.email,
+          first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
+          last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+          avatar_url: session.user.user_metadata.avatar_url,
+          role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'volunteer',
+          bio: 'Usuario autenticado con Google'
+        };
+
+        // IMPORTANTE: Sincronizar con dataStore también en esta instancia
+        try {
+          const existingUser = await usersAPI.getUserById(session.user.id);
+          if (!existingUser) {
+            await usersAPI.createUser({
+              id: session.user.id,
+              ...userData,
+              provider: 'google',
+              google_id: session.user.id,
+              created_at: new Date().toISOString()
+            });
+            console.log('✅ Usuario de Google (3ra instancia) agregado al dataStore local');
+          } else {
+            await usersAPI.updateUserProfile(session.user.id, {
+              ...userData,
+              provider: 'google',
+              google_id: session.user.id
+            });
+            console.log('✅ Usuario de Google (3ra instancia) actualizado en dataStore local');
+          }
+        } catch (dataStoreError) {
+          console.error('❌ Error al sincronizar (3ra instancia) con dataStore:', dataStoreError);
+        }
+
+        // Guardar usuario
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', 'google-' + session.user.id);
+
+        // Mensaje de bienvenida
+        const welcomeMessage = userData.role === 'admin' 
+          ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
+          : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+        
+        alert(welcomeMessage);
+
+        // Navegar según rol
+        setHasRedirected(true);
+        if (userData.role === 'admin') {
+          navigate('/admin');
+        } else if (userData.role === 'visitor') {
+          navigate('/visitor');
+        } else {
+          navigate('/dashboard');
+        }
       };
 
-      // Guardar usuario
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', 'google-' + session.user.id);
-
-      // Mensaje de bienvenida
-      const welcomeMessage = userData.role === 'admin' 
-        ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
-        : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
-      
-      alert(welcomeMessage);
-
-      // Navegar según rol
-      setHasRedirected(true);
-      if (userData.role === 'admin') {
-        navigate('/admin');
-      } else if (userData.role === 'visitor') {
-        navigate('/visitor');
-      } else {
-        navigate('/dashboard');
-      }
+      handleSessionUser();
     }
   }, [session, loading, navigate, hasRedirected]);
 

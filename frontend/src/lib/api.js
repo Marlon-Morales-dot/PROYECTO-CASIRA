@@ -275,9 +275,9 @@ export const usersAPI = {
 
   createUser: async (userData) => {
     const newUser = {
-      id: Date.now(),
+      id: userData.id || Date.now(), // Usar el ID proporcionado o generar uno nuevo
       ...userData,
-      created_at: new Date().toISOString()
+      created_at: userData.created_at || new Date().toISOString()
     };
     dataStore.users.push(newUser);
     dataStore.saveToStorage();
