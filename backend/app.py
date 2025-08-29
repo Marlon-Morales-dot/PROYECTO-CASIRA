@@ -336,34 +336,59 @@ def update_user_profile():
 def static_files(filename):
     return send_from_directory(os.path.join(app.static_folder, 'static'), filename)
 
-# Servir el frontend React para todas las rutas no-API
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve_react_app(path):
-    # Si es una ruta de API, no interceptar
-    if path.startswith('api/'):
-        return jsonify({'error': 'API endpoint not found'}), 404
-    
-    # Servir index.html para todas las rutas del frontend
+# Servir el frontend React para rutas específicas del SPA
+@app.route('/')
+@app.route('/visitor')
+@app.route('/activities')
+@app.route('/social')  
+@app.route('/login')
+@app.route('/enhanced-login')
+@app.route('/dashboard')
+@app.route('/admin')
+def serve_react_app():
+    """Sirve el frontend React para todas las rutas del SPA"""
     try:
         return send_from_directory(app.static_folder, 'index.html')
     except FileNotFoundError:
         # Fallback si no existe el build de React
         return jsonify({
-            'message': 'CASIRA Connect API',
+            'message': 'CASIRA Connect API - Frontend no disponible',
             'version': '1.0.0',
             'status': 'running',
-            'note': 'Frontend not built yet. Run npm run build in frontend folder.',
-            'endpoints': [
-                '/api/health',
-                '/api/auth/login',
-                '/api/auth/register',
-                '/api/posts',
-                '/api/projects',
-                '/api/projects/featured',
-                '/api/projects/stats'
+            'note': 'Frontend not built. Run: cd frontend && npm run build',
+            'available_routes': [
+                'GET /',
+                'GET /visitor',
+                'GET /activities', 
+                'GET /social',
+                'GET /login',
+                'GET /dashboard',
+                'GET /admin'
+            ],
+            'api_endpoints': [
+                'GET /api/health',
+                'POST /api/auth/login',
+                'POST /api/auth/register',
+                'POST /api/auth/google',
+                'GET /api/posts',
+                'GET /api/projects',
+                'GET /api/projects/featured',
+                'GET /api/projects/stats'
             ]
-        })
+        }), 200
+
+# Catch-all para rutas no encontradas (debe ir al final)
+@app.errorhandler(404)
+def not_found(error):
+    # Si es una solicitud de API, devolver JSON
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'API endpoint not found', 'path': request.path}), 404
+    
+    # Para cualquier otra ruta, intentar servir el frontend React
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except FileNotFoundError:
+        return jsonify({'error': 'Page not found', 'path': request.path}), 404
 
 if __name__ == '__main__':
     # Para desarrollo local

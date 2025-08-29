@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: casira-connect
+    runtime: python
+    buildCommand: |
+      # Install frontend dependencies and build
+      cd frontend
+      npm ci
+      npm run build
+      cd ..
+      
+      # Install Python dependencies
+      cd backend
+      pip install -r requirements.txt
+    startCommand: cd backend && gunicorn app:app
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: NODE_VERSION
+        value: 18.19.0
