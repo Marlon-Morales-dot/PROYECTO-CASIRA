@@ -370,11 +370,18 @@ def serve_react_app():
             
             # Asegurar que script-src-elem esté incluido en CSP
             if 'script-src-elem' not in content:
-                # Buscar el patrón actual en la página desplegada
-                content = content.replace(
-                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com data: blob:;',
-                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com data: blob:;\n      script-src-elem \'self\' \'unsafe-inline\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com;'
-                )
+                # Insertar script-src-elem después de script-src
+                import re
+                csp_pattern = r'(script-src[^;]+;)'
+                replacement = r'\1\n      script-src-elem \'self\' \'unsafe-inline\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com;'
+                content = re.sub(csp_pattern, replacement, content)
+                
+                # También asegurar que https://*.googleapis.com esté en connect-src
+                if 'https://*.googleapis.com' not in content:
+                    content = content.replace(
+                        'connect-src \'self\' https://accounts.google.com https://www.googleapis.com https://proyecto-casira.onrender.com;',
+                        'connect-src \'self\' https://accounts.google.com https://*.googleapis.com https://proyecto-casira.onrender.com;'
+                    )
             
             from flask import Response
             return Response(content, mimetype='text/html')
