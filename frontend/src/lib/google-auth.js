@@ -86,12 +86,38 @@ class GoogleAuthManager {
       window.gapi.load('auth2', async () => {
         try {
           console.log('🔑 CASIRA Google Auth: Configurando Auth2...');
-          
-          const authInstance = await window.gapi.auth2.init({
+          console.log('🔧 Config para gapi.auth2.init:', {
             client_id: this.config.clientId,
             scope: this.config.scopes.join(' '),
             cookie_policy: this.config.cookiePolicy
           });
+          
+          // Verificar que gapi.auth2 esté disponible
+          if (!window.gapi.auth2) {
+            throw new Error('gapi.auth2 no está disponible');
+          }
+          
+          // Intentar inicialización síncrona primero, luego asíncrona
+          let authInstance;
+          try {
+            console.log('🔄 Intentando inicialización síncrona...');
+            authInstance = window.gapi.auth2.init({
+              client_id: this.config.clientId,
+              scope: this.config.scopes.join(' '),
+              cookie_policy: this.config.cookiePolicy
+            });
+          } catch (syncError) {
+            console.log('⚠️ Inicialización síncrona falló, intentando asíncrona...');
+            console.error('Sync error:', syncError);
+            
+            authInstance = await new Promise((initResolve, initReject) => {
+              window.gapi.auth2.init({
+                client_id: this.config.clientId,
+                scope: this.config.scopes.join(' '),
+                cookie_policy: this.config.cookiePolicy
+              }).then(initResolve).catch(initReject);
+            });
+          }
 
           this.authInstance = authInstance;
           this.isInitialized = true;
@@ -106,6 +132,19 @@ class GoogleAuthManager {
           resolve();
         } catch (error) {
           console.error('❌ Error configurando Auth2:', error);
+          console.error('📋 Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack,
+            details: error.details || 'No details available'
+          });
+          
+          // Si el error es específico de Google, logearlo
+          if (error.error) {
+            console.error('🔍 Google API error code:', error.error);
+            console.error('🔍 Google API error details:', error.details);
+          }
+          
           reject(error);
         }
       });
