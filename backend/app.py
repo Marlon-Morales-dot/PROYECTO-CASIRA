@@ -362,7 +362,23 @@ def static_files(filename):
 def serve_react_app():
     """Sirve el frontend React para todas las rutas del SPA"""
     try:
-        return send_from_directory(app.static_folder, 'index.html')
+        # Leer y procesar el index.html para asegurar CSP correcto
+        index_path = os.path.join(app.static_folder, 'index.html')
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Asegurar que script-src-elem esté incluido en CSP
+            if 'script-src-elem' not in content:
+                content = content.replace(
+                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com data: blob:;',
+                    'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com data: blob:;\n      script-src-elem \'self\' \'unsafe-inline\' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.googleapis.com;'
+                )
+            
+            from flask import Response
+            return Response(content, mimetype='text/html')
+        else:
+            return send_from_directory(app.static_folder, 'index.html')
     except FileNotFoundError:
         # Fallback si no existe el build de React
         return jsonify({
