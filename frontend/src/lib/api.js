@@ -240,6 +240,15 @@ class CASIRADataStore {
     };
   }
 
+  // Alias methods for compatibility
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+
+  removeListener(callback) {
+    this.listeners = this.listeners.filter(listener => listener !== callback);
+  }
+
   notify() {
     this.listeners.forEach(callback => callback());
   }
@@ -460,6 +469,15 @@ export const volunteersAPI = {
     const user = dataStore.getUserById(userId);
     const activity = dataStore.getActivityById(activityId);
     
+    console.log('🔍 Creating volunteer request notification:', {
+      userId,
+      activityId,
+      userFound: !!user,
+      activityFound: !!activity,
+      userName: user ? `${user.first_name} ${user.last_name}` : 'Unknown',
+      activityTitle: activity ? activity.title : 'Unknown'
+    });
+    
     if (user && activity) {
       const notification = {
         id: Date.now() + 1,
@@ -468,10 +486,20 @@ export const volunteersAPI = {
         activity_id: activityId,
         message: `${user.first_name} ${user.last_name} solicita unirse a ${activity.title}`,
         status: 'pending',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        user_email: user.email,
+        user_avatar: user.avatar_url
       };
       
       dataStore.notifications.push(notification);
+      console.log('✅ Volunteer request notification created successfully');
+    } else {
+      console.error('❌ Failed to create notification - user or activity not found', {
+        userId,
+        activityId,
+        userFound: !!user,
+        activityFound: !!activity
+      });
     }
 
     dataStore.saveToStorage();

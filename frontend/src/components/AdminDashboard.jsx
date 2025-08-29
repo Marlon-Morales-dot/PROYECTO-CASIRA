@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI } from '@/lib/api.js';
+import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '@/lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -45,6 +45,20 @@ const AdminDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     checkConnectionStatus();
     loadAdminData();
+
+    // IMPORTANTE: Suscribirse a cambios en el dataStore para actualizar la UI automáticamente
+    const handleDataStoreChange = () => {
+      console.log('📊 DataStore changed, reloading admin data...');
+      loadAdminData();
+    };
+
+    // Agregar listener al dataStore
+    dataStore.addListener(handleDataStoreChange);
+
+    // Cleanup: remover listener al desmontar el componente
+    return () => {
+      dataStore.removeListener(handleDataStoreChange);
+    };
   }, []);
 
   const checkConnectionStatus = async () => {

@@ -78,6 +78,7 @@
         <div style="margin: 20px 0;">
             <button class="button" onclick="checkStatus()">🔍 Revisar Estado</button>
             <button class="button danger" onclick="clearData()">🧹 Limpiar Datos</button>
+            <button class="button" onclick="forceRefreshDataStore()">🔄 Refrescar DataStore</button>
             <button class="button success" onclick="testGoogleAuth()">🚀 Ir a App Principal</button>
         </div>
     </div>
@@ -178,7 +179,15 @@
         }
         
         function testGoogleAuth() {
-            window.location.href = '/';
+            window.location.href = 'http://localhost:5173/';
+        }
+        
+        function forceRefreshDataStore() {
+            if (confirm('¿Forzar recarga del dataStore? Esto puede ayudar a sincronizar datos.')) {
+                localStorage.removeItem('casira-data');
+                alert('DataStore limpiado. La aplicación lo regenerará automáticamente.');
+                checkStatus();
+            }
         }
         
         // Cargar estado inicial

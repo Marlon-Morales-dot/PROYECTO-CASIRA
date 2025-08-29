@@ -8,14 +8,10 @@ export default defineConfig({
   plugins: [react(),tailwindcss()],
   base: '/',
   server: {
-    historyApiFallback: {
-      index: '/index.html',
-    },
+    historyApiFallback: true,
   },
   preview: {
-    historyApiFallback: {
-      index: '/index.html',
-    },
+    historyApiFallback: true,
   },
   resolve: {
     alias: {
