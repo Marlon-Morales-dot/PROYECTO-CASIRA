@@ -30,7 +30,6 @@ const AdminDashboard = ({ user, onLogout }) => {
     start_date: '',
     end_date: '',
     max_volunteers: '',
-    budget: '',
     image_url: '',
     requirements: [],
     benefits: [],
@@ -176,15 +175,36 @@ const AdminDashboard = ({ user, onLogout }) => {
       alert('La descripción es requerida');
       return;
     }
+    if (!formData.location.trim()) {
+      alert('La ubicación es requerida');
+      return;
+    }
+    if (!formData.start_date) {
+      alert('La fecha de inicio es requerida');
+      return;
+    }
+    if (formData.end_date && formData.start_date > formData.end_date) {
+      alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
     
     try {
+      // Prepare activity data with proper date formatting
       const activityData = {
         ...formData,
         created_by: user.id,
         requirements: formData.requirements.filter(r => r.trim()),
         benefits: formData.benefits.filter(b => b.trim()),
         max_volunteers: parseInt(formData.max_volunteers) || null,
-        budget: parseFloat(formData.budget) || null
+        // Ensure proper date format
+        date: formData.start_date, // Add backwards compatibility
+        start_date: formData.start_date,
+        end_date: formData.end_date || formData.start_date,
+        // Use selected file as base64 if uploaded, otherwise use URL
+        image_url: imagePreview || formData.image_url || '/grupo-canadienses.jpg',
+        current_volunteers: 0,
+        // Ensure proper category assignment
+        category_id: formData.category_id ? parseInt(formData.category_id) : null
       };
 
       console.log('Creating activity with data:', activityData);
@@ -203,7 +223,6 @@ const AdminDashboard = ({ user, onLogout }) => {
         start_date: '',
         end_date: '',
         max_volunteers: '',
-        budget: '',
         image_url: '',
         requirements: [],
         benefits: [],
@@ -234,7 +253,6 @@ const AdminDashboard = ({ user, onLogout }) => {
       start_date: activity.start_date || '',
       end_date: activity.end_date || '',
       max_volunteers: activity.max_volunteers || '',
-      budget: activity.budget || '',
       image_url: activity.image_url || '',
       requirements: activity.requirements || [],
       benefits: activity.benefits || [],
@@ -1358,219 +1376,366 @@ const AdminDashboard = ({ user, onLogout }) => {
 
       {/* Create Activity Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-gray-200">
+            {/* Header más compacto */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-md flex items-center justify-center p-1">
+                    <img 
+                      src="/logo.png" 
+                      alt="CASIRA" 
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        // Fallback al icono SVG si el logo no carga
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <svg 
+                      className="w-5 h-5 text-white hidden" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      style={{ display: 'none' }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {editingActivity ? 'Editar Actividad' : 'Nueva Actividad'}
+                    </h3>
+                    <p className="text-blue-100 text-xs">
+                      {editingActivity ? 'Modifica los detalles' : 'Crea una nueva oportunidad'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-white hover:text-gray-200 transition-colors p-1 hover:bg-white hover:bg-opacity-20 rounded-md"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido del formulario */}
+            <div className="p-6">
+              <h3 className="sr-only">
                 {editingActivity ? 'Editar Actividad' : 'Crear Nueva Actividad'}
               </h3>
               <form onSubmit={editingActivity ? handleUpdateActivity : handleCreateActivity} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Título</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Descripción</label>
-                  <textarea
-                    required
-                    rows="3"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Categoría</label>
-                    <select
-                      value={formData.category_id}
-                      onChange={(e) => setFormData({...formData, category_id: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.icon} {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Información básica */}
+                <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
+                  <h4 className="text-sm font-bold text-blue-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Información Básica
+                  </h4>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Estado</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({...formData, status: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="planning">Planificación</option>
-                      <option value="active">Activa</option>
-                      <option value="completed">Completada</option>
-                      <option value="cancelled">Cancelada</option>
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Título de la Actividad *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.title}
+                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400"
+                        placeholder="Ej: Construcción de Escuela Rural"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Descripción Breve *
+                      </label>
+                      <textarea
+                        required
+                        rows="2"
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400 resize-none"
+                        placeholder="Describe brevemente el propósito y alcance..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Descripción Detallada
+                      </label>
+                      <textarea
+                        rows="3"
+                        value={formData.detailed_description}
+                        onChange={(e) => setFormData({...formData, detailed_description: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400 resize-none"
+                        placeholder="Objetivos específicos, metodología, beneficiarios..."
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Ubicación</label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
-                    <input
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
+                {/* Configuración */}
+                <div className="bg-green-50 rounded-md p-4 border border-green-200">
+                  <h4 className="text-sm font-bold text-green-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Configuración
+                  </h4>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Fecha de Fin</label>
-                    <input
-                      type="date"
-                      value={formData.end_date}
-                      onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Categoría
+                      </label>
+                      <select
+                        value={formData.category_id}
+                        onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 bg-white"
+                      >
+                        <option value="">Seleccionar categoría</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.icon} {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Estado
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({...formData, status: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 bg-white"
+                      >
+                        <option value="planning">📋 Planificación</option>
+                        <option value="active">✅ Activa</option>
+                        <option value="completed">🎉 Completada</option>
+                        <option value="cancelled">❌ Cancelada</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Prioridad
+                      </label>
+                      <select
+                        value={formData.priority}
+                        onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 bg-white"
+                      >
+                        <option value="low">🟢 Baja</option>
+                        <option value="medium">🟡 Media</option>
+                        <option value="high">🟠 Alta</option>
+                        <option value="urgent">🔴 Urgente</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Máx. Voluntarios</label>
-                    <input
-                      type="number"
-                      value={formData.max_volunteers}
-                      onChange={(e) => setFormData({...formData, max_volunteers: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
+                {/* Ubicación y fechas */}
+                <div className="bg-purple-50 rounded-md p-4 border border-purple-200">
+                  <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Ubicación y Cronograma
+                  </h4>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Presupuesto ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.budget}
-                      onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Ubicación *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400"
+                        placeholder="Ej: Guatemala Ciudad, Zona 1, Centro Comunitario"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Fecha de Inicio *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                          className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Fecha de Fin
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.end_date}
+                          onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                          className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900"
+                          min={formData.start_date || new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Máximo de Voluntarios
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={formData.max_volunteers}
+                          onChange={(e) => setFormData({...formData, max_volunteers: e.target.value})}
+                          className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400"
+                          placeholder="Voluntarios ilimitados"
+                        />
+                      </div>
+                      <div className="hidden sm:block">
+                        <p className="text-xs text-gray-500 pb-3">Dejar vacío para permitir voluntarios ilimitados</p>
+                      </div>
+                    </div>
+                    <div className="sm:hidden">
+                      <p className="text-xs text-gray-500">Dejar vacío para permitir voluntarios ilimitados</p>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Imagen de la Actividad</label>
+                {/* Imagen y opciones */}
+                <div className="bg-orange-50 rounded-md p-4 border border-orange-200">
+                  <h4 className="text-sm font-bold text-orange-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Imagen y Opciones
+                  </h4>
                   
                   {/* Image option selector */}
-                  <div className="flex space-x-4 mb-4">
-                    <label className="flex items-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <label className="flex items-center p-3 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors">
                       <input
                         type="radio"
                         name="imageOption"
                         value="url"
                         checked={imageOption === 'url'}
                         onChange={() => handleImageOptionChange('url')}
-                        className="mr-2"
+                        className="mr-3 text-blue-600"
                       />
-                      URL de Imagen
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">URL de Imagen</div>
+                        <div className="text-xs text-gray-500">Desde internet</div>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center p-3 border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-colors">
                       <input
                         type="radio"
                         name="imageOption"
                         value="upload"
                         checked={imageOption === 'upload'}
                         onChange={() => handleImageOptionChange('upload')}
-                        className="mr-2"
+                        className="mr-3 text-blue-600"
                       />
-                      Subir desde Equipo
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">Subir Archivo</div>
+                        <div className="text-xs text-gray-500">Desde computadora</div>
+                      </div>
                     </label>
                   </div>
 
                   {/* URL Input */}
                   {imageOption === 'url' && (
-                    <input
-                      type="url"
-                      placeholder="https://ejemplo.com/imagen.jpg"
-                      value={formData.image_url}
-                      onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
+                    <div className="mb-4">
+                      <input
+                        type="url"
+                        placeholder="https://ejemplo.com/imagen.jpg"
+                        value={formData.image_url}
+                        onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
                   )}
 
                   {/* File Upload */}
                   {imageOption === 'upload' && (
-                    <div>
+                    <div className="mb-4">
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleFileSelect}
-                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                       />
-                      <p className="mt-1 text-xs text-gray-500">
-                        PNG, JPG, WebP hasta 5MB
-                      </p>
+                      <p className="mt-2 text-xs text-gray-500">PNG, JPG, WebP hasta 5MB</p>
                     </div>
                   )}
 
                   {/* Image Preview */}
                   {(imagePreview || (imageOption === 'url' && formData.image_url)) && (
-                    <div className="mt-4">
+                    <div className="mb-4">
                       <p className="text-sm font-medium text-gray-700 mb-2">Vista previa:</p>
-                      <img
-                        src={imagePreview || formData.image_url}
-                        alt="Vista previa"
-                        className="h-32 w-32 object-cover rounded-lg border"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
+                      <div className="flex justify-center">
+                        <img
+                          src={imagePreview || formData.image_url}
+                          alt="Vista previa"
+                          className="h-32 w-32 object-cover rounded-lg border shadow-sm"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
+
+                  {/* Featured checkbox */}
+                  <div className="flex items-center p-3 bg-white rounded-md border border-gray-300">
+                    <input
+                      type="checkbox"
+                      id="featured"
+                      checked={formData.featured}
+                      onChange={(e) => setFormData({...formData, featured: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="featured" className="ml-3 flex-1">
+                      <div className="text-sm font-medium text-gray-900">Destacar en portada</div>
+                      <div className="text-xs text-gray-500">La actividad aparecerá destacada para usuarios</div>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="featured"
-                    checked={formData.featured}
-                    onChange={(e) => setFormData({...formData, featured: e.target.checked})}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="featured" className="ml-2 block text-sm text-gray-900">
-                    Destacar en portada
-                  </label>
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200">
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 focus:ring-2 focus:ring-gray-200"
                   >
-                    Cancelar
+                    ❌ Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl focus:ring-2 focus:ring-blue-200"
                   >
-                    {editingActivity ? 'Actualizar Actividad' : 'Crear Actividad'}
+                    {editingActivity ? '✅ Actualizar Actividad' : '✨ Crear Actividad'}
                   </button>
                 </div>
               </form>

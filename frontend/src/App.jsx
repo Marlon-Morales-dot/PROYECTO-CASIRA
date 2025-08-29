@@ -1737,12 +1737,30 @@ function LoginPage() {
               <div className="pt-6">
                 <GoogleOAuthButton
                   onSuccess={(data) => {
-                    console.log('Google OAuth success:', data);
+                    console.log('✅ Google OAuth iniciado exitosamente:', data);
+                    console.log('🚀 Redirigiendo a Google para autenticación...');
                     // La redirección se manejará automáticamente por el hook useAuth
                   }}
                   onError={(error) => {
-                    console.error('Google OAuth error:', error);
-                    alert('Error al iniciar sesión con Google: ' + error.message);
+                    console.error('❌ Google OAuth error:', error);
+                    
+                    let errorMessage = 'Error al iniciar sesión con Google: ' + error.message;
+                    
+                    if (error.message?.includes('popup')) {
+                      errorMessage = '😫 La ventana de Google se cerró. Por favor intenta de nuevo.';
+                    } else if (error.message?.includes('network')) {
+                      errorMessage = '🌐 Error de conexión. Verifica tu internet e intenta de nuevo.';
+                    } else if (error.message?.includes('unauthorized')) {
+                      errorMessage = '🔒 Acceso no autorizado. Verifica tu cuenta de Google.';
+                    }
+                    
+                    alert(errorMessage);
+                    
+                    console.log('📊 Error details for debugging:', {
+                      message: error.message,
+                      code: error.code,
+                      status: error.status
+                    });
                   }}
                   disabled={isLoading}
                 />
@@ -1803,6 +1821,8 @@ function DashboardPage() {
       const handleGoogleUser = async () => {
         try {
           console.log('🔐 Processing Google OAuth user:', session.user.id);
+          console.log('📧 Email:', session.user.email);
+          console.log('👤 Metadata disponible:', Object.keys(session.user.user_metadata || {}));
           
           // Crear datos del usuario desde Google OAuth
           const userData = {
@@ -1838,12 +1858,17 @@ function DashboardPage() {
           localStorage.setItem('user', JSON.stringify(userData));
           localStorage.setItem('token', 'google-' + session.user.id);
           
-          console.log('✅ Google user processed successfully:', userData);
+          console.log('✅ Google user processed successfully:', {
+            name: `${userData.first_name} ${userData.last_name}`,
+            email: userData.email,
+            role: userData.role,
+            avatar: userData.avatar_url ? '✅' : '❌'
+          });
           
-          // Mostrar mensaje de bienvenida bonito
+          // Mostrar mensaje de bienvenida mejorado con más información
           const welcomeMessage = userData.role === 'admin' 
-            ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
-            : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+            ? `🎉 ¡Bienvenido de vuelta, ${userData.first_name}! 👋\n\n👑 Acceso de Administrador\n✨ Sesión con Google autenticada\n🚀 Cargando panel de administración...`
+            : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA! 🌍\n\n✅ Autenticación exitosa con Google\n🤝 Rol: ${userData.role === 'volunteer' ? 'Voluntario' : 'Visitante'}\n📧 Email: ${userData.email}\n\n¡Vamos a construir un mundo mejor juntos! 🎆`;
           
           // Mostrar alerta elegante
           setTimeout(() => {
@@ -2542,11 +2567,6 @@ function ActivitiesPage() {
                         <span>{activity.current_volunteers || 0}/{activity.max_volunteers || '∞'} voluntarios</span>
                       </div>
                       
-                      {activity.budget && (
-                        <div className="text-gray-600 font-medium">
-                          Presupuesto: ${activity.budget?.toLocaleString()}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -2742,15 +2762,6 @@ function ActivitiesPage() {
                             </div>
                           </div>
                           
-                          {selectedActivity.budget && (
-                            <div className="flex items-start">
-                              <Building className="h-5 w-5 text-yellow-500 mr-3 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="font-medium text-gray-900">Presupuesto</p>
-                                <p className="text-gray-600">${selectedActivity.budget.toLocaleString()}</p>
-                              </div>
-                            </div>
-                          )}
                           
                           <div className="flex items-start">
                             <Star className="h-5 w-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
