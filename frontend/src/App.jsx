@@ -233,7 +233,7 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
       console.log('🔐 Starting Google Authentication...');
       
       // Get Google user through the working auth system
-      const googleUser = await enhancedAPI.googleAuth.signInWithPopup();
+      const googleUser = await enhancedAPI.googleAuth.signIn();
       
       if (googleUser) {
         console.log('✅ Google Auth success:', googleUser.email);
