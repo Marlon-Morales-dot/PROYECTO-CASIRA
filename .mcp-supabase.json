@@ -1,0 +1,60 @@
+{
+  "name": "casira-connect-supabase", 
+  "version": "1.0.0",
+  "description": "MCP configuration for CASIRA Connect Supabase integration",
+  "supabase": {
+    "project_id": "wlliqmcpiiktcdzwzhdn",
+    "api": {
+      "url": "https://wlliqmcpiiktcdzwzhdn.supabase.co",
+      "auth": {
+        "providers": ["google"],
+        "redirect_urls": [
+          "http://localhost:3000",
+          "http://localhost:5173", 
+          "https://proyecto-casira.onrender.com",
+          "https://casira-connect.vercel.app"
+        ]
+      }
+    },
+    "database": {
+      "schema": "public",
+      "tables": {
+        "users": {
+          "rls": true,
+          "auth_required": true
+        },
+        "activities": {
+          "rls": false,
+          "public_read": true
+        },
+        "applications": {
+          "rls": true,
+          "auth_required": true
+        }
+      }
+    },
+    "auth": {
+      "site_url": "https://proyecto-casira.onrender.com",
+      "additional_redirect_urls": [
+        "http://localhost:5173",
+        "https://casira-connect.vercel.app"
+      ]
+    },
+    "storage": {
+      "buckets": {
+        "project-images": {
+          "public": true,
+          "allowed_mime_types": ["image/*"]
+        },
+        "user-avatars": {
+          "public": false,
+          "allowed_mime_types": ["image/*"]
+        }
+      }
+    }
+  },
+  "monitoring": {
+    "performance_tracking": true,
+    "error_reporting": true
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "casira-connect-render",
+  "version": "1.0.0",
+  "description": "MCP configuration for CASIRA Connect Render deployment",
+  "render": {
+    "service_name": "casira-connect",
+    "build": {
+      "command": "./build_for_render.sh",
+      "publish_directory": "frontend/dist"
+    },
+    "env": {
+      "required": [
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET", 
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ],
+      "optional": [
+        "LOG_LEVEL",
+        "ALLOWED_ORIGINS"
+      ]
+    },
+    "deploy": {
+      "auto_deploy": true,
+      "branch": "main",
+      "preview_command": "npm run build"
+    }
+  },
+  "monitoring": {
+    "health_check": "/api/health",
+    "startup_timeout": 300
+  }
+}

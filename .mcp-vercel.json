@@ -1,0 +1,44 @@
+{
+  "name": "casira-connect-vercel",
+  "version": "1.0.0", 
+  "description": "MCP configuration for CASIRA Connect Vercel deployment",
+  "vercel": {
+    "project": "casira-connect",
+    "framework": "vite",
+    "buildCommand": "cd frontend && npm run build",
+    "outputDirectory": "frontend/dist",
+    "installCommand": "npm install",
+    "devCommand": "npm run dev",
+    "functions": {
+      "api/index.py": {
+        "runtime": "python3.9"
+      }
+    },
+    "env": {
+      "required": [
+        "VITE_GOOGLE_CLIENT_ID",
+        "VITE_SUPABASE_URL", 
+        "VITE_SUPABASE_ANON_KEY",
+        "VITE_API_URL"
+      ],
+      "production": {
+        "VITE_API_URL": "https://casira-connect.vercel.app/api"
+      },
+      "development": {
+        "VITE_API_URL": "http://localhost:5000/api"
+      }
+    },
+    "regions": ["iad1"],
+    "redirects": [
+      {
+        "source": "/login",
+        "destination": "/",
+        "permanent": false
+      }
+    ]
+  },
+  "monitoring": {
+    "analytics": true,
+    "speed_insights": true
+  }
+}
