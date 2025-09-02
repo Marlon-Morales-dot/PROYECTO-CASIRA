@@ -163,7 +163,8 @@ class GoogleAuthManager {
   async signIn() {
     try {
       if (!this.isInitialized) {
-        throw new Error('Google Auth no está inicializado');
+        console.warn('⚠️ CASIRA Google Auth: No está inicializado, redirigiendo a auth local');
+        throw new Error('Google Auth no disponible - usa el formulario de login local');
       }
 
       console.log('🔐 CASIRA Google Auth: Iniciando sign in...');
@@ -175,6 +176,7 @@ class GoogleAuthManager {
       return await this.handleSignInSuccess(googleUser);
     } catch (error) {
       console.error('❌ CASIRA Google Auth: Error en sign in:', error);
+      console.log('💡 CASIRA: Usa el formulario de login local como alternativa');
       throw this.handleSignInError(error);
     }
   }
@@ -422,8 +424,17 @@ class GoogleAuthManager {
   
   handleInitializationError(error) {
     console.error('💥 Error crítico en Google Auth:', error);
+    console.log('🔄 CASIRA: Continuando sin Google Auth (modo fallback)');
+    
+    // Mostrar mensaje al usuario
+    if (error.message && error.message.includes('invalid_client')) {
+      console.warn('⚠️ CASIRA: Google OAuth no configurado para este dominio');
+      console.log('ℹ️ CASIRA: Usa el formulario de registro manual como alternativa');
+    }
+    
     // Continuar sin Google Auth (fallback a autenticación interna)
     this.isInitialized = false;
+    this.fallbackMode = true;
   }
 
   handleSignInError(error) {

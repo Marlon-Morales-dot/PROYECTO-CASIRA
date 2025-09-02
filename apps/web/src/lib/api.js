@@ -1,6 +1,6 @@
 // ============= CASIRA Connect - API SIMPLIFICADA Y LIMPIA =============
 // Backend URL configuration
-const BACKEND_URL = 'https://proyecto-casira.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
 
 // Disable Supabase for now - use only Render backend
 // import { storageAPI } from './supabase.js';
@@ -1121,6 +1121,95 @@ export const cleanStorageData = () => {
   }
 };
 
+// Auth API (local authentication fallback)
+export const authAPI = {
+  login: async (email, password) => {
+    console.log('🔐 CASIRA Auth: Attempting local login for:', email);
+    
+    // Find user by email
+    const user = dataStore.users.find(u => u.email === email);
+    
+    if (!user) {
+      throw new Error('Usuario no encontrado. ¿Necesitas registrarte?');
+    }
+    
+    // Simple password check (in production, use proper password hashing)
+    const validPasswords = ['admin123', 'demo123', 'casira123', '123'];
+    if (!validPasswords.includes(password)) {
+      throw new Error('Contraseña incorrecta');
+    }
+    
+    // Update last login
+    const userIndex = dataStore.users.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      dataStore.users[userIndex].last_login = new Date().toISOString();
+      dataStore.saveToStorage();
+    }
+    
+    console.log('✅ CASIRA Auth: Login successful for user:', user.email);
+    return user;
+  },
+  
+  register: async (userData) => {
+    console.log('📝 CASIRA Auth: Attempting registration for:', userData.email);
+    
+    // Check if user already exists
+    const existingUser = dataStore.users.find(u => u.email === userData.email);
+    if (existingUser) {
+      throw new Error('El usuario ya existe');
+    }
+    
+    // Create new user
+    const newUser = {
+      id: Date.now(),
+      email: userData.email,
+      first_name: userData.first_name || 'Usuario',
+      last_name: userData.last_name || 'Nuevo',
+      role: userData.role || 'visitor',
+      provider: 'local',
+      created_at: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+      status: 'active'
+    };
+    
+    return await usersAPI.createUser(newUser);
+  },
+  
+  getCurrentUser: () => {
+    // Try to get from localStorage
+    const currentUserData = localStorage.getItem('casira-current-user');
+    if (currentUserData) {
+      try {
+        return JSON.parse(currentUserData);
+      } catch (e) {
+        console.error('Error parsing current user data:', e);
+        return null;
+      }
+    }
+    return null;
+  },
+  
+  setCurrentUser: (user) => {
+    if (user) {
+      localStorage.setItem('casira-current-user', JSON.stringify(user));
+      console.log('✅ CASIRA Auth: Current user set:', user.email);
+    } else {
+      localStorage.removeItem('casira-current-user');
+      console.log('🚪 CASIRA Auth: User logged out');
+    }
+  },
+  
+  logout: () => {
+    localStorage.removeItem('casira-current-user');
+    console.log('🚪 CASIRA Auth: User logged out');
+    return true;
+  },
+  
+  isLoggedIn: () => {
+    return !!authAPI.getCurrentUser();
+  }
+};
+
 // Default export
 export default {
   dataStore,
@@ -1134,5 +1223,6 @@ export default {
   photosAPI,
   permissionsAPI,
   statsAPI,
+  authAPI,
   forceRefreshData
 };
