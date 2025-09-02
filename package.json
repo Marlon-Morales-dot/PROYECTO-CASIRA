@@ -1,17 +1,32 @@
 {
-  "name": "casira-proyecto",
+  "name": "casira-connect",
   "version": "1.0.0",
-  "description": "CASIRA Connect - Sistema de gestión completo",
-  "main": "backend/app.py",
+  "description": "CASIRA Connect - Sistema de gestión integral para amistad y colaboración",
+  "main": "apps/api/app.py",
   "scripts": {
-    "build": "cd frontend && npm install --include=dev && npm run build",
-    "start": "cd backend && python app.py"
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:api": "cd apps/api && python app.py",
+    "build": "npm run build:web",
+    "build:web": "cd apps/web && npm install --include=dev && npm run build",
+    "start": "cd apps/api && python app.py",
+    "deploy:vercel": "cp deploy/vercel.json . && vercel deploy",
+    "deploy:render": "echo 'Render deployment configured in render.yaml'",
+    "lint": "cd apps/web && npm run lint",
+    "test": "echo 'Tests not implemented yet'"
   },
-  "keywords": ["casira", "backend", "frontend"],
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "keywords": ["casira", "react", "flask", "supabase", "full-stack"],
   "author": "MARLON",
   "license": "ISC",
   "engines": {
     "node": "20.x",
     "npm": "10.x"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

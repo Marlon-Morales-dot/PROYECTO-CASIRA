@@ -1,4 +1,32 @@
-# ✅ CASIRA Connect - Todos los Problemas Solucionados
+# CASIRA Connect 🌟
+
+Sistema de gestión integral para amistad y colaboración - Una plataforma completa para conectar donantes, voluntarios y comunidades.
+
+## 🏗️ Arquitectura del Proyecto
+
+```
+CASIRA-CONNECT/
+├── apps/
+│   ├── web/              # Frontend (React + Vite + Tailwind)
+│   │   ├── src/
+│   │   ├── public/
+│   │   ├── package.json
+│   │   └── vite.config.js
+│   └── api/              # Backend (Flask + Python)
+│       ├── app.py
+│       ├── routes/
+│       └── requirements.txt
+├── deploy/               # Configuraciones de despliegue
+│   ├── vercel.json      # Configuración para Vercel
+│   ├── render.yaml      # Configuración para Render
+│   └── supabase/        # Configuraciones de Supabase
+├── docs/                # Documentación
+└── README.md
+```
+
+---
+
+# ✅ CASIRA Connect - Estado Actual
 
 ## 🎯 **RESUMEN DE SOLUCIONES IMPLEMENTADAS**
 
