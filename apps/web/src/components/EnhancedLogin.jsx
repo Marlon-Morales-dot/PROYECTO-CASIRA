@@ -117,10 +117,51 @@ const EnhancedLogin = () => {
   };
 
   const handleGoogleLogin = async () => {
-    // Temporalmente deshabilitado hasta que se arregle CSP
-    setError('Google Auth temporalmente deshabilitado. Usa el formulario de login local con las credenciales de demo.');
-    console.log('⚠️ Google Auth deshabilitado temporalmente');
-    return;
+    if (!googleAuthReady) {
+      setError('Google Auth no está disponible en este momento');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      console.log('🔐 Iniciando login con Google...');
+      
+      const googleUser = await enhancedAPI.usersAPI.authenticateWithGoogle();
+      
+      if (googleUser) {
+        console.log('✅ Login Google exitoso:', googleUser.email);
+        
+        // IMPORTANTE: Todos los usuarios de Google entran como visitor por defecto
+        const userWithVisitorRole = {
+          ...googleUser,
+          role: 'visitor'  // Forzar rol visitor para nuevos usuarios Google
+        };
+        
+        // Guardar en API local también
+        enhancedAPI.authAPI.setCurrentUser(userWithVisitorRole);
+        
+        setSuccess('Autenticación exitosa con Google - Bienvenido como visitante');
+        handleSuccessfulAuth(userWithVisitorRole);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en login Google:', error);
+      
+      // Manejar errores específicos
+      if (error.message.includes('cerró la ventana') || error.message.includes('popup_closed_by_user')) {
+        setError('Ventana de Google cerrada. Intenta de nuevo.');
+      } else if (error.message.includes('denegado') || error.message.includes('access_denied')) {
+        setError('Acceso denegado. Revisa los permisos de tu cuenta.');
+      } else if (error.message.includes('invalid_client')) {
+        setError('Error de configuración de Google. Contacta al administrador.');
+      } else {
+        setError('Error conectando con Google. Intenta el formulario local.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignOut = async () => {

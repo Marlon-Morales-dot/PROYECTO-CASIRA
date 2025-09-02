@@ -10,7 +10,7 @@ services:
     buildCommand: |
       echo "📦 Building React Frontend..."
       npm ci --include=dev --no-fund --no-audit
-      npm run build:render
+      npm run build
       echo "Build verification:"
       ls -la dist/
       if [ -d "dist/assets" ]; then
@@ -24,3 +24,16 @@ services:
         value: 20.18.0
       - key: NODE_ENV
         value: production
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: ""
+      - path: /*  
+        name: Cross-Origin-Opener-Policy
+        value: "unsafe-none"
+      - path: /*
+        name: Cross-Origin-Embedder-Policy  
+        value: "unsafe-none"
+      - path: /*
+        name: X-Frame-Options
+        value: "ALLOWALL"

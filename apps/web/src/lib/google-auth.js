@@ -295,15 +295,12 @@ class GoogleAuthManager {
   }
 
   assignDefaultRole(email) {
-    // Lógica para asignar roles por defecto basado en el dominio del email
-    if (email.includes('@casira.org')) {
+    // NUEVA POLÍTICA: Todos los usuarios nuevos son visitors por defecto
+    // Solo admin@casira.org puede ser admin automáticamente
+    if (email === 'admin@casira.org') {
       return 'admin';
-    } else if (email.includes('@volunteer.') || email.includes('@voluntario.')) {
-      return 'volunteer';
-    } else if (email.includes('@donor.') || email.includes('@donante.')) {
-      return 'donor';
     } else {
-      return 'visitor'; // Rol por defecto
+      return 'visitor'; // TODOS los demás usuarios son visitors
     }
   }
 

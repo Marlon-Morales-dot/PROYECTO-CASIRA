@@ -1159,13 +1159,13 @@ export const authAPI = {
       throw new Error('El usuario ya existe');
     }
     
-    // Create new user
+    // Create new user - TODOS LOS NUEVOS USUARIOS SON VISITORS
     const newUser = {
       id: Date.now(),
       email: userData.email,
       first_name: userData.first_name || 'Usuario',
       last_name: userData.last_name || 'Nuevo',
-      role: userData.role || 'visitor',
+      role: userData.email === 'admin@casira.org' ? 'admin' : 'visitor', // Solo admin@casira.org es admin
       provider: 'local',
       created_at: new Date().toISOString(),
       last_login: new Date().toISOString(),
