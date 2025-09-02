@@ -10,7 +10,7 @@ class GoogleAuthManager {
     
     // Configuración de Google Auth
     this.config = {
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '245143519733-gsban2kdl7s8o2k57rsch8uf7cnr0qj5.apps.googleusercontent.com',
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1009348371055-7b2sj5p64g1c8vnkmkrv5v6c0baqhbfq.apps.googleusercontent.com',
       scopes: ['profile', 'email'],
       cookiePolicy: 'single_host_origin',
     };
@@ -60,58 +60,31 @@ class GoogleAuthManager {
     return new Promise((resolve, reject) => {
       // Verificar si ya está cargada
       if (window.gapi) {
+        console.log('✅ CASIRA Google Auth: GAPI ya disponible');
         resolve();
         return;
       }
 
       console.log('📦 CASIRA Google Auth: Cargando Google API...');
       
-      // Cargar Google Identity Services (GSI) - versión más nueva
-      const gsiScript = document.createElement('script');
-      gsiScript.src = 'https://accounts.google.com/gsi/client';
-      gsiScript.async = true;
-      gsiScript.defer = true;
-      
-      // Cargar Google API Platform (GAPI) - para auth2
+      // Solo cargar GAPI - más simple y confiable
       const gapiScript = document.createElement('script');
       gapiScript.src = 'https://apis.google.com/js/api.js';
       gapiScript.async = true;
-      gapiScript.defer = true;
-      
-      let gapiLoaded = false;
-      let gsiLoaded = false;
-      
-      const checkBothLoaded = () => {
-        if (gapiLoaded && gsiLoaded) {
-          console.log('✅ CASIRA Google Auth: Ambas APIs cargadas');
-          resolve();
-        }
-      };
+      gapiScript.defer = false; // Asegurar carga secuencial
       
       gapiScript.onload = () => {
-        console.log('✅ CASIRA Google Auth: GAPI cargada');
-        gapiLoaded = true;
-        checkBothLoaded();
-      };
-      
-      gsiScript.onload = () => {
-        console.log('✅ CASIRA Google Auth: GSI cargada');
-        gsiLoaded = true;
-        checkBothLoaded();
+        console.log('✅ CASIRA Google Auth: GAPI cargada exitosamente');
+        // Dar tiempo para que GAPI se inicialice completamente
+        setTimeout(() => resolve(), 100);
       };
       
       gapiScript.onerror = (error) => {
         console.error('❌ Error cargando GAPI:', error);
-        reject(new Error('Failed to load Google API'));
-      };
-      
-      gsiScript.onerror = (error) => {
-        console.error('❌ Error cargando GSI:', error);
-        reject(new Error('Failed to load Google Identity Services'));
+        reject(new Error('Failed to load Google API Platform'));
       };
       
       document.head.appendChild(gapiScript);
-      document.head.appendChild(gsiScript);
     });
   }
 
