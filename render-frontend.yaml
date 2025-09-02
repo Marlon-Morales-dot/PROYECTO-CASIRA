@@ -4,36 +4,26 @@
 # Para: proyecto-casira-1.onrender.com (Frontend Static Site)
 
 services:
-  - type: static_site
+  - type: web
     name: casira-connect-frontend
-    rootDir: apps/web
+    runtime: node
+    rootDir: .
     buildCommand: |
-      echo "📦 Building React Frontend..."
+      echo "🔨 Building CASIRA Connect with Node.js server..."
+      echo "📦 Installing dependencies..."
+      npm install --no-fund --no-audit
+      echo "🏗️ Building frontend..."
+      cd apps/web
       npm ci --include=dev --no-fund --no-audit
       npm run build
-      echo "Build verification:"
-      ls -la dist/
-      if [ -d "dist/assets" ]; then
-        echo "Assets found:"
-        ls -la dist/assets/
-      fi
-    publishDir: dist
+      cd ../..
+      echo "✅ Build completed successfully"
+    startCommand: |
+      echo "🚀 Starting Express server with Google Auth support..."
+      cd apps/web && npm start
     plan: free
     envVars:
       - key: NODE_VERSION
         value: 20.18.0
       - key: NODE_ENV
         value: production
-    headers:
-      - path: /*
-        name: Content-Security-Policy
-        value: ""
-      - path: /*  
-        name: Cross-Origin-Opener-Policy
-        value: "unsafe-none"
-      - path: /*
-        name: Cross-Origin-Embedder-Policy  
-        value: "unsafe-none"
-      - path: /*
-        name: X-Frame-Options
-        value: "ALLOWALL"

@@ -1,0 +1,7 @@
+/*
+  Content-Security-Policy: 
+  X-Frame-Options: ALLOWALL
+  Cross-Origin-Opener-Policy: unsafe-none
+  Cross-Origin-Embedder-Policy: unsafe-none
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: origin-when-cross-origin
