@@ -1,0 +1,22 @@
+# ============================================
+# RENDER CONFIG - SERVICIO PYTHON/FLASK API
+# ============================================
+# Para: proyecto-casira.onrender.com (Backend API)
+
+services:
+  - type: web
+    name: casira-connect-api
+    runtime: python
+    rootDir: apps/api
+    buildCommand: |
+      echo "🐍 Building Flask API..."
+      pip install --no-cache-dir -r requirements.txt
+    startCommand: |
+      echo "🚀 Starting Flask API..."
+      gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.19
+      - key: FLASK_ENV
+        value: production

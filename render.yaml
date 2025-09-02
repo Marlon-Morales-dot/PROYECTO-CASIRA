@@ -1,66 +1,50 @@
+# ============================================
+# RENDER CONFIG - SERVICIOS SEPARADOS
+# ============================================
+# NOTA: Este archivo es para referencia
+# Usar render-python.yaml para el backend API
+# Usar render-frontend.yaml para el frontend estático
+
 services:
+  # ==========================================
+  # OPCIÓN 1: SERVICIO PYTHON BACKEND
+  # Para: proyecto-casira.onrender.com
+  # ==========================================
   - type: web
-    name: casira-connect
+    name: casira-connect-api
     runtime: python
-    rootDir: .
+    rootDir: apps/api
     buildCommand: |
-      set -e
-      echo "🏗️ Building CASIRA Connect for Render..."
-      
-      # Show current directory for debugging
-      pwd
-      ls -la
-      
-      # Set environment
-      export NODE_ENV=production
-      
-      # Install root dependencies
-      echo "📦 Installing root dependencies..."
-      npm install --no-fund --no-audit
-      
-      # Navigate to web app and build
-      echo "📦 Building frontend..."
-      cd apps/web
-      
-      # Clean previous builds
-      rm -rf dist node_modules/.vite
-      
-      # Install dependencies
-      npm ci --include=dev --no-fund --no-audit
-      
-      # Build the application
-      echo "Building with Vite..."
-      npm run build:render
-      
-      # Verify build output
-      echo "Build verification:"
-      ls -la dist/
-      if [ -d "dist/assets" ]; then
-        echo "Assets found:"
-        ls -la dist/assets/
-      fi
-      
-      # Return to root
-      cd ../..
-      
-      # Install Python dependencies  
-      echo "🐍 Installing Python dependencies..."
+      echo "🐍 Building Flask API..."
       pip install --no-cache-dir -r requirements.txt
-      
-      echo "✅ Build completed successfully!"
-      
     startCommand: |
-      echo "🚀 Starting CASIRA Connect..."
-      echo "Current directory: $(pwd)"
-      ls -la apps/
-      cd apps/api && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -
+      echo "🚀 Starting Flask API..."
+      gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
     plan: free
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.19
+      - key: FLASK_ENV
+        value: production
+
+  # ==========================================  
+  # OPCIÓN 2: SERVICIO FRONTEND STATIC
+  # Para: proyecto-casira-1.onrender.com
+  # ==========================================
+  - type: static_site
+    name: casira-connect-frontend
+    rootDir: apps/web
+    buildCommand: |
+      echo "📦 Building React Frontend..."
+      npm ci --include=dev --no-fund --no-audit
+      npm run build
+      echo "✅ Frontend build complete!"
+      echo "Contents of dist:"
+      ls -la dist/
+    publishDir: dist
+    plan: free
+    envVars:
       - key: NODE_VERSION
         value: 20.18.0
       - key: NODE_ENV
         value: production
-      - key: PYTHONPATH
-        value: /opt/render/project/src

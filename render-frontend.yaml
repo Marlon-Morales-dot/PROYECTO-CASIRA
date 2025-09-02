@@ -1,0 +1,26 @@
+# ============================================
+# RENDER CONFIG - SERVICIO NODE.JS/REACT FRONTEND
+# ============================================
+# Para: proyecto-casira-1.onrender.com (Frontend Static Site)
+
+services:
+  - type: static_site
+    name: casira-connect-frontend
+    rootDir: apps/web
+    buildCommand: |
+      echo "📦 Building React Frontend..."
+      npm ci --include=dev --no-fund --no-audit
+      npm run build:render
+      echo "Build verification:"
+      ls -la dist/
+      if [ -d "dist/assets" ]; then
+        echo "Assets found:"
+        ls -la dist/assets/
+      fi
+    publishDir: dist
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
