@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": ".",
   "functions": {
     "api/**/*.py": {
       "runtime": "@vercel/python@3.9.19"
