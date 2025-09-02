@@ -11,6 +11,15 @@ services:
     buildCommand: |
       echo "🐍 Building Flask API..."
       pip install --no-cache-dir -r requirements.txt
+      
+      # Si necesitas servir también el frontend desde Flask
+      echo "📦 Building frontend for Flask static serving..."
+      cd ../web
+      npm ci --include=dev --no-fund --no-audit  
+      npm run build
+      echo "Frontend built for Flask at: $(pwd)/dist"
+      ls -la dist/
+      cd ../api
     startCommand: |
       echo "🚀 Starting Flask API..."
       gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -

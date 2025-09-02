@@ -5,7 +5,11 @@ import json
 from datetime import datetime
 
 # Configurar la ruta correcta del static folder
-if os.path.exists('../frontend/dist'):
+if os.path.exists('../web/dist'):
+    static_folder = '../web/dist'
+elif os.path.exists('./web/dist'):
+    static_folder = './web/dist'
+elif os.path.exists('../frontend/dist'):
     static_folder = '../frontend/dist'
 elif os.path.exists('./frontend/dist'):
     static_folder = './frontend/dist'
