@@ -302,3 +302,4 @@ La aplicación CASIRA Connect ahora es **100% funcional** y **profesional**:
 
 **¡La aplicación está lista para ser usada en producción!** 🚀🎉
 # Force redeploy
+# force deploy
