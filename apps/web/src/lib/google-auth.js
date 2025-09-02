@@ -10,7 +10,7 @@ class GoogleAuthManager {
     
     // Configuración de Google Auth
     this.config = {
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1009348371055-7b2sj5p64g1c8vnkmkrv5v6c0baqhbfq.apps.googleusercontent.com',
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '245143519733-gsban2kdl7s8o2k57rsch8uf7cnr0qj5.apps.googleusercontent.com',
       scopes: ['profile', 'email'],
       cookiePolicy: 'single_host_origin',
     };
@@ -66,18 +66,52 @@ class GoogleAuthManager {
 
       console.log('📦 CASIRA Google Auth: Cargando Google API...');
       
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => {
-        console.log('✅ CASIRA Google Auth: Google API cargada');
-        resolve();
+      // Cargar Google Identity Services (GSI) - versión más nueva
+      const gsiScript = document.createElement('script');
+      gsiScript.src = 'https://accounts.google.com/gsi/client';
+      gsiScript.async = true;
+      gsiScript.defer = true;
+      
+      // Cargar Google API Platform (GAPI) - para auth2
+      const gapiScript = document.createElement('script');
+      gapiScript.src = 'https://apis.google.com/js/api.js';
+      gapiScript.async = true;
+      gapiScript.defer = true;
+      
+      let gapiLoaded = false;
+      let gsiLoaded = false;
+      
+      const checkBothLoaded = () => {
+        if (gapiLoaded && gsiLoaded) {
+          console.log('✅ CASIRA Google Auth: Ambas APIs cargadas');
+          resolve();
+        }
       };
-      script.onerror = (error) => {
-        console.error('❌ Error cargando Google API:', error);
+      
+      gapiScript.onload = () => {
+        console.log('✅ CASIRA Google Auth: GAPI cargada');
+        gapiLoaded = true;
+        checkBothLoaded();
+      };
+      
+      gsiScript.onload = () => {
+        console.log('✅ CASIRA Google Auth: GSI cargada');
+        gsiLoaded = true;
+        checkBothLoaded();
+      };
+      
+      gapiScript.onerror = (error) => {
+        console.error('❌ Error cargando GAPI:', error);
         reject(new Error('Failed to load Google API'));
       };
       
-      document.head.appendChild(script);
+      gsiScript.onerror = (error) => {
+        console.error('❌ Error cargando GSI:', error);
+        reject(new Error('Failed to load Google Identity Services'));
+      };
+      
+      document.head.appendChild(gapiScript);
+      document.head.appendChild(gsiScript);
     });
   }
 
