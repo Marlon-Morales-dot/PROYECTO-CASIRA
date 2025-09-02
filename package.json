@@ -4,10 +4,8 @@
   "description": "CASIRA Connect - Sistema de gestión completo",
   "main": "backend/app.py",
   "scripts": {
-    "install-frontend": "cd frontend && npm ci --include=dev",
-    "build-frontend": "cd frontend && npx vite build && cp -r dist ../",
-    "start": "cd backend && python app.py",
-    "build": "npm run install-frontend && npm run build-frontend"
+    "build": "cd frontend && npm ci && npm run build",
+    "start": "cd backend && python app.py"
   },
   "keywords": ["casira", "backend", "frontend"],
   "author": "MARLON",

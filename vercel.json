@@ -1,61 +1,20 @@
 {
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "@vercel/python@3.9.19"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "api/index.py"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "frontend/dist/assets/$1"
-    },
-    {
-      "src": "/(.*\\.(js|css|ico|png|jpg|svg|woff|woff2|ttf|eot))",
-      "dest": "frontend/dist/$1"
-    },
-    {
-      "src": "/activities",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/social",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/login",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/enhanced-login",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/visitor",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/dashboard",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/admin",
-      "dest": "frontend/dist/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/dist/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
