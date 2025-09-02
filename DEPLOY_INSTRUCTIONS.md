@@ -123,6 +123,6 @@ Una vez desplegado, verifica:
 3. ✅ Assets estáticos se sirven correctamente
 4. ✅ No hay errores de importación en console
 
----
+---ñññ
 
 **Resultado esperado**: El deployment ahora debería completarse sin el error `Could not resolve "./lib/api.js"` y todos los imports deberían resolverse correctamente.
