@@ -7,7 +7,7 @@ import {
 import { 
   activitiesAPI, volunteersAPI, commentsAPI, photosAPI, postsAPI,
   forceRefreshData, permissionsAPI, dataStore 
-} from '../lib/api.js';
+} from '@/lib/api.js';
 import UniversalHeader from './UniversalHeader.jsx';
 
 const VisitorDashboard = ({ user, onLogout }) => {

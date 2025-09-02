@@ -2,34 +2,65 @@ services:
   - type: web
     name: casira-connect
     runtime: python
+    rootDir: .
     buildCommand: |
       set -e
       echo "🏗️ Building CASIRA Connect for Render..."
       
+      # Show current directory for debugging
+      pwd
+      ls -la
+      
+      # Set environment
+      export NODE_ENV=production
+      
       # Install root dependencies
       echo "📦 Installing root dependencies..."
-      npm install
+      npm install --no-fund --no-audit
       
-      # Build frontend from apps/web
+      # Navigate to web app and build
       echo "📦 Building frontend..."
       cd apps/web
-      npm install --include=dev
+      
+      # Clean previous builds
+      rm -rf dist node_modules/.vite
+      
+      # Install dependencies
+      npm ci --include=dev --no-fund --no-audit
+      
+      # Build the application
+      echo "Building with Vite..."
       npm run build
-      ls -la dist/  # Debug: list built files
+      
+      # Verify build output
+      echo "Build verification:"
+      ls -la dist/
+      if [ -d "dist/assets" ]; then
+        echo "Assets found:"
+        ls -la dist/assets/
+      fi
+      
+      # Return to root
       cd ../..
       
       # Install Python dependencies  
       echo "🐍 Installing Python dependencies..."
-      pip install -r requirements.txt
+      pip install --no-cache-dir -r requirements.txt
       
-      echo "✅ Build completed!"
+      echo "✅ Build completed successfully!"
       
     startCommand: |
       echo "🚀 Starting CASIRA Connect..."
-      cd apps/api && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+      echo "Current directory: $(pwd)"
+      ls -la apps/
+      cd apps/api && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -
     plan: free
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.19
       - key: NODE_VERSION
         value: 20.18.0
+      - key: NODE_ENV
+        value: production
+      - key: PYTHONPATH
+        value: /opt/render/project/src

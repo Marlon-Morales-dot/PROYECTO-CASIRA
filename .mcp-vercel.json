@@ -1,19 +1,32 @@
 {
   "name": "casira-connect-vercel",
-  "version": "1.0.0", 
-  "description": "MCP configuration for CASIRA Connect Vercel deployment",
+  "version": "2.0.0", 
+  "description": "MCP configuration for CASIRA Connect Vercel deployment - New Architecture",
   "vercel": {
-    "project": "casira-connect",
+    "project": "proyecto-casira",
     "framework": "vite",
-    "buildCommand": "cd frontend && npm run build",
-    "outputDirectory": "frontend/dist",
+    "buildCommand": "cd apps/web && npm run build",
+    "outputDirectory": "apps/web/dist",
     "installCommand": "npm install",
     "devCommand": "npm run dev",
     "functions": {
-      "api/index.py": {
+      "apps/api/index.py": {
         "runtime": "python3.9"
       }
     },
+    "builds": [
+      {
+        "src": "apps/web/package.json",
+        "use": "@vercel/static-build",
+        "config": {
+          "distDir": "dist"
+        }
+      },
+      {
+        "src": "apps/api/**/*.py",
+        "use": "@vercel/python"
+      }
+    ],
     "env": {
       "required": [
         "VITE_GOOGLE_CLIENT_ID",
@@ -22,23 +35,27 @@
         "VITE_API_URL"
       ],
       "production": {
-        "VITE_API_URL": "https://casira-connect.vercel.app/api"
+        "VITE_API_URL": "https://proyecto-casira.vercel.app/api"
       },
       "development": {
         "VITE_API_URL": "http://localhost:5000/api"
       }
     },
     "regions": ["iad1"],
-    "redirects": [
+    "rewrites": [
       {
-        "source": "/login",
-        "destination": "/",
-        "permanent": false
+        "source": "/api/(.*)",
+        "destination": "/apps/api/$1"
+      },
+      {
+        "source": "/((?!api).*)",
+        "destination": "/index.html"
       }
     ]
   },
   "monitoring": {
     "analytics": true,
-    "speed_insights": true
+    "speed_insights": true,
+    "web_vitals": true
   }
 }

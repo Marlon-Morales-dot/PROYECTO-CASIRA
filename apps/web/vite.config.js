@@ -10,9 +10,19 @@ export default defineConfig({
   server: {
     historyApiFallback: true,
   },
+  build: {
+    outDir: 'dist',
+    rollupOptions: {
+      external: [],
+    },
+    sourcemap: false,
+    minify: 'esbuild'
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@lib": path.resolve(__dirname, "./src/lib"),
     },
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
   },
 })

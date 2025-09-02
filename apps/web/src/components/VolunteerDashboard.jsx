@@ -6,7 +6,7 @@ import {
 import { 
   usersAPI, volunteersAPI, activitiesAPI, categoriesAPI, 
   commentsAPI, photosAPI, dataStore 
-} from '../lib/api.js';
+} from '@/lib/api.js';
 
 const VolunteerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('activities');

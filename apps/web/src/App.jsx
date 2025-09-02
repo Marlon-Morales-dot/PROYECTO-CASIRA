@@ -8,8 +8,8 @@ import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
 import EnhancedLogin from './components/EnhancedLogin.jsx';
-import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
-import { enhancedAPI } from './lib/api-enhanced.js';
+import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from '@/lib/api.js';
+import { enhancedAPI } from '@/lib/api-enhanced.js';
 import './App.css';
 
 // Supabase configuration with fallbacks and validation
