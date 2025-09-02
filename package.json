@@ -4,7 +4,7 @@
   "description": "CASIRA Connect - Sistema de gestión completo",
   "main": "backend/app.py",
   "scripts": {
-    "build": "ls -la && cd frontend && npm ci && npm run build && ls -la dist/ && cp -r dist/* ../",
+    "build": "ls -la && cd frontend && npm ci && npm run build && ls -la dist/ && cp -r dist/* ../ && cd .. && ls -la",
     "start": "cd backend && python app.py"
   },
   "keywords": ["casira", "backend", "frontend"],
