@@ -381,6 +381,9 @@ settings-private.json
 !mcp-server.js
 !frontend/src/
 !frontend/src/lib/
+!apps/web/src/
+!apps/web/src/lib/
+!apps/api/
 !backend/app*.py
 !backend/requirements*.txt
 !backend/Procfile

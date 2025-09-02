@@ -30,7 +30,7 @@ services:
       
       # Build the application
       echo "Building with Vite..."
-      npm run build
+      npm run build:render
       
       # Verify build output
       echo "Build verification:"
