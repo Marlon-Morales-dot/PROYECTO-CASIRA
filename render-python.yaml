@@ -9,17 +9,26 @@ services:
     runtime: python
     rootDir: apps/api
     buildCommand: |
-      echo "🐍 Building Flask API..."
-      pip install --no-cache-dir -r requirements.txt
+      echo "🐍 Building Flask API (cache-optimized)..."
       
-      # Si necesitas servir también el frontend desde Flask
-      echo "📦 Building frontend for Flask static serving..."
-      cd ../web
-      npm ci --include=dev --no-fund --no-audit  
-      npm run build
-      echo "Frontend built for Flask at: $(pwd)/dist"
-      ls -la dist/
-      cd ../api
+      # Clear any problematic caches
+      rm -rf ~/.npm/_cacache
+      rm -rf ~/.cache/pip
+      
+      # Install Python deps with minimal cache
+      pip install --no-cache-dir --no-deps -r requirements.txt
+      pip check
+      
+      # Build frontend only if needed for static serving
+      if [ "$BUILD_FRONTEND" = "true" ]; then
+        echo "📦 Building frontend for Flask..."
+        cd ../web
+        npm ci --prefer-offline --no-fund --no-audit
+        npm run build
+        cd ../api
+      fi
+      
+      echo "✅ Flask API build complete"
     startCommand: |
       echo "🚀 Starting Flask API..."
       gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -
