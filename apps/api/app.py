@@ -14,7 +14,7 @@ elif os.path.exists('../frontend/dist'):
 elif os.path.exists('./frontend/dist'):
     static_folder = './frontend/dist'
 else:
-    static_folder = 'static'  # fallback
+    static_folder = 'static'  # fallback - updated
 
 app = Flask(__name__, static_folder=static_folder, static_url_path='')
 CORS(app, origins=["*"])
