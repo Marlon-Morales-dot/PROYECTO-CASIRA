@@ -10,7 +10,7 @@ class GoogleAuthManager {
     
     // Configuración de Google Auth
     this.config = {
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1009348371055-7b2sj5p64g1c8vnkmkrv5v6c0baqhbfq.apps.googleusercontent.com',
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '245143519733-gsban2kdl7s8o2k57rsch8uf7cnr0qj5.apps.googleusercontent.com',
       scopes: ['profile', 'email'],
       cookiePolicy: 'single_host_origin',
     };
