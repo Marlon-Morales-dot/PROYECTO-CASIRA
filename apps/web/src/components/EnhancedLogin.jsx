@@ -95,68 +95,32 @@ const EnhancedLogin = () => {
     try {
       console.log('🔐 Iniciando login interno para:', formData.email);
       
-      // Buscar usuario por email en el storage
-      const user = await enhancedAPI.usersAPI.getUserByEmail(formData.email);
+      // Usar la API simple del authAPI
+      const user = await enhancedAPI.authAPI.login(formData.email, formData.password);
       
-      if (!user) {
-        setError('Usuario no encontrado. ¿Deseas registrarte con Google?');
-        setIsLoading(false);
-        return;
+      if (user) {
+        console.log('✅ Login exitoso:', user.email);
+        setSuccess('Iniciando sesión...');
+        
+        // Guardar usuario en la sesión
+        enhancedAPI.authAPI.setCurrentUser(user);
+        
+        handleSuccessfulAuth(user);
       }
-
-      // Para demo, aceptar cualquier password para usuarios existentes
-      // En producción, aquí verificarías el hash de la contraseña
-      console.log('✅ Usuario encontrado, iniciando sesión:', user.email);
-      
-      // Actualizar último login
-      await enhancedAPI.usersAPI.updateUserProfile(user.id, {
-        last_login: new Date().toISOString()
-      });
-
-      handleSuccessfulAuth(user);
       
     } catch (error) {
       console.error('❌ Error en login interno:', error);
-      setError('Error al iniciar sesión. Intenta nuevamente.');
+      setError(error.message || 'Error al iniciar sesión. Intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (!googleAuthReady) {
-      setError('Google Auth no está disponible en este momento');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      console.log('🔐 Iniciando login con Google...');
-      
-      const googleUser = await enhancedAPI.usersAPI.authenticateWithGoogle();
-      
-      if (googleUser) {
-        console.log('✅ Login Google exitoso:', googleUser.email);
-        setSuccess('Autenticación exitosa con Google');
-        handleSuccessfulAuth(googleUser);
-      }
-      
-    } catch (error) {
-      console.error('❌ Error en login Google:', error);
-      
-      // Manejar errores específicos
-      if (error.message.includes('cerró la ventana')) {
-        setError('Autenticación cancelada');
-      } else if (error.message.includes('denegado')) {
-        setError('Acceso denegado. Revisa los permisos de tu cuenta.');
-      } else {
-        setError('Error conectando con Google. Intenta nuevamente.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    // Temporalmente deshabilitado hasta que se arregle CSP
+    setError('Google Auth temporalmente deshabilitado. Usa el formulario de login local con las credenciales de demo.');
+    console.log('⚠️ Google Auth deshabilitado temporalmente');
+    return;
   };
 
   const handleGoogleSignOut = async () => {
@@ -180,43 +144,43 @@ const EnhancedLogin = () => {
     console.log('🎉 Autenticación exitosa, redirigiendo usuario:', {
       email: user.email,
       role: user.role,
-      provider: user.provider
+      provider: user.provider || 'local'
     });
 
-    let processedUser = user;
-    
-    // Si es un usuario de Google, usar el endpoint del backend
-    if (user.id && (user.id.includes('google') || user.google_id)) {
-      try {
-        console.log('🔐 Autenticando usuario de Google via backend...');
-        processedUser = await enhancedAPI.usersAPI.authenticateWithGoogle(user);
-        console.log('✅ Usuario de Google procesado:', processedUser);
-      } catch (error) {
-        console.error('❌ Error autenticando con backend:', error);
-        setError('Error conectando con el servidor. Inténtalo de nuevo.');
-        return;
+    // Guardar datos de sesión en múltiples lugares para asegurar persistencia
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('casira-current-user', JSON.stringify(user));
       }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('casira-current-user', JSON.stringify(user));
+      }
+      
+      console.log('💾 Usuario guardado en sesión:', user.email);
+      
+      // Agregar un pequeño delay para asegurar que el estado se guarde
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      console.error('❌ Error guardando sesión:', error);
     }
 
-    // Guardar datos de sesión
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('casira-current-user', JSON.stringify(processedUser));
-    }
-
-    // Redirigir basado en el rol del usuario procesado
-    switch (processedUser.role) {
+    // Redirigir basado en el rol del usuario
+    console.log('🚀 Redirigiendo a:', user.role);
+    
+    switch (user.role) {
       case 'admin':
-        navigate('/admin');
+        navigate('/admin', { replace: true });
         break;
       case 'volunteer':
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
         break;
       case 'donor':
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
         break;
       case 'visitor':
       default:
-        navigate('/visitor');
+        navigate('/visitor', { replace: true });
         break;
     }
   };
