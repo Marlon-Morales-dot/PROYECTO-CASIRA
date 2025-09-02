@@ -13,6 +13,10 @@ services:
         sudo apt-get install -y nodejs
       fi
       
+      # Install root dependencies (minimal package.json)
+      echo "📦 Installing root dependencies..."
+      npm install
+      
       # Install frontend dependencies and build
       echo "📦 Building frontend..."
       cd frontend
