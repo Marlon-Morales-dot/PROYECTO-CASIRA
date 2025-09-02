@@ -4,8 +4,8 @@
   "description": "CASIRA Connect - Sistema de gestión completo",
   "main": "backend/app.py",
   "scripts": {
-    "install-frontend": "cd frontend && npm install",
-    "build-frontend": "cd frontend && npm run build",
+    "install-frontend": "cd frontend && npm ci",
+    "build-frontend": "cd frontend && npx vite build",
     "start": "cd backend && python app.py",
     "build": "npm run install-frontend && npm run build-frontend"
   },
@@ -13,7 +13,7 @@
   "author": "MARLON",
   "license": "ISC",
   "engines": {
-    "node": "18.x",
-    "npm": "9.x"
+    "node": "20.x",
+    "npm": "10.x"
   }
 }
