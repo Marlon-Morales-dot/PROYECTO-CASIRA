@@ -228,7 +228,7 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
     setIsLoading(true);
     try {
       // Use the working Google Auth system
-      const { enhancedAPI } = await import('./lib/api-enhanced.js');
+      const { enhancedAPI } = await import('@/lib/api-enhanced.js');
       
       console.log('🔐 Starting Google Authentication...');
       
