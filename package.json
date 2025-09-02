@@ -5,7 +5,7 @@
   "main": "backend/app.py",
   "scripts": {
     "install-frontend": "cd frontend && npm ci --include=dev",
-    "build-frontend": "cd frontend && npx vite build",
+    "build-frontend": "cd frontend && npx vite build && cp -r dist ../",
     "start": "cd backend && python app.py",
     "build": "npm run install-frontend && npm run build-frontend"
   },
