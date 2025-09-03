@@ -1,18 +1,2 @@
-# SPA Redirects - Funciona tanto para Static Site como Web Service
-/activities /index.html 200
-/social /index.html 200
-/login /index.html 200
-/enhanced-login /index.html 200
-/visitor /index.html 200
-/dashboard /index.html 200
-/admin /index.html 200
-
-# Específicamente para archivos de assets - no redirigir
-/assets/* /assets/:splat 200
-*.js /:splat 200
-*.css /:splat 200
-*.png /:splat 200
-*.ico /:splat 200
-
-# Catch-all para todas las rutas SPA
-/* /index.html 200
+# Simple SPA redirects for Render
+/*    /index.html   200
