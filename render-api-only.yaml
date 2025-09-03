@@ -1,0 +1,38 @@
+# ============================================
+# RENDER CONFIG - SOLO API PYTHON/FLASK
+# ============================================
+# Este es el único archivo de Render que necesitas usar
+# URL: https://proyecto-casira.onrender.com
+
+services:
+  - type: web
+    name: casira-connect-api
+    runtime: python
+    rootDir: apps/api
+    plan: free
+    buildCommand: |
+      echo "🐍 Building CASIRA API..."
+      pip install --no-cache-dir -r requirements.txt
+      echo "✅ API build complete"
+    startCommand: |
+      echo "🚀 Starting CASIRA Flask API..."
+      gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --access-logfile -
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.19
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: false
+    # Configuración CORS para permitir conexiones desde Vercel
+    headers:
+      - source: "/(.*)"
+        headers:
+          - key: Access-Control-Allow-Origin
+            value: "https://tu-dominio.vercel.app"
+          - key: Access-Control-Allow-Methods
+            value: "GET, POST, PUT, DELETE, OPTIONS"
+          - key: Access-Control-Allow-Headers
+            value: "Content-Type, Authorization"
+          - key: Access-Control-Allow-Credentials
+            value: "true"

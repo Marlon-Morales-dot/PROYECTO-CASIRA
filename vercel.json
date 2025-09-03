@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "casira-connect",
+  "name": "casira-connect-frontend",
   "builds": [
     {
       "src": "apps/web/package.json",
@@ -8,26 +8,27 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "apps/api/**/*.py",
-      "use": "@vercel/python"
     }
   ],
-  "functions": {
-    "apps/api/**/*.py": {
-      "runtime": "@vercel/python"
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/apps/api/$1"
-    },
     {
       "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ],
-  "outputDirectory": "apps/web/dist"
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "unsafe-none"
+        }
+      ]
+    }
+  ]
 }

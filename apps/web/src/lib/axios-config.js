@@ -3,21 +3,23 @@ import axios from 'axios';
 
 // Environment configuration
 const isDevelopment = import.meta.env.MODE === 'development';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-  isDevelopment 
-    ? 'http://localhost:5000' 
-    : 'https://proyecto-casira.onrender.com'
-);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
+
+// For development, prefer localhost if backend is running locally
+const FINAL_API_URL = isDevelopment && import.meta.env.VITE_USE_LOCAL_API 
+  ? 'http://localhost:5000'
+  : API_BASE_URL;
 
 console.log('🔧 Axios configured for:', { 
   mode: import.meta.env.MODE,
-  baseURL: API_BASE_URL,
-  isDevelopment 
+  baseURL: FINAL_API_URL,
+  isDevelopment,
+  usingLocalAPI: isDevelopment && import.meta.env.VITE_USE_LOCAL_API
 });
 
 // Create main Axios instance
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: FINAL_API_URL,
   timeout: isDevelopment ? 10000 : 30000, // 10s dev, 30s prod
   withCredentials: true,
   headers: {
