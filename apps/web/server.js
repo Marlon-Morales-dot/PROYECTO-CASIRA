@@ -78,7 +78,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Middleware para DESHABILITAR completamente CSP y permitir Google Auth
+// Solo para requests HTML (no para assets estáticos)
 app.use((req, res, next) => {
+  // Solo aplicar headers especiales para HTML requests, no para assets
+  if (req.path.startsWith('/assets/') || req.path.includes('.js') || req.path.includes('.css') || req.path.includes('.png') || req.path.includes('.ico')) {
+    return next();
+  }
+  
+  console.log('🔧 Configuring headers for HTML request:', req.path);
+  
   // Eliminar TODOS los headers CSP restrictivos
   res.removeHeader('Content-Security-Policy');
   res.removeHeader('Content-Security-Policy-Report-Only');
@@ -101,11 +109,6 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'origin-when-cross-origin');
   
-  // NO establecer ningún CSP para permitir TODO
-  // res.setHeader('Content-Security-Policy', '...'); // DESHABILITADO
-  
-  console.log('✅ Google Auth headers configured for:', req.url);
-  
   next();
 });
 
@@ -119,8 +122,18 @@ app.use(express.static(distPath, {
   dotfiles: 'ignore'
 }));
 
-// Manejar rutas SPA - redirigir todo a index.html
+// Manejar rutas SPA - redirigir solo rutas de páginas a index.html
 app.get('*', (req, res) => {
+  // No manejar assets estáticos con SPA fallback
+  if (req.path.startsWith('/assets/') || 
+      req.path.includes('.js') || 
+      req.path.includes('.css') || 
+      req.path.includes('.png') || 
+      req.path.includes('.ico') ||
+      req.path.includes('.map')) {
+    return res.status(404).send('Asset not found');
+  }
+  
   const indexPath = join(distPath, 'index.html');
   console.log(`🔍 Serving SPA route: ${req.path} -> ${indexPath}`);
   
@@ -129,6 +142,7 @@ app.get('*', (req, res) => {
     res.sendFile(indexPath);
   } else {
     console.error('❌ index.html not found at:', indexPath);
+    console.error('📁 Available files in dist:', require('fs').readdirSync(distPath).slice(0, 10));
     res.status(404).send('Application not found. Build may have failed.');
   }
 });

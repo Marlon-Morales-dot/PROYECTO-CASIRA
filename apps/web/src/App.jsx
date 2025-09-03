@@ -1768,15 +1768,15 @@ function LoginPage() {
                     // Navegar basado en el rol
                     setTimeout(() => {
                       if (data.role === 'admin') {
-                        navigate('/admin');
+                        navigate('/admin', { replace: true });
                       } else if (data.role === 'visitor') {
-                        navigate('/visitor');
+                        navigate('/visitor', { replace: true });
                       } else {
-                        navigate('/dashboard');
+                        navigate('/dashboard', { replace: true });
                       }
                       
-                      // Forzar recarga para actualizar el estado
-                      window.location.reload();
+                      // NO recargar - usar React Router navigation solamente
+                      console.log('🎯 Navegación completada a:', data.role);
                     }, 500);
                   }}
                   onError={(error) => {
