@@ -23,8 +23,8 @@
   "author": "MARLON",
   "license": "ISC",
   "engines": {
-    "node": "18.x",
-    "npm": ">=9.0.0"
+    "node": "20.x",
+    "npm": ">=10.0.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
