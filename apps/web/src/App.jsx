@@ -2028,10 +2028,12 @@ function DashboardPage() {
     // Cargar datos del dashboard
     const loadDashboardData = async () => {
       try {
+        let projectsData = [];
+        
         // Cargar datos desde Supabase
         try {
           // Using inline API functions
-          const [postsData, projectsData] = await Promise.all([
+          const [postsData, supabaseProjectsData] = await Promise.all([
             postsAPI.getPublicPosts(10),
             activitiesAPI.getPublicActivities()
           ]);
@@ -2041,7 +2043,8 @@ function DashboardPage() {
             setPosts(postsData);
           }
           
-          setProjects(projectsData || []);
+          projectsData = supabaseProjectsData || [];
+          setProjects(projectsData);
         } catch (error) {
           console.error('Error loading dashboard data from Supabase:', error);
         }
@@ -2089,7 +2092,7 @@ function DashboardPage() {
             }
           ]);
         
-        setProjects(projectsData || []);
+        setProjects(projectsData);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       }
