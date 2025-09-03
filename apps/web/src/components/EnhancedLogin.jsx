@@ -118,6 +118,12 @@ const EnhancedLogin = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // Prevenir doble clic
+    if (isLoading) {
+      console.log('🔄 Login ya en proceso, ignorando clic duplicado');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
 
@@ -387,6 +393,7 @@ const EnhancedLogin = () => {
                   <button
                     onClick={handleGoogleLogin}
                     disabled={isLoading || !googleAuthReady}
+                    style={{ pointerEvents: isLoading ? 'none' : 'auto' }}
                     className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center"
                   >
                     {isLoading ? (
