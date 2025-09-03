@@ -89,8 +89,8 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  // Cross-Origin headers para popups
-  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+  // Cross-Origin headers para popups (Google Auth compatible)
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   
