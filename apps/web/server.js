@@ -82,6 +82,8 @@ app.use((req, res, next) => {
   // Eliminar TODOS los headers CSP restrictivos
   res.removeHeader('Content-Security-Policy');
   res.removeHeader('Content-Security-Policy-Report-Only');
+  res.removeHeader('X-Content-Security-Policy');
+  res.removeHeader('X-WebKit-CSP');
   
   // Headers específicos para Google Auth
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -89,8 +91,8 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  // Cross-Origin headers para popups (Google Auth compatible)
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  // Cross-Origin headers completamente abiertos para Google Auth
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
   res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   
@@ -99,8 +101,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'origin-when-cross-origin');
   
-  // CSP completamente permisivo para Google Auth con script-src-elem explícito
-  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; script-src-elem * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src *; connect-src *; frame-src *; child-src *;")
+  // NO establecer ningún CSP para permitir TODO
+  // res.setHeader('Content-Security-Policy', '...'); // DESHABILITADO
   
   console.log('✅ Google Auth headers configured for:', req.url);
   
