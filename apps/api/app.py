@@ -6,7 +6,16 @@ from datetime import datetime
 
 # API-only Flask app - no static file serving
 app = Flask(__name__)
-CORS(app, origins=["*"])
+
+# CORS configuration for Vercel frontend
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://proyecto-casira-web.vercel.app')
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', f'{FRONTEND_URL},https://proyecto-casira-1.onrender.com,http://localhost:5173').split(',')
+
+CORS(app, 
+     origins=ALLOWED_ORIGINS,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
 # Datos simulados para el despliegue
 SAMPLE_DATA = {
