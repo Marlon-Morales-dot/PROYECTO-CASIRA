@@ -28,25 +28,22 @@ services:
         value: production
 
   # ==========================================  
-  # OPCIÓN 2: SERVICIO FRONTEND WEB SERVICE (NO STATIC)
+  # OPCIÓN 2: SERVICIO FRONTEND STATIC CON SPA ROUTING
   # Para: proyecto-casira-1.onrender.com
   # ==========================================
-  - type: web
+  - type: static_site
     name: casira-connect-frontend
-    runtime: node
     rootDir: apps/web
     buildCommand: |
-      echo "📦 Building React Frontend..."
+      echo "📦 Building React Frontend for Static Site..."
       npm ci --include=dev --no-fund --no-audit
       npm run build
       echo "✅ Frontend build complete!"
-      echo "Contents of dist:"
+      echo "📁 Ensuring _redirects is in dist:"
+      cp public/_redirects dist/_redirects 2>/dev/null || echo "No _redirects to copy"
+      echo "📋 Contents of dist:"
       ls -la dist/
-      echo "Checking server.js exists:"
-      ls -la server.js
-    startCommand: |
-      echo "🚀 Starting Express server..."
-      npm start
+    publishDir: dist
     plan: free
     envVars:
       - key: NODE_VERSION

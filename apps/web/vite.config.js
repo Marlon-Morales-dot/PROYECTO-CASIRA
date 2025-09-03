@@ -3,19 +3,33 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { copyFileSync } from 'fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Plugin para copiar _redirects
+const copyRedirectsPlugin = () => ({
+  name: 'copy-redirects',
+  writeBundle() {
+    try {
+      copyFileSync('public/_redirects', 'dist/_redirects');
+      console.log('✅ _redirects copied to dist/');
+    } catch (error) {
+      console.log('⚠️ Could not copy _redirects:', error.message);
+    }
+  }
+});
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), copyRedirectsPlugin()],
   base: '/',
   server: {
     historyApiFallback: true
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
+    assetsDir: 'assets', 
     emptyOutDir: true,
     copyPublicDir: true,
     rollupOptions: {
