@@ -24,6 +24,7 @@ const EnhancedLogin = () => {
   // Estado de Google Auth
   const [googleUser, setGoogleUser] = useState(null);
   const [isGoogleSignedIn, setIsGoogleSignedIn] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   useEffect(() => {
     checkGoogleAuthStatus();
@@ -117,15 +118,28 @@ const EnhancedLogin = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // Prevenir doble clic
-    if (isLoading) {
-      console.log('🔄 Login ya en proceso, ignorando clic duplicado');
+  const handleGoogleLogin = async (event) => {
+    // Prevenir doble clic con multiple validaciones
+    const now = Date.now();
+    if (isLoading || (now - lastClickTime < 1000)) {
+      console.log('🔄 Login ya en proceso o clic muy rápido, ignorando');
       return;
     }
     
+    setLastClickTime(now);
+    
+    // Prevenir propagación del evento
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    // Establecer loading inmediatamente para prevenir clics rápidos
     setIsLoading(true);
     setError('');
+    
+    // Pequeño delay para evitar race conditions
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     try {
       console.log('🔐 Iniciando login con Google (Unified)...');
@@ -394,7 +408,11 @@ const EnhancedLogin = () => {
                     onClick={handleGoogleLogin}
                     disabled={isLoading || !googleAuthReady}
                     style={{ pointerEvents: isLoading ? 'none' : 'auto' }}
-                    className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center"
+                    className={`w-full py-3 px-4 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all font-medium flex items-center justify-center ${
+                      isLoading 
+                        ? 'bg-blue-100 border border-blue-300 text-blue-700 cursor-not-allowed' 
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
                   >
                     {isLoading ? (
                       <>
