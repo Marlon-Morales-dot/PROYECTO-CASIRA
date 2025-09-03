@@ -279,6 +279,20 @@ class UnifiedGoogleAuthService {
         method
       });
 
+      // Guardar usuario en dataStore local para que funcionen comentarios y otras funciones
+      try {
+        const existingUsers = JSON.parse(localStorage.getItem('casira_users') || '[]');
+        const userExists = existingUsers.find(u => u.email === userData.email);
+        
+        if (!userExists) {
+          existingUsers.push(userData);
+          localStorage.setItem('casira_users', JSON.stringify(existingUsers));
+          console.log('💾 Usuario Google agregado al dataStore local');
+        }
+      } catch (error) {
+        console.warn('⚠️ No se pudo guardar usuario Google en dataStore:', error);
+      }
+
       this.currentUser = userData;
       this._notifyListeners('signin', userData);
 

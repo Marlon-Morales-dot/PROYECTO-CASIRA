@@ -1759,8 +1759,25 @@ function LoginPage() {
               <GoogleOAuthButton
                 onSuccess={(data) => {
                     console.log('✅ Google OAuth iniciado exitosamente:', data);
-                    console.log('🚀 Redirigiendo a Google para autenticación...');
-                    // La redirección se manejará automáticamente por el hook useAuth
+                    console.log('🚀 Guardando usuario y navegando...');
+                    
+                    // Guardar usuario en localStorage
+                    localStorage.setItem('token', 'google-token-' + Date.now());
+                    localStorage.setItem('user', JSON.stringify(data));
+                    
+                    // Navegar basado en el rol
+                    setTimeout(() => {
+                      if (data.role === 'admin') {
+                        navigate('/admin');
+                      } else if (data.role === 'visitor') {
+                        navigate('/visitor');
+                      } else {
+                        navigate('/dashboard');
+                      }
+                      
+                      // Forzar recarga para actualizar el estado
+                      window.location.reload();
+                    }, 500);
                   }}
                   onError={(error) => {
                     console.error('❌ Google OAuth error:', error);
