@@ -227,50 +227,22 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Use the working Google Auth system
-      const { enhancedAPI } = await import('@/lib/api-enhanced.js');
+      // Usar el nuevo servicio unificado de Google Auth
+      const unifiedGoogleAuth = await import('@/lib/services/unified-google-auth.service.js');
       
-      console.log('🔐 Starting Google Authentication...');
+      console.log('🔐 Starting Google Authentication with Unified Service...');
       
-      // Force initialization if not ready
-      if (!enhancedAPI.googleAuth.isInitialized) {
-        console.log('⚡ Google Auth not initialized, forcing initialization...');
-        try {
-          await enhancedAPI.googleAuth.initializeGoogleAuth();
-          console.log('✅ Forced initialization completed');
-        } catch (initError) {
-          console.error('❌ Forced initialization failed:', initError);
-          throw new Error('No se pudo inicializar Google Auth. Por favor recarga la página e intenta de nuevo.');
-        }
-      }
-      
-      // Wait for Google Auth to be ready (with timeout)
-      console.log('⏳ Waiting for Google Auth to be ready...');
-      let attempts = 0;
-      const maxAttempts = 20; // 10 seconds max
-      
-      while (!enhancedAPI.googleAuth.isInitialized && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-        console.log(`🔄 Google Auth readiness check ${attempts}/${maxAttempts}`);
-      }
-      
-      if (!enhancedAPI.googleAuth.isInitialized) {
-        throw new Error('Google Auth no se pudo inicializar. Por favor recarga la página, verifica tu conexión a internet, e intenta nuevamente.');
-      }
-      
-      console.log('✅ Google Auth is ready, proceeding with sign in...');
-      
-      // Get Google user through the working auth system
-      const googleUser = await enhancedAPI.googleAuth.signIn();
+      // El servicio unificado maneja la inicialización automáticamente
+      const googleUser = await unifiedGoogleAuth.default.signIn();
       
       if (googleUser) {
         console.log('✅ Google Auth success:', googleUser.email);
         
-        // Authenticate with backend
-        const authenticatedUser = await enhancedAPI.usersAPI.authenticateWithGoogle(googleUser);
+        // Guardar usuario en localStorage para consistencia
+        localStorage.setItem('token', 'google-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify(googleUser));
         
-        if (onSuccess) onSuccess(authenticatedUser);
+        if (onSuccess) onSuccess(googleUser);
       } else {
         throw new Error('No user returned from Google Auth');
       }
@@ -1210,7 +1182,21 @@ function LoginPage() {
           
           if (localUser) {
             console.log('Found local user:', localUser);
-            // Para usuarios locales, aceptamos cualquier contraseña (datos demo)
+            
+            // VALIDACIÓN MEJORADA DE CONTRASEÑAS
+            const validPasswords = {
+              'admin@casira.org': ['admin123', 'casira2024'],
+              'donante@ejemplo.com': ['donante123', 'demo123'],
+              'carlos.martinez@email.com': ['volunteer123', 'demo123'],
+              'ana.lopez@email.com': ['visitor123', 'demo123']
+            };
+            
+            const userPasswords = validPasswords[localUser.email] || ['demo123', 'casira2024'];
+            
+            if (!userPasswords.includes(formData.password)) {
+              throw new Error('Contraseña incorrecta para ' + localUser.email);
+            }
+            
             localStorage.setItem('token', 'local-token-' + Date.now());
             localStorage.setItem('user', JSON.stringify(localUser));
             

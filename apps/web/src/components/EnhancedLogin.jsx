@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, User } from 'lucide-react';
 import { enhancedAPI } from '@/lib/api-enhanced.js';
+import unifiedGoogleAuth from '@/lib/services/unified-google-auth.service.js';
 
 const EnhancedLogin = () => {
   const navigate = useNavigate();
@@ -117,48 +118,28 @@ const EnhancedLogin = () => {
   };
 
   const handleGoogleLogin = async () => {
-    if (!googleAuthReady) {
-      setError('Google Auth no está disponible en este momento');
-      return;
-    }
-
     setIsLoading(true);
     setError('');
 
     try {
-      console.log('🔐 Iniciando login con Google...');
+      console.log('🔐 Iniciando login con Google (Unified)...');
       
-      const googleUser = await enhancedAPI.usersAPI.authenticateWithGoogle();
+      // Usar el nuevo servicio unificado que maneja COOP y CSP automáticamente
+      const googleUser = await unifiedGoogleAuth.signIn();
       
       if (googleUser) {
         console.log('✅ Login Google exitoso:', googleUser.email);
         
-        // IMPORTANTE: Todos los usuarios de Google entran como visitor por defecto
-        const userWithVisitorRole = {
-          ...googleUser,
-          role: 'visitor'  // Forzar rol visitor para nuevos usuarios Google
-        };
-        
         // Guardar en API local también
-        enhancedAPI.authAPI.setCurrentUser(userWithVisitorRole);
+        enhancedAPI.authAPI.setCurrentUser(googleUser);
         
-        setSuccess('Autenticación exitosa con Google - Bienvenido como visitante');
-        handleSuccessfulAuth(userWithVisitorRole);
+        setSuccess(`Autenticación exitosa con Google - Bienvenido como ${googleUser.role}`);
+        handleSuccessfulAuth(googleUser);
       }
       
     } catch (error) {
       console.error('❌ Error en login Google:', error);
-      
-      // Manejar errores específicos
-      if (error.message.includes('cerró la ventana') || error.message.includes('popup_closed_by_user')) {
-        setError('Ventana de Google cerrada. Intenta de nuevo.');
-      } else if (error.message.includes('denegado') || error.message.includes('access_denied')) {
-        setError('Acceso denegado. Revisa los permisos de tu cuenta.');
-      } else if (error.message.includes('invalid_client')) {
-        setError('Error de configuración de Google. Contacta al administrador.');
-      } else {
-        setError('Error conectando con Google. Intenta el formulario local.');
-      }
+      setError(error.message || 'Error conectando con Google. Intenta el formulario local.');
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +148,7 @@ const EnhancedLogin = () => {
   const handleGoogleSignOut = async () => {
     try {
       setIsLoading(true);
-      await enhancedAPI.usersAPI.signOutGoogle();
+      await unifiedGoogleAuth.signOut();
       
       setGoogleUser(null);
       setIsGoogleSignedIn(false);

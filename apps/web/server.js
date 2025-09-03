@@ -10,34 +10,69 @@ const __dirname = dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS configuration para Google Auth
+// CORS configuration mejorada para Google Auth y APIs
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 const corsOptions = {
-  origin: [
-    'https://accounts.google.com',
-    'https://www.googleapis.com',
-    'https://oauth2.googleapis.com', 
-    'https://apis.google.com',
-    'https://www.gstatic.com',
-    'https://gstatic.com',
-    'https://ssl.gstatic.com',
-    'https://proyecto-casira-1.onrender.com',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5000'
-  ],
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (mobile apps, etc)
+    if (!origin) return callback(null, true);
+    
+    // Lista de dominios permitidos
+    const allowedOrigins = [
+      // Google Auth domains
+      'https://accounts.google.com',
+      'https://www.googleapis.com', 
+      'https://oauth2.googleapis.com',
+      'https://apis.google.com',
+      'https://www.gstatic.com',
+      'https://gstatic.com',
+      'https://ssl.gstatic.com',
+      // Production domains
+      'https://proyecto-casira-1.onrender.com',
+      'https://proyecto-casira.onrender.com',
+      // Development domains
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    // En desarrollo, permitir todos los localhost
+    if (isDevelopment && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`❌ CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
-    'Origin', 
+    'Origin',
     'X-Requested-With', 
-    'Content-Type', 
-    'Accept', 
+    'Content-Type',
+    'Accept',
     'Authorization',
+    'Bearer',
+    'X-API-Key',
+    'X-Client-Info',
     'Access-Control-Allow-Headers',
     'Access-Control-Request-Method',
     'Access-Control-Request-Headers'
   ],
-  optionsSuccessStatus: 200
+  exposedHeaders: [
+    'X-Total-Count',
+    'X-Page-Count', 
+    'Authorization'
+  ],
+  optionsSuccessStatus: 200,
+  maxAge: 86400 // Cache preflight por 24 horas
 };
 
 app.use(cors(corsOptions));
