@@ -5,6 +5,7 @@
 ### API Configuration
 ```
 VITE_API_BASE_URL = https://proyecto-casira.onrender.com
+VITE_APP_URL = https://proyecto-casira-web.vercel.app
 ```
 
 ### Supabase Configuration  

@@ -279,18 +279,41 @@ class UnifiedGoogleAuthService {
         method
       });
 
-      // Guardar usuario en dataStore local para que funcionen comentarios y otras funciones
+      // Guardar usuario en dataStore local usando el storageManager correcto
       try {
-        const existingUsers = JSON.parse(localStorage.getItem('casira_users') || '[]');
+        // Importar storageManager
+        const { storageManager } = await import('../storage-manager.js');
+        const existingUsers = storageManager.get('users') || [];
         const userExists = existingUsers.find(u => u.email === userData.email);
         
         if (!userExists) {
           existingUsers.push(userData);
-          localStorage.setItem('casira_users', JSON.stringify(existingUsers));
-          console.log('💾 Usuario Google agregado al dataStore local');
+          storageManager.set('users', existingUsers);
+          console.log('💾 Usuario Google agregado al storageManager:', userData.email);
+        } else {
+          // Actualizar último login
+          const userIndex = existingUsers.findIndex(u => u.email === userData.email);
+          existingUsers[userIndex] = { ...existingUsers[userIndex], ...userData };
+          storageManager.set('users', existingUsers);
+          console.log('🔄 Usuario Google actualizado:', userData.email);
         }
       } catch (error) {
-        console.warn('⚠️ No se pudo guardar usuario Google en dataStore:', error);
+        console.warn('⚠️ No se pudo guardar usuario Google en storageManager:', error);
+        console.warn('📋 Fallback a localStorage directo');
+        // Fallback directo
+        try {
+          const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
+          const existingUsers = casiraData.users || [];
+          const userExists = existingUsers.find(u => u.email === userData.email);
+          
+          if (!userExists) {
+            existingUsers.push(userData);
+            casiraData.users = existingUsers;
+            localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
+          }
+        } catch (fallbackError) {
+          console.error('❌ Error en fallback de storage:', fallbackError);
+        }
       }
 
       this.currentUser = userData;
