@@ -77,6 +77,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Logging middleware para debug - TODAS las requests
+app.use((req, res, next) => {
+  console.log(`🌐 ${new Date().toISOString()} ${req.method} ${req.url}`);
+  next();
+});
+
 // Middleware para DESHABILITAR completamente CSP y permitir Google Auth
 // Solo para requests HTML (no para assets estáticos)
 app.use((req, res, next) => {
@@ -151,6 +157,11 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 CASIRA Frontend running on port ${port}`);
   console.log(`📱 Google Auth enabled without CSP restrictions`);
   console.log(`🌐 Serving from: ${join(__dirname, 'dist')}`);
+  console.log(`📍 Current working directory: ${process.cwd()}`);
+  console.log(`📁 __dirname: ${__dirname}`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV}`);
+  console.log(`⚡ Express server is RUNNING and handling requests`);
+  console.log(`🌍 Server accessible at: http://0.0.0.0:${port}`);
 });
 
 export default app;

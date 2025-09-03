@@ -29,7 +29,19 @@ services:
       echo "✅ Build verification passed"
     startCommand: |
       echo "🚀 Starting Express server with Google Auth support..."
-      cd apps/web && npm start
+      echo "📍 Current directory: $(pwd)"
+      echo "📁 Contents: $(ls -la)"
+      cd apps/web
+      echo "📍 Changed to: $(pwd)"
+      echo "📁 Web contents: $(ls -la)"
+      echo "🔧 Checking if server.js exists..."
+      if [ -f "server.js" ]; then
+        echo "✅ server.js found"
+      else
+        echo "❌ server.js NOT found"
+      fi
+      echo "🚀 Starting server with npm start..."
+      npm start
     plan: free
     envVars:
       - key: NODE_VERSION
