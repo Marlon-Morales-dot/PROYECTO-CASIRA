@@ -109,12 +109,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Servir archivos estáticos desde dist
-app.use(express.static(join(__dirname, 'dist')));
+// Servir archivos estáticos desde dist con configuración robusta
+const distPath = join(__dirname, 'dist');
+console.log(`📁 Static files path: ${distPath}`);
+
+app.use(express.static(distPath, {
+  maxAge: '1d', // Cache assets for 1 day
+  index: false, // Don't serve index.html for directories
+  dotfiles: 'ignore'
+}));
 
 // Manejar rutas SPA - redirigir todo a index.html
 app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'dist', 'index.html'));
+  const indexPath = join(distPath, 'index.html');
+  console.log(`🔍 Serving SPA route: ${req.path} -> ${indexPath}`);
+  
+  // Verificar que index.html existe
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    console.error('❌ index.html not found at:', indexPath);
+    res.status(404).send('Application not found. Build may have failed.');
+  }
 });
 
 app.listen(port, '0.0.0.0', () => {

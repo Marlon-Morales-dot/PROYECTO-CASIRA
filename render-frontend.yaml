@@ -10,14 +10,23 @@ services:
     rootDir: .
     buildCommand: |
       echo "🔨 Building CASIRA Connect with Node.js server..."
-      echo "📦 Installing dependencies..."
+      echo "📦 Installing root dependencies..."
       npm install --no-fund --no-audit
       echo "🏗️ Building frontend..."
       cd apps/web
+      echo "📦 Installing frontend dependencies..."
       npm ci --include=dev --no-fund --no-audit
+      echo "🔨 Running build..."
       npm run build
+      echo "📁 Checking build output..."
+      ls -la dist/
+      echo "✅ Build completed - checking dist folder exists..."
+      if [ ! -f "dist/index.html" ]; then
+        echo "❌ Build failed - index.html not found"
+        exit 1
+      fi
       cd ../..
-      echo "✅ Build completed successfully"
+      echo "✅ Build verification passed"
     startCommand: |
       echo "🚀 Starting Express server with Google Auth support..."
       cd apps/web && npm start
