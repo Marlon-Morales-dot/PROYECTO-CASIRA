@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Heart, MessageCircle, Search, User, LogOut, Settings, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserNotifications from './UserNotifications.jsx';
-import { volunteersAPI } from '@/lib/api.js';
+import { volunteersAPI } from '../lib/api.js';
 
 const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
   const navigate = useNavigate();

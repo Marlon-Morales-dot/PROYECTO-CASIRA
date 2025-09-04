@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Users, MapPin, Calendar, Clock, Send, Star, Eye, ThumbsUp, Smile } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { activitiesAPI, commentsAPI, photosAPI, dataStore } from '@/lib/api.js';
+import { activitiesAPI, commentsAPI, photosAPI, dataStore } from '../lib/api.js';
 
 const PublicSocialView = ({ currentUser = null }) => {
   const navigate = useNavigate();

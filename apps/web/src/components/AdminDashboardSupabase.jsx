@@ -8,8 +8,8 @@ import {
 import { 
   adminUsers, adminVolunteers, adminContent, adminActivities, 
   adminDashboard, adminQuickActions 
-} from '@/lib/admin-supabase.js';
-import { supabase, subscribeToTable } from '@/lib/supabase-client.js';
+} from '../lib/admin-supabase.js';
+import { supabase, subscribeToTable } from '../lib/supabase-client.js';
 
 const AdminDashboardSupabase = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');

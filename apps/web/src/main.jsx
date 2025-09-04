@@ -1,11 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-// import App from './App.jsx'
-import AppSupabase from './AppSupabase.jsx'
-import { setupDemoData } from './lib/setup-demo-data.js'
+import App from './App.jsx'
+// import AppSupabase from './AppSupabase.jsx'
+// import { setupDemoData } from './lib/setup-demo-data.js'
 
-// Setup demo data on first load
+// Setup demo data on first load - commented out for now
+/*
 const initializeApp = async () => {
   try {
     console.log('🚀 Initializing CASIRA Connect with Supabase...');
@@ -18,9 +19,10 @@ const initializeApp = async () => {
 
 // Initialize app
 initializeApp();
+*/
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AppSupabase />
+    <App />
   </StrictMode>,
 )

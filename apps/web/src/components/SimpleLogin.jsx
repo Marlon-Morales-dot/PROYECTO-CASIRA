@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, User, UserPlus } from 'lucide-react';
-import { authAPI } from '@/lib/api.js';
+import { authAPI } from '../lib/api.js';
 
 const SimpleLogin = () => {
   const navigate = useNavigate();

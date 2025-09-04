@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, CheckCircle, Clock, X, AlertCircle, Heart, MessageCircle, Users, Award, Star, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { notificationsAPI, volunteersAPI, dataStore } from '@/lib/api.js';
+import { notificationsAPI, volunteersAPI, dataStore } from '../lib/api.js';
 
 const UserNotifications = ({ user, onClose }) => {
   const [notifications, setNotifications] = useState([]);

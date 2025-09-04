@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '@/lib/api.js';
+import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);

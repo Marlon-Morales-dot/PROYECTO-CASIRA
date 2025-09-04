@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, User } from 'lucide-react';
-import { enhancedAPI } from '@/lib/api-enhanced.js';
-import unifiedGoogleAuth from '@/lib/services/unified-google-auth.service.js';
+import { enhancedAPI } from '../lib/api-enhanced.js';
+import unifiedGoogleAuth from '../lib/services/unified-google-auth.service.js';
 
 const EnhancedLogin = () => {
   const navigate = useNavigate();

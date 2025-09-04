@@ -5,7 +5,7 @@ import {
   MoreVertical, Flag, Trash2, Edit, MapPin, Clock,
   User, Star, ThumbsUp, Eye, EyeOff 
 } from 'lucide-react';
-import { supabasePosts, supabaseComments, supabaseStorage } from '@/lib/supabase-client.js';
+import { supabasePosts, supabaseComments, supabaseStorage } from '../lib/supabase-client.js';
 
 const SocialFeed = ({ user }) => {
   const [posts, setPosts] = useState([]);

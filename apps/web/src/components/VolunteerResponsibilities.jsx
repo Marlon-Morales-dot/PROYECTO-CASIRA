@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Clock, AlertTriangle, Calendar, MapPin, Users, MessageCircle, Phone, Star, Award } from 'lucide-react';
-import { volunteersAPI, activitiesAPI } from '@/lib/api.js';
+import { volunteersAPI, activitiesAPI } from '../lib/api.js';
 
 const VolunteerResponsibilities = ({ user }) => {
   const [responsibilities, setResponsibilities] = useState([]);

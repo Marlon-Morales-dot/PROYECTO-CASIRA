@@ -7,7 +7,7 @@ import {
 import { 
   usersAPI, volunteersAPI, activitiesAPI, categoriesAPI, 
   commentsAPI, photosAPI, dataStore 
-} from '@/lib/api.js';
+} from '../lib/api.js';
 import UniversalHeader from './UniversalHeader.jsx';
 import VolunteerResponsibilities from './VolunteerResponsibilities.jsx';
 

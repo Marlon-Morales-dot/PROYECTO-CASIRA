@@ -11,7 +11,7 @@ import EnhancedLogin from './components/EnhancedLogin.jsx';
 // APIs de Supabase
 import { supabase } from './lib/supabase-client.js';
 import { supabaseUsers, supabaseActivities } from './lib/supabase-client.js';
-import { authAPI } from '@/lib/api.js'; // Para compatibilidad con login existente
+import { authAPI } from './lib/api.js'; // Para compatibilidad con login existente
 
 import './App.css';
 
