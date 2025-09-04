@@ -168,7 +168,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
       loadDashboardData();
     } catch (error) {
       console.error('Error joining activity:', error);
-      if (error.message.includes('Ya estás registrado')) {
+      if (error?.message?.includes('Ya estás registrado')) {
         alert('Ya te has registrado previamente para esta actividad.');
       } else {
         alert('Hubo un error al registrarte. Por favor, intenta nuevamente.');

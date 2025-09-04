@@ -26,9 +26,10 @@ const ActivityCard = ({
     }
   };
 
-  const truncatedDescription = activity.description?.length > 120 
-    ? activity.description.substring(0, 120) + '...'
-    : activity.description;
+  const description = activity.description || activity.content || '';
+  const truncatedDescription = description.length > 120 
+    ? description.substring(0, 120) + '...'
+    : description;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden card-mobile">
@@ -60,7 +61,7 @@ const ActivityCard = ({
         <div className="mb-4">
           <p className="text-gray-600 text-mobile">
             {showFullDescription || !truncatedDescription.includes('...') 
-              ? activity.description 
+              ? description 
               : truncatedDescription
             }
           </p>
