@@ -70,10 +70,48 @@ SAMPLE_DATA = {
             "id": 1,
             "title": "¡Nuevas becas disponibles!",
             "content": "Hemos abierto la convocatoria para 20 nuevas becas educativas. Aplica ya!",
+            "author_id": 1,
             "author": "Administrador CASIRA",
             "created_at": "2024-11-15",
-            "likes": 15,
-            "comments": []
+            "likes_count": 15,
+            "comments_count": 3,
+            "comments": [
+                {
+                    "id": 1,
+                    "post_id": 1,
+                    "author_id": 2,
+                    "author": "María González",
+                    "content": "¡Excelente iniciativa! Compartiendo con estudiantes necesitados.",
+                    "created_at": "2024-11-15",
+                    "likes_count": 2
+                },
+                {
+                    "id": 2,
+                    "post_id": 1,
+                    "author_id": 3,
+                    "author": "Carlos Hernández",
+                    "content": "Gracias por estas oportunidades. Ya aplicaré.",
+                    "created_at": "2024-11-16",
+                    "likes_count": 5
+                }
+            ],
+            "likes": [
+                {"user_id": 1, "created_at": "2024-11-15"},
+                {"user_id": 2, "created_at": "2024-11-15"},
+                {"user_id": 3, "created_at": "2024-11-16"}
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Actividad de limpieza comunitaria",
+            "content": "Este sábado nos reunimos para limpiar el parque central. ¡Únete!",
+            "author_id": 2,
+            "author": "María González",
+            "created_at": "2024-11-10",
+            "likes_count": 8,
+            "comments_count": 1,
+            "comments": [],
+            "likes": []
         }
     ]
 }
@@ -157,6 +195,41 @@ def get_posts():
         'total': len(SAMPLE_DATA['posts'])
     })
 
+@app.route('/api/posts', methods=['POST'])
+def create_post():
+    """Create a new post"""
+    data = request.get_json()
+    
+    if not data or 'content' not in data:
+        return jsonify({'error': 'Content is required'}), 400
+    
+    # Create new post
+    new_post = {
+        'id': len(SAMPLE_DATA['posts']) + 1,
+        'title': data.get('title', ''),
+        'content': data['content'],
+        'author_id': data.get('author_id', 1),
+        'author': 'Usuario',
+        'created_at': datetime.now().strftime('%Y-%m-%d'),
+        'likes_count': 0,
+        'comments_count': 0,
+        'comments': [],
+        'likes': []
+    }
+    
+    # Find author name
+    for user in SAMPLE_DATA['users']:
+        if user['id'] == new_post['author_id']:
+            new_post['author'] = f"{user['first_name']} {user['last_name']}"
+            break
+    
+    SAMPLE_DATA['posts'].insert(0, new_post)
+    
+    return jsonify({
+        'message': 'Post created successfully',
+        'post': new_post
+    }), 201
+
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
     """Get all projects"""
@@ -228,6 +301,162 @@ def update_profile():
     
     return jsonify({'error': 'User not found'}), 404
 
+@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
+def toggle_post_like(post_id):
+    """Toggle like on a post"""
+    data = request.get_json()
+    
+    if not data or 'user_id' not in data:
+        return jsonify({'error': 'User ID required'}), 400
+    
+    user_id = data['user_id']
+    
+    # Find post
+    post = None
+    for p in SAMPLE_DATA['posts']:
+        if p['id'] == post_id:
+            post = p
+            break
+    
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    # Check if user already liked this post
+    user_already_liked = any(like['user_id'] == user_id for like in post['likes'])
+    
+    if user_already_liked:
+        # Remove like
+        post['likes'] = [like for like in post['likes'] if like['user_id'] != user_id]
+        post['likes_count'] = max(0, post['likes_count'] - 1)
+        liked = False
+        message = 'Like removed'
+    else:
+        # Add like
+        post['likes'].append({
+            'user_id': user_id,
+            'created_at': datetime.now().strftime('%Y-%m-%d')
+        })
+        post['likes_count'] += 1
+        liked = True
+        message = 'Like added'
+    
+    return jsonify({
+        'message': message,
+        'liked': liked,
+        'likes_count': post['likes_count']
+    })
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_post_comments(post_id):
+    """Get comments for a specific post"""
+    
+    # Find post
+    post = None
+    for p in SAMPLE_DATA['posts']:
+        if p['id'] == post_id:
+            post = p
+            break
+    
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    return jsonify({
+        'comments': post['comments'],
+        'total': len(post['comments'])
+    })
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def add_post_comment(post_id):
+    """Add a comment to a post"""
+    data = request.get_json()
+    
+    if not data or 'content' not in data or 'author_id' not in data:
+        return jsonify({'error': 'Content and author_id are required'}), 400
+    
+    # Find post
+    post = None
+    for p in SAMPLE_DATA['posts']:
+        if p['id'] == post_id:
+            post = p
+            break
+    
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    # Find author name
+    author_name = 'Usuario desconocido'
+    for user in SAMPLE_DATA['users']:
+        if user['id'] == data['author_id']:
+            author_name = f"{user['first_name']} {user['last_name']}"
+            break
+    
+    # Create new comment
+    new_comment = {
+        'id': len([c for p in SAMPLE_DATA['posts'] for c in p['comments']]) + 1,
+        'post_id': post_id,
+        'author_id': data['author_id'],
+        'author': author_name,
+        'content': data['content'],
+        'created_at': datetime.now().strftime('%Y-%m-%d'),
+        'likes_count': 0
+    }
+    
+    post['comments'].append(new_comment)
+    post['comments_count'] = len(post['comments'])
+    
+    return jsonify({
+        'message': 'Comment added successfully',
+        'comment': new_comment
+    }), 201
+
+@app.route('/api/posts/<int:post_id>/comments/<int:comment_id>/like', methods=['POST'])
+def toggle_comment_like(post_id, comment_id):
+    """Toggle like on a comment"""
+    data = request.get_json()
+    
+    if not data or 'user_id' not in data:
+        return jsonify({'error': 'User ID required'}), 400
+    
+    user_id = data['user_id']
+    
+    # Find post and comment
+    post = None
+    comment = None
+    
+    for p in SAMPLE_DATA['posts']:
+        if p['id'] == post_id:
+            post = p
+            for c in p['comments']:
+                if c['id'] == comment_id:
+                    comment = c
+                    break
+            break
+    
+    if not post or not comment:
+        return jsonify({'error': 'Post or comment not found'}), 404
+    
+    # For simplicity, just toggle the likes_count
+    # In a real app, you'd track individual comment likes
+    if not hasattr(comment, 'user_likes'):
+        comment['user_likes'] = []
+    
+    if user_id in comment.get('user_likes', []):
+        comment['user_likes'].remove(user_id)
+        comment['likes_count'] = max(0, comment['likes_count'] - 1)
+        liked = False
+        message = 'Comment like removed'
+    else:
+        comment.setdefault('user_likes', []).append(user_id)
+        comment['likes_count'] += 1
+        liked = True
+        message = 'Comment like added'
+    
+    return jsonify({
+        'message': message,
+        'liked': liked,
+        'likes_count': comment['likes_count']
+    })
+
 # =============================================================================
 # FRONTEND REDIRECT ROUTES
 # =============================================================================
@@ -252,7 +481,10 @@ def redirect_to_frontend():
             '/api/health',
             '/api/auth/login',
             '/api/auth/register', 
-            '/api/posts',
+            '/api/posts (GET, POST)',
+            '/api/posts/<id>/like (POST)',
+            '/api/posts/<id>/comments (GET, POST)',
+            '/api/posts/<id>/comments/<comment_id>/like (POST)',
             '/api/projects',
             '/api/projects/featured',
             '/api/projects/stats',
@@ -276,8 +508,13 @@ def not_found(error):
             '/api/health',
             '/api/auth/login',
             '/api/auth/register',
-            '/api/posts', 
-            '/api/projects'
+            '/api/posts (GET, POST)', 
+            '/api/posts/<id>/like (POST)',
+            '/api/posts/<id>/comments (GET, POST)',
+            '/api/posts/<id>/comments/<comment_id>/like (POST)',
+            '/api/projects',
+            '/api/projects/featured',
+            '/api/projects/stats'
         ]
     }), 404
 
