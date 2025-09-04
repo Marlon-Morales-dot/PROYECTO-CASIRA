@@ -376,17 +376,33 @@ export const usersAPI = {
   },
 
   createUser: async (userData) => {
+    // Verificar si el usuario ya existe por email
+    const existingUser = dataStore.users.find(user => user.email === userData.email);
+    if (existingUser) {
+      console.log('👤 CASIRA: User already exists, updating instead:', userData.email);
+      // Actualizar el usuario existente con nueva información
+      const updatedUser = { ...existingUser, ...userData };
+      const userIndex = dataStore.users.findIndex(user => user.email === userData.email);
+      dataStore.users[userIndex] = updatedUser;
+      dataStore.saveToStorage();
+      dataStore.notify();
+      return updatedUser;
+    }
+
     const newUser = {
       id: userData.id || Date.now(), // Usar el ID proporcionado o generar uno nuevo
       ...userData,
-      created_at: userData.created_at || new Date().toISOString()
+      created_at: userData.created_at || new Date().toISOString(),
+      status: 'active', // Por defecto activo
+      verified: userData.provider === 'google' // Los usuarios de Google están verificados
     };
     
     console.log('🔍 CASIRA: createUser called with data:', {
       id: newUser.id,
       email: newUser.email,
       provider: newUser.provider,
-      role: newUser.role
+      role: newUser.role,
+      status: newUser.status
     });
     
     dataStore.users.push(newUser);
@@ -411,6 +427,24 @@ export const usersAPI = {
   },
 
   getAllUsers: async () => {
+    // Asegurar que todos los usuarios de Google estén sincronizados
+    console.log('📊 CASIRA: Getting all users for admin. Current count:', dataStore.users.length);
+    
+    // Verificar si hay usuarios en currentUser que no estén en dataStore
+    const currentUser = authAPI.getCurrentUser();
+    if (currentUser && !dataStore.users.find(u => u.email === currentUser.email)) {
+      console.log('👤 CASIRA: Found logged user not in dataStore, adding:', currentUser.email);
+      try {
+        await usersAPI.createUser({
+          ...currentUser,
+          role: currentUser.role || 'visitor',
+          status: 'active'
+        });
+      } catch (error) {
+        console.warn('⚠️ CASIRA: Could not add current user to dataStore:', error);
+      }
+    }
+    
     return dataStore.users;
   },
 
@@ -659,8 +693,27 @@ export const volunteersAPI = {
 // Comments API
 export const commentsAPI = {
   addComment: async (activityId, userId, content) => {
-    const user = dataStore.getUserById(userId);
-    if (!user) throw new Error('Usuario no encontrado');
+    let user = dataStore.getUserById(userId);
+    
+    // Si el usuario no existe, intentar obtenerlo del usuario actual loggeado
+    if (!user) {
+      const currentUser = authAPI.getCurrentUser();
+      if (currentUser && (currentUser.id == userId || currentUser.email === userId)) {
+        user = currentUser;
+        // Asegurar que el usuario esté en dataStore
+        try {
+          await usersAPI.createUser(currentUser);
+          console.log('✅ Usuario Google agregado al dataStore para comentarios');
+        } catch (error) {
+          console.log('⚠️ Usuario ya existía en dataStore o error al agregarlo');
+        }
+      }
+    }
+    
+    if (!user) {
+      console.error('❌ Usuario no encontrado para comentario:', { userId, currentUser: authAPI.getCurrentUser() });
+      throw new Error('Usuario no encontrado');
+    }
 
     const comment = {
       id: Date.now(),
@@ -1046,6 +1099,22 @@ export const permissionsAPI = {
     };
     
     return permissions[user.role]?.[action] || false;
+  },
+
+  // Funciones específicas para diferentes acciones
+  canJoinActivity: (userRole) => {
+    const allowedRoles = ['visitor', 'volunteer', 'donor', 'admin'];
+    return allowedRoles.includes(userRole);
+  },
+
+  canComment: (userRole) => {
+    const allowedRoles = ['visitor', 'volunteer', 'donor', 'admin'];
+    return allowedRoles.includes(userRole);
+  },
+
+  canLike: (userRole) => {
+    const allowedRoles = ['visitor', 'volunteer', 'donor', 'admin'];
+    return allowedRoles.includes(userRole);
   }
 };
 
