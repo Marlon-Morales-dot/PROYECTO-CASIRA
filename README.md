@@ -188,4 +188,4 @@ Consulta la carpeta `docs/` para documentación detallada:
 ⭐ **¡Dale una estrella si te gusta el proyecto!** ⭐
 
 🚀 **Deploy Status**: ✅ Vercel | ✅ Render | ✅ Supabase  
-📱 **Live Demo**: https://proyecto-casira.vercel.app
+📱 **Live Demo**: https://proyecto-casira.vercel.app# Force deployment mié.,  3 de sep. de 2025 08:08:25 p. m.
