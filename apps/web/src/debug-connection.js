@@ -27,22 +27,22 @@ async function testConnection() {
       console.error('❌ Health check failed:', healthResponse.statusText);
     }
     
-    // Test 2: Activities endpoint
-    console.log('📋 Testing /api/activities...');
-    const activitiesResponse = await fetch(`${API_URL}/api/activities`);
-    console.log('Activities Status:', activitiesResponse.status);
+    // Test 2: Projects endpoint (correct endpoint name)
+    console.log('📋 Testing /api/projects...');
+    const projectsResponse = await fetch(`${API_URL}/api/projects`);
+    console.log('Projects Status:', projectsResponse.status);
     
-    if (activitiesResponse.ok) {
-      const activitiesData = await activitiesResponse.json();
-      console.log('✅ Activities Response:', activitiesData);
+    if (projectsResponse.ok) {
+      const projectsData = await projectsResponse.json();
+      console.log('✅ Projects Response:', projectsData);
       
-      // Check if activities have images
-      if (activitiesData.activities && activitiesData.activities.length > 0) {
-        const firstActivity = activitiesData.activities[0];
-        console.log('🖼️ First activity image_url:', firstActivity.image_url);
+      // Check if projects have images
+      if (projectsData.projects && projectsData.projects.length > 0) {
+        const firstProject = projectsData.projects[0];
+        console.log('🖼️ First project image_url:', firstProject.image_url);
       }
     } else {
-      console.error('❌ Activities request failed:', activitiesResponse.statusText);
+      console.error('❌ Projects request failed:', projectsResponse.statusText);
     }
     
   } catch (error) {
