@@ -210,6 +210,29 @@ html {
     min-height: 44px;
     font-size: 16px; /* Prevents zoom on iOS */
   }
+  
+  /* Hide tables on mobile - use cards instead */
+  .admin-table-desktop {
+    display: none !important;
+  }
+  
+  /* Show mobile cards */
+  .admin-cards-mobile {
+    display: block !important;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 641px) {
+  /* Show tables on desktop */
+  .admin-table-desktop {
+    display: block !important;
+  }
+  
+  /* Hide mobile cards */
+  .admin-cards-mobile {
+    display: none !important;
+  }
 }
 
 /* Prevent horizontal scrolling */
@@ -231,4 +254,24 @@ body {
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* Hide scrollbars for mobile navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Admin dashboard mobile optimizations */
+.admin-mobile-card {
+  @apply transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+}
+
+/* Smooth transitions for admin elements */
+.admin-transition {
+  @apply transition-all duration-200 ease-in-out;
 }

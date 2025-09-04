@@ -305,6 +305,8 @@ casira-local.json
 supabase_*.sql
 .mcp.json
 mcp-*.json
+.env.supabase
+*supabase*.env
 
 # Flask específico
 instance/

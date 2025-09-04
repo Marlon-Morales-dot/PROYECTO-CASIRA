@@ -498,18 +498,33 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Admin Header */}
-      <header className="bg-white shadow-sm border-b">
+      {/* Admin Header - Mobile Optimized */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain mr-3" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
-                <p className="text-sm text-gray-500">AMISTAD CASIRA</p>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-4 space-y-3 sm:space-y-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-sm mr-3">
+                  <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Admin Panel
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-500">CASIRA Connect</p>
+                </div>
               </div>
+              {/* Mobile Logout Button */}
+              <button
+                onClick={onLogout}
+                className="sm:hidden bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-sm btn-touch"
+              >
+                Salir
+              </button>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Desktop Right Side */}
+            <div className="hidden sm:flex items-center space-x-3 lg:space-x-4">
               {/* Connection Status Indicator */}
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${
@@ -518,7 +533,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                 }`}></div>
                 <span className="text-xs text-gray-600">
                   {connectionStatus === 'online' ? 'En línea' :
-                   connectionStatus === 'offline' ? 'Offline (Datos locales)' : 'Verificando...'}
+                   connectionStatus === 'offline' ? 'Offline' : 'Verificando...'}
                 </span>
                 <button
                   onClick={async () => { 
@@ -527,7 +542,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                     await loadAdminData(); 
                     setIsSyncing(false);
                   }}
-                  className="text-gray-500 hover:text-gray-700 p-1 rounded disabled:opacity-50"
+                  className="text-gray-500 hover:text-gray-700 p-1 rounded disabled:opacity-50 btn-touch"
                   title="Sincronizar datos"
                   disabled={isSyncing}
                 >
@@ -535,31 +550,57 @@ const AdminDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
               
-              <span className="text-sm text-gray-700">
-                Administrador: {user?.first_name} {user?.last_name}
+              <span className="text-sm text-gray-700 hidden lg:block">
+                {user?.first_name} {user?.last_name}
               </span>
               <button
                 onClick={onLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 btn-touch"
               >
                 Cerrar Sesión
+              </button>
+            </div>
+            
+            {/* Mobile Connection Status */}
+            <div className="flex sm:hidden items-center justify-center space-x-2 bg-gray-50 rounded-lg p-2">
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'online' ? 'bg-green-500 animate-pulse' :
+                connectionStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
+              }`}></div>
+              <span className="text-xs text-gray-600">
+                {connectionStatus === 'online' ? 'En línea' :
+                 connectionStatus === 'offline' ? 'Modo Offline' : 'Conectando...'}
+              </span>
+              <button
+                onClick={async () => { 
+                  setIsSyncing(true);
+                  await checkConnectionStatus(); 
+                  await loadAdminData(); 
+                  setIsSyncing(false);
+                }}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded disabled:opacity-50 btn-touch"
+                disabled={isSyncing}
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Offline Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Offline Banner - Mobile Optimized */}
         {connectionStatus === 'offline' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mr-3" />
-              <div>
-                <h3 className="text-sm font-medium text-yellow-800">Modo Offline</h3>
-                <p className="text-sm text-yellow-700">
-                  Trabajando con datos locales. Los cambios se sincronizarán cuando se restablezca la conexión.
-                </p>
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-yellow-800 mb-1">Modo Offline</h3>
+                  <p className="text-sm text-yellow-700 leading-relaxed">
+                    Trabajando con datos locales. Los cambios se sincronizarán cuando se restablezca la conexión.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={async () => { 
@@ -568,7 +609,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                   await loadAdminData(); 
                   setIsSyncing(false);
                 }}
-                className="ml-auto bg-yellow-600 text-white px-3 py-1 rounded-md hover:bg-yellow-700 text-sm disabled:opacity-50"
+                className="sm:ml-4 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm font-medium disabled:opacity-50 btn-touch flex-shrink-0 transition-colors"
                 disabled={isSyncing}
               >
                 {isSyncing ? 'Conectando...' : 'Reintentar'}
@@ -577,28 +618,28 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         )}
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+        {/* Quick Stats - Mobile Optimized */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl">
+                <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Activas</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.active_projects}</p>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-semibold text-gray-600">Activas</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.active_projects || 0}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-green-600" />
+              <div className="p-2 bg-gradient-to-br from-green-100 to-green-200 rounded-xl">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Completadas</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.completed_projects}</p>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-semibold text-gray-600">Completadas</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.completed_projects || 0}</p>
               </div>
             </div>
           </div>
@@ -628,34 +669,62 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
+        {/* Navigation Tabs - Mobile Optimized */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+          {/* Mobile Tabs - Horizontal Scroll */}
+          <div className="sm:hidden">
+            <nav className="flex overflow-x-auto scrollbar-hide px-1 py-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center relative ${
+                  className={`flex-shrink-0 py-3 px-4 mx-1 rounded-lg font-semibold text-sm flex items-center justify-center relative transition-all duration-200 btn-touch ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transform scale-105'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   <tab.icon className="h-4 w-4 mr-2" />
-                  {tab.label}
+                  <span className="whitespace-nowrap">{tab.label}</span>
                   {tab.badge > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                      {tab.badge}
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full animate-pulse">
+                      {tab.badge > 9 ? '9+' : tab.badge}
                     </span>
                   )}
                 </button>
               ))}
             </nav>
           </div>
+          
+          {/* Desktop Tabs */}
+          <div className="hidden sm:block">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-6 lg:space-x-8 px-6">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`py-4 px-2 border-b-2 font-semibold text-sm flex items-center relative transition-all duration-200 btn-touch ${
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600 transform translate-y-0.5'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <tab.icon className="h-4 w-4 mr-2" />
+                    <span className="whitespace-nowrap">{tab.label}</span>
+                    {tab.badge > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full animate-pulse">
+                        {tab.badge > 9 ? '9+' : tab.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {activeTab === 'activities' && (
               <div>
                 <div className="flex justify-between items-center mb-6">

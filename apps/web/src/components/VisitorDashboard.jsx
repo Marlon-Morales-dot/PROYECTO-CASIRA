@@ -243,7 +243,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
       />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto padding-mobile pb-20 sm:pb-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-8 pb-20 sm:pb-6">
         {/* Feed Comunitario Tab */}
         {activeTab === 'feed' && (
           <div className="space-mobile">
@@ -253,22 +253,41 @@ const VisitorDashboard = ({ user, onLogout }) => {
             </div>
 
             {/* Feed Items */}
-            <div className="space-mobile">
-              {[...posts, ...activities].sort((a, b) => 
-                new Date(b.created_at || b.start_date) - new Date(a.created_at || a.start_date)
-              ).map((item) => (
-                <ActivityCard
-                  key={`${item.id}-${item.content ? 'post' : 'activity'}`}
-                  activity={item}
-                  isLiked={userLikes[item.id] || false}
-                  likesCount={activityLikes[item.id] || 0}
-                  comments={comments[item.id] || []}
-                  onLike={handleLikeItem}
-                  onComment={handleAddComment}
-                  onJoin={handleJoinActivity}
-                  user={user}
-                />
-              ))}
+            <div className="space-y-4 sm:space-y-6">
+              {[...posts, ...activities]
+                .sort((a, b) => new Date(b.created_at || b.start_date) - new Date(a.created_at || a.start_date))
+                .map((item, index) => (
+                  <div key={`${item.id}-${item.content ? 'post' : 'activity'}`}
+                       className="transform transition-all duration-300 animate-fade-in"
+                       style={{ animationDelay: `${index * 0.1}s` }}>
+                    <ActivityCard
+                      activity={item}
+                      isLiked={userLikes[item.id] || false}
+                      likesCount={activityLikes[item.id] || 0}
+                      comments={comments[item.id] || []}
+                      onLike={handleLikeItem}
+                      onComment={handleAddComment}
+                      onJoin={handleJoinActivity}
+                      user={user}
+                    />
+                  </div>
+                ))
+              }
+              
+              {/* Empty State */}
+              {[...posts, ...activities].length === 0 && (
+                <div className="text-center py-12">
+                  <Home className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">¡Bienvenido a CASIRA!</h3>
+                  <p className="text-gray-600 mb-6">Aún no hay contenido en el feed, pero pronto habrá actividades emocionantes</p>
+                  <button
+                    onClick={() => setActiveTab('activities')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 transition-all btn-touch"
+                  >
+                    Explorar Actividades
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -281,21 +300,34 @@ const VisitorDashboard = ({ user, onLogout }) => {
               <p className="text-gray-600 text-mobile">Encuentra actividades que te inspiren y únete a nuestra misión</p>
             </div>
 
-            <div className="grid-responsive">
-              {activities.map((activity) => (
-                <ActivityCard
-                  key={activity.id}
-                  activity={activity}
-                  isLiked={userLikes[activity.id] || false}
-                  likesCount={activityLikes[activity.id] || 0}
-                  comments={comments[activity.id] || []}
-                  onLike={handleLikeItem}
-                  onComment={handleAddComment}
-                  onJoin={handleJoinActivity}
-                  user={user}
-                />
-              ))}
-            </div>
+            {activities.length === 0 ? (
+              <div className="text-center py-12">
+                <Activity className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay actividades disponibles</h3>
+                <p className="text-gray-600">Pronto habrá nuevas oportunidades para participar</p>
+              </div>
+            ) : (
+              <div className="space-y-4 sm:space-y-6">
+                {activities.map((activity, index) => (
+                  <div key={activity.id} 
+                       className={`transform transition-all duration-300 ${
+                         index % 2 === 0 ? 'animate-fade-in' : 'animate-fade-in'
+                       }`}
+                       style={{ animationDelay: `${index * 0.1}s` }}>
+                    <ActivityCard
+                      activity={activity}
+                      isLiked={userLikes[activity.id] || false}
+                      likesCount={activityLikes[activity.id] || 0}
+                      comments={comments[activity.id] || []}
+                      onLike={handleLikeItem}
+                      onComment={handleAddComment}
+                      onJoin={handleJoinActivity}
+                      user={user}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

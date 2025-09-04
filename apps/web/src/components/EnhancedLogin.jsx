@@ -237,50 +237,54 @@ const EnhancedLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-md mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <User className="w-8 h-8 text-green-600" />
+        <div className="text-center mb-6 sm:mb-8 animate-fade-in">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full mb-4 shadow-sm">
+            <User className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">CASIRA Connect</h1>
-          <p className="text-gray-600">Inicia sesión en tu cuenta</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            CASIRA Connect
+          </h1>
+          <p className="text-gray-600 text-base sm:text-lg leading-relaxed px-2">
+            Inicia sesión en tu cuenta
+          </p>
         </div>
 
         {/* Alertas */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" />
-            <span className="text-red-700 text-sm">{error}</span>
+          <div className="mb-6 p-4 sm:p-5 bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl flex items-center animate-fade-in shadow-sm">
+            <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 mr-3 flex-shrink-0" />
+            <span className="text-red-700 text-sm sm:text-base font-medium">{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-            <span className="text-green-700 text-sm">{success}</span>
+          <div className="mb-6 p-4 sm:p-5 bg-green-50 border-2 border-green-200 rounded-xl sm:rounded-2xl flex items-center animate-fade-in shadow-sm">
+            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 mr-3 flex-shrink-0" />
+            <span className="text-green-700 text-sm sm:text-base font-medium">{success}</span>
           </div>
         )}
 
         {/* Usuario Google actual */}
         {isGoogleSignedIn && googleUser && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
+          <div className="mb-6 p-5 sm:p-6 bg-blue-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl shadow-sm animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
               <div className="flex items-center">
                 {googleUser.avatar_url && (
                   <img 
                     src={googleUser.avatar_url} 
                     alt="Avatar" 
-                    className="w-8 h-8 rounded-full mr-3"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mr-4 border-2 border-white shadow-sm"
                   />
                 )}
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">
                     {googleUser.full_name || `${googleUser.first_name} ${googleUser.last_name}`}
                   </p>
-                  <p className="text-xs text-gray-600">{googleUser.email}</p>
-                  <p className="text-xs text-blue-600 font-medium">
+                  <p className="text-xs sm:text-sm text-gray-600">{googleUser.email}</p>
+                  <p className="text-xs sm:text-sm text-blue-600 font-medium">
                     Rol: {googleUser.role || 'visitor'}
                   </p>
                 </div>
@@ -288,55 +292,56 @@ const EnhancedLogin = () => {
               <button
                 onClick={handleGoogleSignOut}
                 disabled={isLoading}
-                className="text-xs text-red-600 hover:text-red-800 font-medium"
+                className="text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium px-3 py-1 rounded-lg hover:bg-red-100 transition-colors btn-touch"
               >
                 Cerrar sesión
               </button>
             </div>
             <button
               onClick={() => handleSuccessfulAuth(googleUser)}
-              className="mt-3 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
             >
-              Continuar como {googleUser.full_name}
+              Continuar como {googleUser.full_name || googleUser.first_name}
             </button>
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-xl p-8">
-          {/* Pestañas de autenticación */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setAuthMode('internal')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                authMode === 'internal' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Login Tradicional
-            </button>
-            <button
-              onClick={() => setAuthMode('google')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                authMode === 'google' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Google Auth
-            </button>
-          </div>
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden transform transition-all duration-300 hover:shadow-2xl">
+          <div className="p-6 sm:p-8 lg:p-10 space-y-6">
+            {/* Pestañas de autenticación */}
+            <div className="flex mb-6 sm:mb-8 bg-gray-50 rounded-xl p-1.5">
+              <button
+                onClick={() => setAuthMode('internal')}
+                className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-sm sm:text-base font-semibold transition-all duration-200 btn-touch ${
+                  authMode === 'internal' 
+                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200 transform scale-105' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Login Tradicional
+              </button>
+              <button
+                onClick={() => setAuthMode('google')}
+                className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-sm sm:text-base font-semibold transition-all duration-200 btn-touch ${
+                  authMode === 'google' 
+                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200 transform scale-105' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Google Auth
+              </button>
+            </div>
 
-          {/* Formulario de login tradicional */}
-          {authMode === 'internal' && (
-            <form onSubmit={handleInternalLogin} className="space-y-6">
+            {/* Formulario de login tradicional */}
+            {authMode === 'internal' && (
+              <form onSubmit={handleInternalLogin} className="space-y-6 sm:space-y-8">
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm sm:text-base font-semibold text-gray-700 mb-3">
                   Correo electrónico
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 sm:w-6 sm:h-6" />
                   <input
                     type="email"
                     id="email"
@@ -344,7 +349,7 @@ const EnhancedLogin = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 sm:pl-14 pr-4 py-4 sm:py-5 text-base border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-gray-50 focus:bg-white"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -352,11 +357,11 @@ const EnhancedLogin = () => {
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm sm:text-base font-semibold text-gray-700 mb-3">
                   Contraseña
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 sm:w-6 sm:h-6" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password"
@@ -364,15 +369,15 @@ const EnhancedLogin = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    className="w-full pl-12 sm:pl-14 pr-14 py-4 sm:py-5 text-base border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-gray-50 focus:bg-white"
                     placeholder="Tu contraseña"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 btn-touch"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Eye className="w-5 h-5 sm:w-6 sm:h-6" />}
                   </button>
                 </div>
               </div>
@@ -381,23 +386,23 @@ const EnhancedLogin = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 sm:py-5 px-6 rounded-xl sm:rounded-2xl hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <Loader2 className="w-6 h-6 animate-spin mr-3" />
                     Iniciando sesión...
                   </div>
                 ) : (
                   'Iniciar Sesión'
                 )}
               </button>
-            </form>
-          )}
+              </form>
+            )}
 
-          {/* Google Auth */}
-          {authMode === 'google' && (
-            <div className="space-y-6">
+            {/* Google Auth */}
+            {authMode === 'google' && (
+              <div className="space-y-6 sm:space-y-8">
               <div className="text-center">
                 <p className="text-gray-600 mb-6">
                   Usa tu cuenta de Google para acceder de forma rápida y segura
@@ -408,10 +413,10 @@ const EnhancedLogin = () => {
                     onClick={handleGoogleLogin}
                     disabled={isLoading || !googleAuthReady}
                     style={{ pointerEvents: isLoading ? 'none' : 'auto' }}
-                    className={`w-full py-3 px-4 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all font-medium flex items-center justify-center ${
+                    className={`w-full py-4 sm:py-5 px-6 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-semibold text-base sm:text-lg flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch ${
                       isLoading 
-                        ? 'bg-blue-100 border border-blue-300 text-blue-700 cursor-not-allowed' 
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                        ? 'bg-blue-100 border-2 border-blue-300 text-blue-700 cursor-not-allowed' 
+                        : 'bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                   >
                     {isLoading ? (
@@ -421,7 +426,7 @@ const EnhancedLogin = () => {
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                        <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -443,14 +448,15 @@ const EnhancedLogin = () => {
                   ⏳ Cargando Google Auth...
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Cuentas demo */}
-        <div className="mt-8 bg-gray-50 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">🎮 Cuentas Demo:</h3>
-          <div className="space-y-2">
+        <div className="mt-8 bg-gray-50 rounded-xl sm:rounded-2xl p-5 sm:p-6 border border-gray-200">
+          <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-4">🎮 Cuentas Demo:</h3>
+          <div className="space-y-3">
             {getDemoCredentials().map((account, index) => (
               <button
                 key={index}
@@ -458,27 +464,27 @@ const EnhancedLogin = () => {
                   setFormData({ email: account.email, password: 'demo' });
                   setAuthMode('internal');
                 }}
-                className="w-full text-left p-3 bg-white rounded border hover:border-green-300 transition-colors"
+                className="w-full text-left p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border-2 border-gray-100 hover:border-green-300 hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] btn-touch"
               >
-                <div className="font-medium text-sm text-gray-900">{account.email}</div>
-                <div className="text-xs text-gray-600">{account.role} - {account.desc}</div>
+                <div className="font-semibold text-sm sm:text-base text-gray-900">{account.email}</div>
+                <div className="text-xs sm:text-sm text-gray-600 mt-1">{account.role} - {account.desc}</div>
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-3">
+          <p className="text-xs sm:text-sm text-gray-500 mt-4">
             💡 Click en cualquier cuenta para usar credenciales demo
           </p>
         </div>
 
         {/* Info adicional */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600 leading-relaxed px-2">
             Sistema con almacenamiento persistente y Google Auth integrado
           </p>
-          <div className="mt-2 flex justify-center items-center space-x-4 text-xs text-gray-500">
-            <span>🔒 Sesión segura</span>
-            <span>💾 Datos persistentes</span>
-            <span>🔄 Sync automático</span>
+          <div className="mt-3 flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-500">
+            <span className="flex items-center">🔒 Sesión segura</span>
+            <span className="flex items-center">💾 Datos persistentes</span>
+            <span className="flex items-center">🔄 Sync automático</span>
           </div>
         </div>
       </div>
