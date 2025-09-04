@@ -33,7 +33,7 @@ SAMPLE_DATA = {
             "id": 1,
             "title": "Nueva Biblioteca en San Juan",
             "description": "Gracias a nuestros donantes, 300 niños ahora tienen acceso a libros y tecnología",
-            "image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
+            "image_url": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmlibGlvdGVjYXxlbnwwfHwwfHx8MA%3D%3D",
             "status": "completed",
             "progress_percentage": 100,
             "location": "San Juan Palencia, Guatemala",
@@ -64,7 +64,7 @@ SAMPLE_DATA = {
         {
             "id": 1,
             "content": "¡Increíble progreso en la biblioteca! Los niños ya están usando los nuevos libros y computadoras. Gracias a todos los constructores de sueños que hicieron esto posible.",
-            "image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
+            "image_url": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmlibGlvdGVjYXxlbnwwfHwwfHx8MA%3D%3D",
             "user_id": 1,
             "project_id": 1,
             "visibility": "public",

@@ -147,7 +147,7 @@ class CASIRADataStore {
         {
           id: 1,
           content: "¡Inauguramos la nueva biblioteca en San Juan! 300 niños ahora tienen acceso a libros y tecnología moderna.",
-          image_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
+          image_url: "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmlibGlvdGVjYXxlbnwwfHwwfHx8MA%3D%3D",
           created_at: "2024-08-20T10:30:00Z",
           likes_count: 24,
           comments_count: 8
