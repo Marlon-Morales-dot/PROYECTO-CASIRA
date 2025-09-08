@@ -19,7 +19,13 @@
     "apps/web",
     "apps/api"
   ],
-  "keywords": ["casira", "react", "flask", "supabase", "full-stack"],
+  "keywords": [
+    "casira",
+    "react",
+    "flask",
+    "supabase",
+    "full-stack"
+  ],
   "author": "MARLON",
   "license": "ISC",
   "engines": {
@@ -28,5 +34,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@supabase/mcp-server-supabase": "^0.5.3"
   }
 }
