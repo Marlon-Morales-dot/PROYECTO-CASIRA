@@ -2,6 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+
+// Import emergency fixes for production issues
+import './lib/comments-api-fix.js'
+import './lib/image-manager.js'
 // import AppSupabase from './AppSupabase.jsx'
 // import { setupDemoData } from './lib/setup-demo-data.js'
 
