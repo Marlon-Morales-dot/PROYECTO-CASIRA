@@ -2,8 +2,11 @@
 // Backend URL configuration
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
 
-// Disable Supabase for now - use only Render backend
-// import { storageAPI } from './supabase.js';
+// Import Supabase API
+import { supabaseAPI } from './supabase-api.js';
+
+// Configuration flag - set to true to use Supabase, false for localStorage
+const USE_SUPABASE = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ============= DATA STORE SIMPLIFICADO =============
 class CASIRADataStore {
@@ -368,19 +371,35 @@ export const dataStore = new CASIRADataStore();
 // Users API
 export const usersAPI = {
   getUserByEmail: async (email) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.users.getUserByEmail(email);
+    }
     return dataStore.users.find(user => user.email === email);
   },
 
   getUserById: async (id) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.users.getUserById(id);
+    }
     return dataStore.getUserById(id);
   },
 
+  getAllUsers: async () => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.users.getAllUsers();
+    }
+    return dataStore.users;
+  },
+
   createUser: async (userData) => {
-    // Verificar si el usuario ya existe por email
+    if (USE_SUPABASE) {
+      return await supabaseAPI.users.createUser(userData);
+    }
+
+    // localStorage implementation
     const existingUser = dataStore.users.find(user => user.email === userData.email);
     if (existingUser) {
       console.log('👤 CASIRA: User already exists, updating instead:', userData.email);
-      // Actualizar el usuario existente con nueva información
       const updatedUser = { ...existingUser, ...userData };
       const userIndex = dataStore.users.findIndex(user => user.email === userData.email);
       dataStore.users[userIndex] = updatedUser;
@@ -390,7 +409,7 @@ export const usersAPI = {
     }
 
     const newUser = {
-      id: userData.id || Date.now(), // Usar el ID proporcionado o generar uno nuevo
+      id: userData.id || Date.now(),
       ...userData,
       created_at: userData.created_at || new Date().toISOString(),
       status: 'active', // Por defecto activo
@@ -484,15 +503,42 @@ export const usersAPI = {
 
 // Activities API
 export const activitiesAPI = {
+  getAllActivities: async () => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.activities.getAllActivities();
+    }
+    return dataStore.activities;
+  },
+
   getPublicActivities: async () => {
+    if (USE_SUPABASE) {
+      const activities = await supabaseAPI.activities.getAllActivities();
+      return activities.filter(activity => activity.visibility === 'public');
+    }
     return dataStore.activities.filter(activity => activity.visibility === 'public');
   },
 
   getFeaturedActivities: async () => {
+    if (USE_SUPABASE) {
+      const activities = await supabaseAPI.activities.getAllActivities();
+      return activities.filter(activity => activity.featured && activity.visibility === 'public');
+    }
     return dataStore.activities.filter(activity => activity.featured && activity.visibility === 'public');
   },
 
+  getActivityById: async (id) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.activities.getActivityById(id);
+    }
+    return dataStore.activities.find(a => a.id == id);
+  },
+
   createActivity: async (activityData) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.activities.createActivity(activityData);
+    }
+    
+    // localStorage implementation
     const newActivity = {
       id: Date.now(),
       ...activityData,
@@ -692,13 +738,32 @@ export const volunteersAPI = {
 
 // Comments API
 export const commentsAPI = {
-  addComment: async (activityId, userId, content) => {
-    let user = dataStore.getUserById(userId);
+  getAllComments: async () => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.comments.getAllComments();
+    }
+    return dataStore.comments;
+  },
+
+  getCommentsByPost: async (postId) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.comments.getCommentsByPost(postId);
+    }
+    return dataStore.comments.filter(c => c.post_id == postId);
+  },
+
+  createComment: async (commentData) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.comments.createComment(commentData);
+    }
+
+    // localStorage implementation - keep existing logic
+    let user = dataStore.getUserById(commentData.author_id);
     
     // Si el usuario no existe, intentar obtenerlo del usuario actual loggeado
     if (!user) {
       const currentUser = authAPI.getCurrentUser();
-      if (currentUser && (currentUser.id == userId || currentUser.email === userId)) {
+      if (currentUser && (currentUser.id == commentData.author_id || currentUser.email === commentData.author_id)) {
         user = currentUser;
         // Asegurar que el usuario esté en dataStore
         try {
@@ -755,13 +820,38 @@ export const commentsAPI = {
 
 // Posts API
 export const postsAPI = {
+  getAllPosts: async () => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.posts.getAllPosts();
+    }
+    return dataStore.posts;
+  },
+
   getPublicPosts: async (limit = 10) => {
+    if (USE_SUPABASE) {
+      const posts = await supabaseAPI.posts.getAllPosts();
+      return posts
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, limit);
+    }
     return dataStore.posts
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, limit);
   },
 
+  getPostById: async (id) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.posts.getPostById(id);
+    }
+    return dataStore.posts.find(p => p.id == id);
+  },
+
   createPost: async (postData) => {
+    if (USE_SUPABASE) {
+      return await supabaseAPI.posts.createPost(postData);
+    }
+
+    // localStorage implementation
     const user = dataStore.getUserById(postData.author_id);
     if (!user) throw new Error('Usuario no encontrado');
 

@@ -8,6 +8,7 @@ import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
 import EnhancedLogin from './components/EnhancedLogin.jsx';
+import SupabaseTest from './components/SupabaseTest.jsx';
 import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
 import { enhancedAPI } from './lib/api-enhanced.js';
 import './App.css';
@@ -21,8 +22,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Temporarily disable Supabase to fix CSP and connection issues
-const supabase = null; // createClient(supabaseUrl, supabaseAnonKey);
+// Enable Supabase for cloud database functionality
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // API Functions inline - para evitar problemas de imports
 const authAPI = {
@@ -3089,6 +3090,7 @@ function App() {
         <Route path="/visitor" element={<VisitorPortalPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/admin" element={<AdminPanelPage />} />
+        <Route path="/supabase-test" element={<SupabaseTest />} />
       </Routes>
     </Router>
   );
