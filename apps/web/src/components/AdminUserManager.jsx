@@ -14,6 +14,19 @@ const AdminUserManager = () => {
   // Load users on component mount
   useEffect(() => {
     loadUsers();
+    
+    // Listen for user updates from Google Auth
+    const handleUsersUpdate = (event) => {
+      console.log('🔄 AdminUserManager: Users updated event received', event.detail);
+      loadUsers(); // Reload users when Google auth happens
+    };
+    
+    window.addEventListener('casira-users-updated', handleUsersUpdate);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('casira-users-updated', handleUsersUpdate);
+    };
   }, []);
 
   const loadUsers = async () => {

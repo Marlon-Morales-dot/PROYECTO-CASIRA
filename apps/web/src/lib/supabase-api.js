@@ -1,5 +1,5 @@
 // ============= CASIRA Connect - Supabase API Wrapper =============
-import { supabase } from './supabase.js'
+import { supabase } from './supabase-singleton.js'
 
 // ============= USERS API =============
 export const supabaseUsersAPI = {
@@ -301,17 +301,28 @@ export const supabaseActivitiesAPI = {
   // Create activity
   async createActivity(activityData) {
     try {
+      console.log('🎯 CASIRA: Creating activity in Supabase with data:', activityData);
+      
       const { data, error } = await supabase
         .from('activities')
         .insert([{
           title: activityData.title,
           description: activityData.description,
-          status: activityData.status || 'active',
+          detailed_description: activityData.detailed_description || '',
+          status: activityData.status || 'planning',
+          priority: activityData.priority || 'medium',
           budget: activityData.budget || 0,
           beneficiaries_count: activityData.beneficiaries_count || 0,
           location: activityData.location || '',
-          date_start: activityData.date_start || null,
-          date_end: activityData.date_end || null,
+          date_start: activityData.date_start || activityData.start_date || null,
+          date_end: activityData.date_end || activityData.end_date || null,
+          max_volunteers: activityData.max_volunteers || null,
+          image_url: activityData.image_url || null,
+          requirements: activityData.requirements || [],
+          benefits: activityData.benefits || [],
+          visibility: activityData.visibility || 'public',
+          featured: activityData.featured || false,
+          category_id: activityData.category_id || null,
           created_by: activityData.created_by
         }])
         .select(`
@@ -320,10 +331,15 @@ export const supabaseActivitiesAPI = {
         `)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ CASIRA: Supabase error creating activity:', error);
+        throw error;
+      }
+      
+      console.log('✅ CASIRA: Activity created successfully in Supabase:', data);
       return data
     } catch (error) {
-      console.error('Error creating activity:', error)
+      console.error('❌ CASIRA: Error creating activity:', error)
       throw error
     }
   }

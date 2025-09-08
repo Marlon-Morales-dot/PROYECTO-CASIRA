@@ -109,23 +109,53 @@ class HybridDataManager {
         });
       });
       
-      // Add Google users
+      // Add Google users with enhanced processing
       googleUsers.forEach(googleUser => {
         // Check if already exists
-        const exists = allLocalUsers.find(u => u.id === googleUser.id || u.email === googleUser.email);
+        const exists = allLocalUsers.find(u => 
+          u.id === googleUser.id || 
+          u.email === googleUser.email ||
+          u.id === googleUser.googleId ||
+          u.email === googleUser.email
+        );
+        
         if (!exists) {
-          allLocalUsers.push({
-            id: googleUser.id || `google_${Date.now()}_${Math.random()}`,
+          const processedGoogleUser = {
+            id: googleUser.id || googleUser.googleId || `google_${Date.now()}_${Math.random()}`,
             email: googleUser.email,
-            first_name: googleUser.given_name || googleUser.first_name || '',
-            last_name: googleUser.family_name || googleUser.last_name || '',
-            full_name: googleUser.name || googleUser.full_name || googleUser.email,
-            avatar_url: googleUser.picture || googleUser.avatar_url,
+            first_name: googleUser.given_name || googleUser.givenName || googleUser.first_name || '',
+            last_name: googleUser.family_name || googleUser.familyName || googleUser.last_name || '',
+            full_name: googleUser.name || googleUser.displayName || googleUser.full_name || 
+                      `${googleUser.given_name || ''} ${googleUser.family_name || ''}`.trim() ||
+                      googleUser.email,
+            avatar_url: googleUser.picture || googleUser.photoURL || googleUser.avatar_url,
             auth_provider: 'google',
-            role: 'visitor',
+            role: googleUser.role || 'visitor',
             created_at: googleUser.created_at || new Date().toISOString(),
-            source: 'localStorage_google'
-          });
+            updated_at: googleUser.updated_at || new Date().toISOString(),
+            source: 'localStorage_google',
+            // Additional Google-specific fields
+            google_id: googleUser.googleId || googleUser.id,
+            verified_email: googleUser.verified_email || true,
+            locale: googleUser.locale || 'es'
+          };
+          
+          // Ensure we have a valid full_name
+          if (!processedGoogleUser.full_name || processedGoogleUser.full_name.trim() === '') {
+            processedGoogleUser.full_name = processedGoogleUser.email.split('@')[0];
+          }
+          
+          allLocalUsers.push(processedGoogleUser);
+        } else {
+          // Update existing user with any new Google data
+          const existingUser = exists;
+          if (googleUser.picture && !existingUser.avatar_url) {
+            existingUser.avatar_url = googleUser.picture;
+          }
+          if (googleUser.name && (!existingUser.full_name || existingUser.full_name === existingUser.email)) {
+            existingUser.full_name = googleUser.name;
+          }
+          existingUser.updated_at = new Date().toISOString();
         }
       });
       

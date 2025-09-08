@@ -4,8 +4,10 @@ import './index.css'
 import App from './App.jsx'
 
 // Import emergency fixes for production issues
+import './lib/csp-fix.js'
 import './lib/comments-api-fix.js'
 import './lib/image-manager.js'
+import './lib/admin-google-fix.js'
 // import AppSupabase from './AppSupabase.jsx'
 // import { setupDemoData } from './lib/setup-demo-data.js'
 
