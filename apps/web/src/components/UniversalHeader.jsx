@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Heart, MessageCircle, Search, User, LogOut, Settings, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserNotifications from './UserNotifications.jsx';
+import LogoutButton from './LogoutButton.jsx';
+import logoutService from '../lib/services/logout.service.js';
 import { volunteersAPI } from '../lib/api.js';
 
 const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
@@ -229,9 +231,22 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
                         
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
+                              console.log('🚪 SIMPLE LOGOUT: Iniciando logout directo');
                               setShowUserDropdown(false);
-                              onLogout();
+                              try {
+                                if (onLogout) {
+                                  console.log('🚪 SIMPLE LOGOUT: Llamando onLogout del padre');
+                                  await onLogout();
+                                  console.log('🚪 SIMPLE LOGOUT: onLogout completado');
+                                } else {
+                                  console.log('🚪 SIMPLE LOGOUT: No hay onLogout, usando servicio interno');
+                                  await logoutService.performCompleteLogout();
+                                  console.log('🚪 SIMPLE LOGOUT: Servicio interno completado');
+                                }
+                              } catch (error) {
+                                console.error('❌ SIMPLE LOGOUT: Error:', error);
+                              }
                             }}
                             className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-3 transition-colors"
                           >

@@ -4,9 +4,143 @@ const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casir
 
 // Import Supabase API
 import { supabaseAPI } from './supabase-api.js';
+import { storageAPI } from './supabase.js';
+import { idsMatch, createHybridRecord, generateUUID, isUUID } from './uuid-helper.js';
 
-// Configuration flag - set to true to use Supabase, false for localStorage
-const USE_SUPABASE = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Configuration flag - set to true to use Supabase, false for localStorage  
+// UUID CONFLICTS RESOLVED - FORCING SUPABASE FOR REAL-TIME SYNC
+const USE_SUPABASE = true; // Force Supabase - env vars are configured
+
+console.log('🔄 CASIRA: API Configuration - USE_SUPABASE:', USE_SUPABASE);
+
+// ============= MIGRATION UTILITIES =============
+async function migrateLocalStorageToSupabase() {
+  if (!USE_SUPABASE) {
+    console.log('⚠️ CASIRA: Supabase disabled, skipping migration');
+    return;
+  }
+
+  try {
+    console.log('🔄 CASIRA: Starting localStorage to Supabase migration...');
+    
+    // STEP 1: Ensure admin user exists in Supabase
+    let adminUser = null;
+    try {
+      adminUser = await supabaseAPI.users.getUserByEmail('admin@casira.org');
+      if (!adminUser) {
+        console.log('🔧 CASIRA: Creating admin user in Supabase...');
+        adminUser = await supabaseAPI.users.createUser({
+          email: 'admin@casira.org',
+          first_name: 'Administrador',
+          last_name: 'CASIRA',
+          role: 'admin',
+          bio: 'Administrador principal de la plataforma CASIRA Connect',
+          avatar_url: null
+        });
+        console.log('✅ CASIRA: Admin user created:', adminUser);
+      }
+    } catch (error) {
+      console.error('❌ CASIRA: Failed to create/get admin user:', error);
+      throw new Error('Cannot proceed without admin user');
+    }
+
+    // STEP 2: Migrar usuarios locales
+    const userMigrationMap = new Map(); // Map localStorage user IDs to Supabase IDs
+    const localUsers = dataStore.users.filter(u => u.provider !== 'google'); // Exclude Google users as they are handled separately
+    
+    for (const user of localUsers) {
+      try {
+        const existingUser = await supabaseAPI.users.getUserByEmail(user.email);
+        if (!existingUser) {
+          const migratedUser = await supabaseAPI.users.createUser(user);
+          userMigrationMap.set(user.id, migratedUser.id);
+          console.log(`✅ CASIRA: User migrated: ${user.email}`);
+        } else {
+          userMigrationMap.set(user.id, existingUser.id);
+          console.log(`📋 CASIRA: User already exists: ${user.email}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ CASIRA: Failed to migrate user ${user.email}:`, error);
+      }
+    }
+
+    // STEP 3: Migrar actividades
+    for (const activity of dataStore.activities) {
+      try {
+        // Check if activity exists in Supabase
+        const existingActivities = await supabaseAPI.activities.getAllActivities();
+        const existsInSupabase = existingActivities.find(a => 
+          a.title === activity.title && 
+          a.description === activity.description
+        );
+
+        if (!existsInSupabase) {
+          // Determine who created this activity
+          let createdBy = adminUser.id; // Default to admin
+          
+          // If activity has a created_by field, try to map it
+          if (activity.created_by) {
+            const mappedUserId = userMigrationMap.get(activity.created_by);
+            if (mappedUserId) {
+              createdBy = mappedUserId;
+            }
+          }
+
+          // Prepare activity data for migration
+          const activityData = {
+            title: activity.title,
+            description: activity.description,
+            detailed_description: activity.detailed_description || '',
+            status: activity.status || 'planning',
+            priority: activity.priority || 'medium',
+            budget: activity.budget || 0,
+            beneficiaries_count: activity.beneficiaries_count || 0,
+            location: activity.location || '',
+            date_start: activity.date_start || activity.start_date || null,
+            date_end: activity.date_end || activity.end_date || null,
+            max_volunteers: activity.max_volunteers || null,
+            image_url: activity.image_url || null,
+            requirements: activity.requirements || [],
+            benefits: activity.benefits || [],
+            visibility: activity.visibility || 'public',
+            featured: activity.featured || false,
+            category_id: activity.category_id || null,
+            created_by: createdBy // Use valid user ID
+          };
+
+          console.log(`🔄 CASIRA: Migrating activity "${activity.title}" created by user ID: ${createdBy}`);
+          const migratedActivity = await supabaseAPI.activities.createActivity(activityData);
+          console.log(`✅ CASIRA: Activity migrated: ${activity.title}`);
+          
+          // Update localStorage activity with Supabase ID for reference
+          activity.supabase_id = migratedActivity.id;
+        }
+      } catch (error) {
+        console.warn(`⚠️ CASIRA: Failed to migrate activity ${activity.title}:`, error);
+      }
+    }
+
+    // Save updated localStorage data with Supabase IDs
+    dataStore.saveToStorage();
+    
+    console.log('🎉 CASIRA: Migration completed successfully');
+  } catch (error) {
+    console.error('❌ CASIRA: Migration failed:', error);
+  }
+}
+
+// Auto-migrate DISABLED - Run manually if needed
+console.log('⚠️ CASIRA: Auto-migration disabled. Use migrationAPI.forceMigration() if needed');
+// 
+// if (USE_SUPABASE) {
+//   setTimeout(async () => {
+//     try {
+//       await migrateLocalStorageToSupabase();
+//     } catch (error) {
+//       console.error('❌ CASIRA: Auto-migration failed:', error);
+//     }
+//   }, 3000);
+// }
 
 // ============= DATA STORE SIMPLIFICADO =============
 class CASIRADataStore {
@@ -468,46 +602,66 @@ export const usersAPI = {
   },
 
   blockUser: async (userId) => {
-    const userIndex = dataStore.users.findIndex(user => user.id == userId);
-    if (userIndex !== -1) {
-      dataStore.users[userIndex].status = 'blocked';
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return dataStore.users[userIndex];
+    console.log('🚫 CASIRA: blockUser called - FORCING SUPABASE');
+    console.log('🆔 CASIRA: User ID to block:', userId);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.users.blockUser(userId);
+      console.log('✅ CASIRA: User blocked in Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase blockUser failed:', error);
+      throw new Error(`Failed to block user in Supabase: ${error.message}`);
     }
-    throw new Error('Usuario no encontrado');
   },
 
   unblockUser: async (userId) => {
-    const userIndex = dataStore.users.findIndex(user => user.id == userId);
-    if (userIndex !== -1) {
-      dataStore.users[userIndex].status = 'active';
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return dataStore.users[userIndex];
+    console.log('✅ CASIRA: unblockUser called - FORCING SUPABASE');
+    console.log('🆔 CASIRA: User ID to unblock:', userId);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.users.unblockUser(userId);
+      console.log('✅ CASIRA: User unblocked in Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase unblockUser failed:', error);
+      throw new Error(`Failed to unblock user in Supabase: ${error.message}`);
     }
-    throw new Error('Usuario no encontrado');
   },
 
   updateUserRole: async (userId, newRole) => {
-    const userIndex = dataStore.users.findIndex(user => user.id == userId);
-    if (userIndex !== -1) {
-      dataStore.users[userIndex].role = newRole;
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return dataStore.users[userIndex];
+    console.log('🔄 CASIRA: updateUserRole called - FORCING SUPABASE');
+    console.log('🆔 CASIRA: User ID to update:', userId, 'New role:', newRole);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.users.updateUserRole(userId, newRole);
+      console.log('✅ CASIRA: User role updated in Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase updateUserRole failed:', error);
+      throw new Error(`Failed to update user role in Supabase: ${error.message}`);
     }
-    throw new Error('Usuario no encontrado');
   }
 };
 
 // Activities API
 export const activitiesAPI = {
   getAllActivities: async () => {
-    if (USE_SUPABASE) {
-      return await supabaseAPI.activities.getAllActivities();
+    console.log('📋 CASIRA: getAllActivities called - FORCING SUPABASE');
+    console.log('🔧 CASIRA: USE_SUPABASE value:', USE_SUPABASE);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const activities = await supabaseAPI.activities.getAllActivities();
+      console.log('✅ CASIRA: Activities retrieved from Supabase:', activities.length, 'activities');
+      return activities;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase getAllActivities failed:', error);
+      throw new Error(`Failed to get activities from Supabase: ${error.message}`);
     }
-    return dataStore.activities;
   },
 
   getPublicActivities: async () => {
@@ -534,50 +688,52 @@ export const activitiesAPI = {
   },
 
   createActivity: async (activityData) => {
-    if (USE_SUPABASE) {
-      return await supabaseAPI.activities.createActivity(activityData);
-    }
+    console.log('🎯 CASIRA: createActivity called - FORCING SUPABASE');
+    console.log('🔧 CASIRA: USE_SUPABASE value:', USE_SUPABASE);
+    console.log('📝 CASIRA: Activity data:', activityData);
     
-    // localStorage implementation
-    const newActivity = {
-      id: Date.now(),
-      ...activityData,
-      current_volunteers: 0,
-      created_at: new Date().toISOString()
-    };
-    dataStore.activities.push(newActivity);
-    dataStore.saveToStorage();
-    dataStore.notify();
-    return newActivity;
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.activities.createActivity(activityData);
+      console.log('✅ CASIRA: Activity created in Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase createActivity failed:', error);
+      throw new Error(`Failed to create activity in Supabase: ${error.message}`);
+    }
   },
 
   updateActivity: async (activityId, updateData) => {
-    const activityIndex = dataStore.activities.findIndex(activity => activity.id == activityId);
-    if (activityIndex !== -1) {
-      dataStore.activities[activityIndex] = { ...dataStore.activities[activityIndex], ...updateData };
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return dataStore.activities[activityIndex];
+    console.log('✏️ CASIRA: updateActivity called - FORCING SUPABASE');
+    console.log('🔧 CASIRA: USE_SUPABASE value:', USE_SUPABASE);
+    console.log('🆔 CASIRA: Activity ID to update:', activityId);
+    console.log('📝 CASIRA: Update data:', updateData);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.activities.updateActivity(activityId, updateData);
+      console.log('✅ CASIRA: Activity updated in Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase updateActivity failed:', error);
+      throw new Error(`Failed to update activity in Supabase: ${error.message}`);
     }
-    throw new Error('Actividad no encontrada');
   },
 
   deleteActivity: async (activityId) => {
-    const activityIndex = dataStore.activities.findIndex(activity => activity.id == activityId);
-    if (activityIndex !== -1) {
-      const deletedActivity = dataStore.activities[activityIndex];
-      dataStore.activities.splice(activityIndex, 1);
-      
-      // También eliminar comentarios y likes relacionados
-      dataStore.comments = dataStore.comments.filter(c => c.activity_id != activityId);
-      dataStore.likes = dataStore.likes.filter(l => l.activity_id != activityId);
-      dataStore.volunteers = dataStore.volunteers.filter(v => v.activity_id != activityId);
-      
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return deletedActivity;
+    console.log('🗑️ CASIRA: deleteActivity called - FORCING SUPABASE');
+    console.log('🔧 CASIRA: USE_SUPABASE value:', USE_SUPABASE);
+    console.log('🆔 CASIRA: Activity ID to delete:', activityId);
+    
+    // FORCE SUPABASE ONLY - NO LOCALSTORAGE FALLBACK
+    try {
+      const result = await supabaseAPI.activities.deleteActivity(activityId);
+      console.log('✅ CASIRA: Activity deleted from Supabase successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ CASIRA: Supabase deleteActivity failed:', error);
+      throw new Error(`Failed to delete activity from Supabase: ${error.message}`);
     }
-    throw new Error('Actividad no encontrada');
   },
 
   // Likes system
@@ -776,15 +932,15 @@ export const commentsAPI = {
     }
     
     if (!user) {
-      console.error('❌ Usuario no encontrado para comentario:', { userId, currentUser: authAPI.getCurrentUser() });
+      console.error('❌ Usuario no encontrado para comentario:', { author_id: commentData.author_id, currentUser: authAPI.getCurrentUser() });
       throw new Error('Usuario no encontrado');
     }
 
     const comment = {
       id: Date.now(),
-      activity_id: activityId,
-      user_id: userId,
-      content: content,
+      activity_id: commentData.activity_id,
+      user_id: commentData.author_id,
+      content: commentData.content,
       created_at: new Date().toISOString(),
       likes: 0,
       user: user
@@ -815,6 +971,16 @@ export const commentsAPI = {
       return dataStore.comments[commentIndex];
     }
     throw new Error('Comentario no encontrado');
+  },
+
+  // Alias for compatibility with components that expect addComment
+  addComment: async (activityId, userId, content) => {
+    console.log('💬 CASIRA: addComment called with:', { activityId, userId, content });
+    return await commentsAPI.createComment({
+      activity_id: activityId,
+      author_id: userId,
+      content: content
+    });
   }
 };
 
@@ -1369,6 +1535,68 @@ export const authAPI = {
   }
 };
 
+// ============= MIGRATION API =============
+export const migrationAPI = {
+  migrateLocalStorageToSupabase,
+  
+  // Manual migration trigger
+  async forceMigration() {
+    console.log('🔄 CASIRA: Manual migration triggered');
+    await migrateLocalStorageToSupabase();
+  },
+
+  // Clean migration - clears all Supabase data and re-migrates from localStorage
+  async cleanMigration() {
+    if (!USE_SUPABASE) {
+      console.log('⚠️ CASIRA: Supabase disabled, cannot perform clean migration');
+      return;
+    }
+
+    try {
+      console.log('🧹 CASIRA: Starting clean migration - this will clear existing Supabase data');
+      
+      // Warning: This is destructive!
+      const confirmed = confirm('⚠️ WARNING: This will delete ALL existing data in Supabase and re-migrate from localStorage. Continue?');
+      if (!confirmed) {
+        console.log('❌ CASIRA: Clean migration cancelled by user');
+        return;
+      }
+
+      // Clear all activities from Supabase (but keep users for safety)
+      try {
+        const existingActivities = await supabaseAPI.activities.getAllActivities();
+        console.log(`🗑️ CASIRA: Found ${existingActivities.length} activities to clean`);
+        
+        for (const activity of existingActivities) {
+          try {
+            await supabaseAPI.activities.deleteActivity(activity.id);
+            console.log(`✅ CASIRA: Cleaned activity: ${activity.title}`);
+          } catch (error) {
+            console.warn(`⚠️ CASIRA: Could not delete activity ${activity.title}:`, error);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ CASIRA: Error during activity cleanup:', error);
+      }
+
+      // Now run the migration
+      console.log('🔄 CASIRA: Starting fresh migration...');
+      await migrateLocalStorageToSupabase();
+      
+      // Force refresh the page to reload all data
+      console.log('🔄 CASIRA: Migration complete, refreshing page...');
+      setTimeout(() => window.location.reload(), 2000);
+      
+    } catch (error) {
+      console.error('❌ CASIRA: Clean migration failed:', error);
+    }
+  }
+};
+
+// Make migration functions available globally for debugging
+window.CASIRA_MIGRATE = migrationAPI.forceMigration;
+window.CASIRA_CLEAN_MIGRATE = migrationAPI.cleanMigration;
+
 // Default export
 export default {
   dataStore,
@@ -1383,5 +1611,7 @@ export default {
   permissionsAPI,
   statsAPI,
   authAPI,
+  migrationAPI,
+  storageAPI,
   forceRefreshData
 };

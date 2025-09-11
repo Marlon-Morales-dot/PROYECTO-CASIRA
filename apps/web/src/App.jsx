@@ -8,9 +8,9 @@ import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
 import EnhancedLogin from './components/EnhancedLogin.jsx';
-import SupabaseTest from './components/SupabaseTest.jsx';
 import { activitiesAPI as apiActivities, categoriesAPI as apiCategories, statsAPI as apiStats, usersAPI, dataStore, notificationsAPI, permissionsAPI } from './lib/api.js';
 import { enhancedAPI } from './lib/api-enhanced.js';
+import logoutService from './lib/services/logout.service.js';
 import './App.css';
 
 // Supabase configuration with fallbacks and validation
@@ -191,26 +191,51 @@ function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // PRIMERO verificar localStorage (nuestro authService)
+    const checkLocalAuth = () => {
+      try {
+        const localUser = localStorage.getItem('casira-current-user') || 
+                         sessionStorage.getItem('casira-current-user');
+        
+        if (localUser) {
+          const userData = JSON.parse(localUser);
+          console.log('📊 CASIRA: Usuario encontrado en localStorage:', userData.email);
+          setSession({ user: userData }); // Simular formato Supabase
+          setLoading(false);
+          return true;
+        }
+      } catch (error) {
+        console.error('📊 Error checking localStorage auth:', error);
+      }
+      return false;
+    };
+
+    // Si encontramos usuario local, no necesitamos verificar Supabase
+    if (checkLocalAuth()) {
+      return;
+    }
+
+    // Solo verificar Supabase si no hay usuario local
     if (!supabase) {
       setLoading(false);
       return;
     }
 
-    // Obtener sesión inicial
+    // Obtener sesión inicial de Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('📊 Initial session:', session);
+      console.log('📊 Supabase Initial session:', session);
       setSession(session);
       setLoading(false);
     }).catch((error) => {
-      console.error('📊 Error getting session:', error);
+      console.error('📊 Error getting Supabase session:', error);
       setLoading(false);
     });
 
-    // Escuchar cambios de autenticación
+    // Escuchar cambios de autenticación de Supabase
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('📊 Auth state change:', _event, session);
+      console.log('📊 Supabase Auth state change:', _event, session);
       setSession(session);
       setLoading(false);
     });
@@ -1117,711 +1142,6 @@ function LandingPage() {
   );
 }
 
-// Componente de Login
-function LoginPage() {
-  const navigate = useNavigate();
-  const { session, loading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-    bio: '',
-    phone: '',
-    location: '',
-    role: 'volunteer'
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  // Redireccionar si ya está autenticado
-  useEffect(() => {
-    if (!loading && session) {
-      navigate('/dashboard');
-    }
-  }, [session, loading, navigate]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      if (isLogin) {
-        // Login con backend de Render
-        const response = await fetch('https://proyecto-casira.onrender.com/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          }),
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-          localStorage.setItem('token', data.access_token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          
-          // Navegar basado en el rol
-          if (data.user.role === 'admin') {
-            navigate('/admin');
-          } else if (data.user.role === 'visitor') {
-            navigate('/visitor');
-          } else {
-            navigate('/dashboard');
-          }
-        } else {
-          // Fallback: Intentar con usuarios locales
-          console.log('Backend login failed, trying local users...');
-          const localUser = await usersAPI.getUserByEmail(formData.email);
-          
-          if (localUser) {
-            console.log('Found local user:', localUser);
-            
-            // VALIDACIÓN MEJORADA DE CONTRASEÑAS
-            const validPasswords = {
-              'admin@casira.org': ['admin123', 'casira2024'],
-              'donante@ejemplo.com': ['donante123', 'demo123'],
-              'carlos.martinez@email.com': ['volunteer123', 'demo123'],
-              'ana.lopez@email.com': ['visitor123', 'demo123']
-            };
-            
-            const userPasswords = validPasswords[localUser.email] || ['demo123', 'casira2024'];
-            
-            if (!userPasswords.includes(formData.password)) {
-              throw new Error('Contraseña incorrecta para ' + localUser.email);
-            }
-            
-            localStorage.setItem('token', 'local-token-' + Date.now());
-            localStorage.setItem('user', JSON.stringify(localUser));
-            
-            // Navegar basado en el rol
-            if (localUser.role === 'admin') {
-              navigate('/admin');
-            } else if (localUser.role === 'visitor') {
-              navigate('/visitor');
-            } else {
-              navigate('/dashboard');
-            }
-          } else {
-            setError('Usuario no encontrado. Verifica tu email o regístrate.');
-          }
-        }
-      } else {
-        // Registro de nuevo usuario
-        if (!formData.first_name || !formData.last_name) {
-          setError('Nombre y apellido son requeridos');
-          return;
-        }
-        
-        // Verificar si el email ya existe
-        const existingUser = await usersAPI.getUserByEmail(formData.email);
-        if (existingUser) {
-          setError('Este email ya está registrado');
-          return;
-        }
-        
-        // Crear nuevo usuario
-        const newUser = await usersAPI.createUser({
-          email: formData.email,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          role: formData.role,
-          bio: formData.bio,
-          phone: formData.phone,
-          location: formData.location
-        });
-        
-        // Simular token de acceso
-        const fakeToken = `fake_token_${newUser.id}`;
-        localStorage.setItem('token', fakeToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
-        navigate('/dashboard');
-      }
-    } catch (error) {
-      console.log('Network error, trying local fallback...');
-      // Si hay error de red, intentar con usuarios locales
-      if (isLogin) {
-        try {
-          const localUser = await usersAPI.getUserByEmail(formData.email);
-          if (localUser) {
-            console.log('Found local user after network error:', localUser);
-            // Para usuarios locales, aceptamos cualquier contraseña (datos demo)
-            localStorage.setItem('token', 'local-token-' + Date.now());
-            localStorage.setItem('user', JSON.stringify(localUser));
-            
-            if (localUser.role === 'admin') {
-              navigate('/admin');
-            } else if (localUser.role === 'visitor') {
-              navigate('/visitor');
-            } else {
-              navigate('/dashboard');
-            }
-            return; // Exit successfully
-          }
-        } catch (localError) {
-          console.error('Local user lookup failed:', localError);
-        }
-      }
-      
-      setError(error.message || 'Error de conexión. Verifica tu conexión a internet.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fillDemoAccount = (email, password) => {
-    setFormData({ email, password });
-    setError('');
-  };
-
-  const demoAccounts = [
-    { email: 'admin@casira.org', password: 'admin123', role: 'Administrador' },
-    { email: 'donante@ejemplo.com', password: 'donante123', role: 'Donante' },
-    { email: 'ana.lopez@email.com', password: 'visitante123', role: 'Visitante' }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Elementos decorativos de fondo */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-sky-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-sky-300/10 to-blue-400/10 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
-      </div>
-
-      <div className="max-w-lg w-full space-y-8 relative z-10">
-        {/* Container principal con glassmorphism */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 lg:p-10">
-          {/* Header mejorado */}
-          <div className="text-center mb-8">
-            {/* Logo con efectos */}
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 rounded-2xl blur-lg opacity-60 animate-pulse"></div>
-                <div className="relative bg-white p-4 rounded-2xl shadow-xl">
-                  <img src="/logo.png" alt="AMISTAD CASIRA" className="h-16 w-auto object-contain" />
-                </div>
-              </div>
-            </div>
-            
-            <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent mb-3">
-              Bienvenido a AMISTAD CASIRA
-            </h2>
-            <p className="text-gray-600 text-lg">
-              Únete a la red de transformación social
-            </p>
-            
-            {/* Indicador decorativo */}
-            <div className="flex items-center justify-center mt-4 space-x-2">
-              <div className="w-2 h-2 bg-sky-400 rounded-full animate-ping"></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
-              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
-            </div>
-          </div>
-        
-          {/* Cuentas Demo con diseño premium */}
-          <div className="relative bg-gradient-to-br from-sky-50/80 to-blue-50/80 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl p-6 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            {/* Decorative elements */}
-            <div className="absolute top-2 right-2 w-16 h-16 bg-gradient-to-br from-sky-400/20 to-blue-500/20 rounded-full blur-xl"></div>
-            
-            <div className="flex items-center mb-4">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 to-blue-600 rounded-lg opacity-60 blur-sm"></div>
-                <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-sky-600" />
-                </div>
-              </div>
-              <h3 className="ml-3 font-bold text-sky-800 text-lg">Cuentas de Demostración</h3>
-              <div className="ml-auto flex space-x-1">
-                <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {demoAccounts.map((account, index) => (
-                <div 
-                  key={index} 
-                  className="group relative bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-sky-200/30 hover:bg-white/90 hover:border-sky-300/50 hover:shadow-lg transition-all duration-300 cursor-pointer"
-                  onClick={() => fillDemoAccount(account.email, account.password)}
-                >
-                  {/* Hover glow effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-hover:from-sky-500/20 group-hover:to-blue-500/20 rounded-xl transition-all duration-300"></div>
-                  
-                  <div className="relative flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        account.role === 'Administrador' 
-                          ? 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20 text-purple-600'
-                          : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 text-green-600'
-                      }`}>
-                        {account.role === 'Administrador' ? '👑' : '💝'}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sky-700 text-sm group-hover:text-sky-800 transition-colors">
-                          {account.role}
-                        </div>
-                        <div className="text-xs text-gray-600 group-hover:text-gray-700 transition-colors">
-                          {account.email}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500 mb-1">Click para usar</div>
-                      <div className="font-mono text-sm bg-sky-100/80 group-hover:bg-sky-200/80 text-sky-700 px-3 py-1.5 rounded-lg transition-all duration-200">
-                        {account.password}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Click indicator */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <ArrowRight className="w-4 h-4 text-sky-500" />
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-4 text-center">
-              <p className="text-xs text-gray-500 bg-white/50 rounded-lg px-3 py-2">
-                💡 Haz click en cualquier cuenta para rellenar automáticamente
-              </p>
-            </div>
-          </div>
-
-          {/* Error message */}
-          {error && (
-            <div className="relative bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200/50 rounded-2xl p-4 mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-sm font-bold">!</span>
-                </div>
-                <div>
-                  <p className="text-red-800 font-medium text-sm">{error}</p>
-                </div>
-                <button
-                  onClick={() => setError('')}
-                  className="ml-auto text-red-500 hover:text-red-700 transition-colors"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Tab Navigation */}
-          <div className="flex bg-gray-100 rounded-2xl p-1 mb-8">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(true);
-                setError('');
-                setFormData({
-                  email: '',
-                  password: '',
-                  first_name: '',
-                  last_name: '',
-                  bio: '',
-                  phone: '',
-                  location: '',
-                  role: 'volunteer'
-                });
-              }}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                isLogin
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              🔑 Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(false);
-                setError('');
-                setFormData({
-                  email: '',
-                  password: '',
-                  first_name: '',
-                  last_name: '',
-                  bio: '',
-                  phone: '',
-                  location: '',
-                  role: 'volunteer'
-                });
-              }}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                !isLogin
-                  ? 'bg-white text-blue-600 shadow-lg'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              ✨ Registrarse
-            </button>
-          </div>
-
-          {/* Formulario mejorado */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-6">
-              {/* Campo Email */}
-              <div className="relative">
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                  <span className="w-2 h-2 bg-sky-400 rounded-full mr-2 animate-pulse"></span>
-                  Correo Electrónico
-                </label>
-                <div className="relative group">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                    placeholder="tu@email.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  />
-                  {/* Email icon */}
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                    <div className="w-5 h-5 text-sky-400 opacity-50 group-focus-within:opacity-100 transition-opacity">
-                      📧
-                    </div>
-                  </div>
-                  
-                  {/* Focus glow effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                </div>
-              </div>
-
-              {/* Campo Contraseña */}
-              <div className="relative">
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '0.5s'}}></span>
-                  Contraseña
-                </label>
-                <div className="relative group">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    className="w-full px-6 py-4 pr-16 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                    placeholder="Tu contraseña"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  />
-                  {/* Show/Hide password button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-sky-600 transition-colors duration-200"
-                  >
-                    {showPassword ? '🙈' : '👁️'}
-                  </button>
-                  
-                  {/* Focus glow effect */}
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                </div>
-              </div>
-
-              {/* Campos adicionales para registro */}
-              {!isLogin && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Campo Nombre */}
-                    <div className="relative">
-                      <label htmlFor="first_name" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '1s'}}></span>
-                        Nombre
-                      </label>
-                      <div className="relative group">
-                        <input
-                          id="first_name"
-                          name="first_name"
-                          type="text"
-                          required={!isLogin}
-                          className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                          placeholder="Tu nombre"
-                          value={formData.first_name}
-                          onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                        />
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                      </div>
-                    </div>
-
-                    {/* Campo Apellido */}
-                    <div className="relative">
-                      <label htmlFor="last_name" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '1.5s'}}></span>
-                        Apellido
-                      </label>
-                      <div className="relative group">
-                        <input
-                          id="last_name"
-                          name="last_name"
-                          type="text"
-                          required={!isLogin}
-                          className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                          placeholder="Tu apellido"
-                          value={formData.last_name}
-                          onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                        />
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Campo Teléfono */}
-                  <div className="relative">
-                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2s'}}></span>
-                      Teléfono (Opcional)
-                    </label>
-                    <div className="relative group">
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                        placeholder="+502 1234-5678"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      />
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                    </div>
-                  </div>
-
-                  {/* Campo Ubicación */}
-                  <div className="relative">
-                    <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2.5s'}}></span>
-                      Ubicación (Opcional)
-                    </label>
-                    <div className="relative group">
-                      <input
-                        id="location"
-                        name="location"
-                        type="text"
-                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80"
-                        placeholder="Ciudad, País"
-                        value={formData.location}
-                        onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      />
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                    </div>
-                  </div>
-
-                  {/* Campo Tipo de Usuario */}
-                  <div className="relative">
-                    <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '2.5s'}}></span>
-                      ¿Cómo te quieres unir?
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div 
-                        className={`p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
-                          formData.role === 'volunteer' 
-                            ? 'border-green-500 bg-green-50' 
-                            : 'border-gray-200 hover:border-green-300'
-                        }`}
-                        onClick={() => setFormData({...formData, role: 'volunteer'})}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="text-2xl">🤝</div>
-                          <div>
-                            <h4 className="font-semibold text-gray-900">Voluntario</h4>
-                            <p className="text-xs text-gray-600">Participar activamente, comentar, subir fotos</p>
-                          </div>
-                          <input
-                            type="radio"
-                            name="role"
-                            value="volunteer"
-                            checked={formData.role === 'volunteer'}
-                            onChange={(e) => setFormData({...formData, role: e.target.value})}
-                            className="ml-auto"
-                          />
-                        </div>
-                      </div>
-
-                      <div 
-                        className={`p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
-                          formData.role === 'visitor' 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : 'border-gray-200 hover:border-blue-300'
-                        }`}
-                        onClick={() => setFormData({...formData, role: 'visitor'})}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="text-2xl">👀</div>
-                          <div>
-                            <h4 className="font-semibold text-gray-900">Visitante</h4>
-                            <p className="text-xs text-gray-600">Solo explorar y unirse (límites aplicados)</p>
-                          </div>
-                          <input
-                            type="radio"
-                            name="role"
-                            value="visitor"
-                            checked={formData.role === 'visitor'}
-                            onChange={(e) => setFormData({...formData, role: e.target.value})}
-                            className="ml-auto"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {formData.role === 'visitor' && (
-                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-xs text-yellow-700">
-                          <strong>Limitaciones de visitante:</strong> Solo puedes unirte a 2 actividades, no puedes comentar ni subir fotos. 
-                          Cambia a Voluntario para acceso completo.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Campo Biografía */}
-                  <div className="relative">
-                    <label htmlFor="bio" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2 animate-pulse" style={{animationDelay: '3s'}}></span>
-                      Cuéntanos sobre ti (Opcional)
-                    </label>
-                    <div className="relative group">
-                      <textarea
-                        id="bio"
-                        name="bio"
-                        rows={3}
-                        className="w-full px-6 py-4 bg-white/70 backdrop-blur-md border-2 border-sky-200/50 rounded-2xl placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 hover:border-sky-300 transition-all duration-300 text-lg group-hover:bg-white/80 resize-none"
-                        placeholder={formData.role === 'volunteer' 
-                          ? "Descríbete brevemente, tus intereses, motivaciones para ser voluntario..."
-                          : "Cuéntanos qué te interesa de nuestras actividades..."}
-                        value={formData.bio}
-                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                      />
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-focus-within:from-sky-500/20 group-focus-within:to-blue-500/20 rounded-2xl transition-all duration-300 -z-10"></div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Botón mejorado */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full overflow-hidden py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:opacity-50 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300"
-              >
-                {/* Efecto de brillo */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                
-                <span className="relative flex items-center justify-center">
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-                      {isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'}
-                    </>
-                  ) : (
-                    <>
-                      {isLogin ? '🔑 Iniciar Sesión' : '✨ Crear Cuenta'}
-                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </span>
-              </button>
-            </div>
-
-            {/* Divisor mejorado */}
-            <div className="pt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-                </div>
-                <div className="relative flex justify-center">
-                  <div className="bg-white/90 backdrop-blur-sm px-6 py-2 rounded-full border border-gray-200/50 shadow-sm">
-                    <span className="text-gray-500 font-medium text-sm flex items-center space-x-2">
-                      <span className="w-2 h-2 bg-gradient-to-r from-sky-400 to-blue-500 rounded-full animate-pulse"></span>
-                      <span>O continúa con</span>
-                      <span className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Google OAuth Button - Now using direct Google Auth */}
-            <div className="pt-6">
-              <GoogleOAuthButton
-                onSuccess={(data) => {
-                    console.log('✅ Google OAuth iniciado exitosamente:', data);
-                    console.log('🚀 Guardando usuario y navegando...');
-                    
-                    // Guardar usuario en localStorage
-                    localStorage.setItem('token', 'google-token-' + Date.now());
-                    localStorage.setItem('user', JSON.stringify(data));
-                    
-                    // Navegar basado en el rol
-                    setTimeout(() => {
-                      if (data.role === 'admin') {
-                        navigate('/admin', { replace: true });
-                      } else if (data.role === 'visitor') {
-                        navigate('/visitor', { replace: true });
-                      } else {
-                        navigate('/dashboard', { replace: true });
-                      }
-                      
-                      // NO recargar - usar React Router navigation solamente
-                      console.log('🎯 Navegación completada a:', data.role);
-                    }, 500);
-                  }}
-                  onError={(error) => {
-                    console.error('❌ Google OAuth error:', error);
-                    
-                    let errorMessage = 'Error al iniciar sesión con Google: ' + error.message;
-                    
-                    if (error.message?.includes('popup')) {
-                      errorMessage = '😫 La ventana de Google se cerró. Por favor intenta de nuevo.';
-                    } else if (error.message?.includes('network')) {
-                      errorMessage = '🌐 Error de conexión. Verifica tu internet e intenta de nuevo.';
-                    } else if (error.message?.includes('unauthorized')) {
-                      errorMessage = '🔒 Acceso no autorizado. Verifica tu cuenta de Google.';
-                    }
-                    
-                    alert(errorMessage);
-                    
-                    console.log('📊 Error details for debugging:', {
-                      message: error.message,
-                      code: error.code,
-                      status: error.status
-                    });
-                  }}
-                  disabled={isLoading}
-                />
-              </div>
-
-            {/* Link de retorno mejorado */}
-            <div className="text-center pt-4">
-              <Link 
-                to="/" 
-                className="inline-flex items-center text-sky-600 hover:text-sky-700 font-medium transition-colors duration-200 group"
-              >
-                <ArrowRight className="mr-2 h-4 w-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
-                Volver al inicio
-              </Link>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Componente de Vista Social Pública
 function PublicSocialViewPage() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -1862,15 +1182,19 @@ function DashboardPage() {
           console.log('📧 Email:', session.user.email);
           console.log('👤 Metadata disponible:', Object.keys(session.user.user_metadata || {}));
           
-          // Crear datos del usuario desde Google OAuth
+          // Crear datos del usuario desde Google OAuth - manejo seguro
           const userData = {
             id: session.user.id,
             email: session.user.email,
-            first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-            last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
-            avatar_url: session.user.user_metadata.avatar_url,
-            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
-            bio: 'Usuario autenticado con Google',
+            first_name: session.user.first_name || 
+                        session.user.user_metadata?.full_name?.split(' ')[0] || 
+                        session.user.email.split('@')[0],
+            last_name: session.user.last_name || 
+                       session.user.user_metadata?.full_name?.split(' ')[1] || '',
+            avatar_url: session.user.avatar_url || session.user.user_metadata?.avatar_url,
+            role: session.user.role || 
+                  (session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' || session.user.id === '112338454180458924045' ? 'admin' : 'visitor'),
+            bio: session.user.bio || 'Usuario autenticado con Google',
             created_at: new Date().toISOString()
           };
 
@@ -1904,7 +1228,7 @@ function DashboardPage() {
                 first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
                 last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
                 avatar_url: session.user.user_metadata.avatar_url,
-                role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
+                role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' || session.user.id === '112338454180458924045' ? 'admin' : 'visitor',
                 bio: 'Usuario autenticado con Google',
                 provider: 'google',
                 google_id: session.user.id
@@ -1938,22 +1262,36 @@ function DashboardPage() {
             avatar: userData.avatar_url ? '✅' : '❌'
           });
           
-          // Mostrar mensaje de bienvenida mejorado con más información
-          const welcomeMessage = userData.role === 'admin' 
-            ? `🎉 ¡Bienvenido de vuelta, ${userData.first_name}! 👋\n\n👑 Acceso de Administrador\n✨ Sesión con Google autenticada\n🚀 Cargando panel de administración...`
-            : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA! 🌍\n\n✅ Autenticación exitosa con Google\n🤝 Rol: ${userData.role === 'volunteer' ? 'Voluntario' : 'Visitante'}\n📧 Email: ${userData.email}\n\n¡Vamos a construir un mundo mejor juntos! 🎆`;
+          // Verificar si es realmente una nueva sesión (no solo una recarga)
+          const lastLoginTime = localStorage.getItem('lastLoginTime_' + userData.id);
+          const currentTime = Date.now();
+          const isNewLogin = !lastLoginTime || (currentTime - parseInt(lastLoginTime)) > 300000; // 5 minutos
           
-          // Mostrar alerta elegante
-          setTimeout(() => {
-            alert(welcomeMessage);
-          }, 100);
+          if (isNewLogin) {
+            const welcomeMessage = userData.role === 'admin' 
+              ? `🎉 ¡Bienvenido de vuelta, ${userData.first_name}! 👋\n\n👑 Acceso de Administrador\n✨ Sesión con Google autenticada\n🚀 Cargando panel de administración...`
+              : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA! 🌍\n\n✅ Autenticación exitosa con Google\n🤝 Rol: ${userData.role === 'volunteer' ? 'Voluntario' : 'Visitante'}\n📧 Email: ${userData.email}\n\n¡Vamos a construir un mundo mejor juntos! 🎆`;
+            
+            // Marcar tiempo de login para evitar repetir en recargas
+            localStorage.setItem('lastLoginTime_' + userData.id, currentTime.toString());
+            
+            // TEMPORALMENTE DESHABILITADO - NO MOSTRAR ALERT
+            // setTimeout(() => {
+            //   alert(welcomeMessage);
+            // }, 100);
+            console.log('🎉 Bienvenida (sin alert):', welcomeMessage);
+          }
           
           // Navegar automáticamente basado en el rol
           setTimeout(() => {
             if (userData.role === 'admin') {
-              navigate('/admin');
+              navigate('/admin/dashboard');
             } else if (userData.role === 'visitor') {
-              navigate('/visitor');
+              navigate('/visitor/dashboard');
+            } else if (userData.role === 'donor') {
+              navigate('/donor/dashboard');
+            } else if (userData.role === 'volunteer') {
+              navigate('/volunteer/dashboard');
             } else {
               navigate('/dashboard');
             }
@@ -1962,15 +1300,19 @@ function DashboardPage() {
         } catch (error) {
           console.error('❌ Error handling Google OAuth user:', error);
           
-          // Fallback básico
+          // Fallback básico con manejo seguro
           const fallbackUser = {
             id: session.user.id,
-            first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-            last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
+            first_name: session.user.first_name || 
+                        session.user.user_metadata?.full_name?.split(' ')[0] || 
+                        session.user.email.split('@')[0],
+            last_name: session.user.last_name || 
+                       session.user.user_metadata?.full_name?.split(' ')[1] || '',
             email: session.user.email,
-            role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
-            bio: 'Usuario autenticado con Google',
-            avatar_url: session.user.user_metadata.avatar_url
+            role: session.user.role || 
+                  (session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' || session.user.id === '112338454180458924045' ? 'admin' : 'visitor'),
+            bio: session.user.bio || 'Usuario autenticado con Google',
+            avatar_url: session.user.avatar_url || session.user.user_metadata?.avatar_url
           };
           
           // También agregar al dataStore en el fallback
@@ -1993,21 +1335,35 @@ function DashboardPage() {
           localStorage.setItem('user', JSON.stringify(fallbackUser));
           localStorage.setItem('token', 'google-fallback-' + session.user.id);
           
-          // Mensaje de bienvenida para fallback también
-          const fallbackWelcome = fallbackUser.role === 'admin' 
-            ? `🎉 ¡Bienvenido de nuevo, ${fallbackUser.first_name}!\n\n👑 Accediendo al panel de administración...`
-            : `🌟 ¡Hola ${fallbackUser.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta está lista.\n¡Comencemos a hacer la diferencia!`;
+          // Verificar si es nueva sesión para fallback
+          const lastFallbackLoginTime = localStorage.getItem('lastLoginTime_' + fallbackUser.id);
+          const currentFallbackTime = Date.now();
+          const isNewFallbackLogin = !lastFallbackLoginTime || (currentFallbackTime - parseInt(lastFallbackLoginTime)) > 300000;
           
-          setTimeout(() => {
-            alert(fallbackWelcome);
-          }, 100);
+          if (isNewFallbackLogin) {
+            const fallbackWelcome = fallbackUser.role === 'admin' 
+              ? `🎉 ¡Bienvenido de nuevo, ${fallbackUser.first_name}!\n\n👑 Accediendo al panel de administración...`
+              : `🌟 ¡Hola ${fallbackUser.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta está lista.\n¡Comencemos a hacer la diferencia!`;
+            
+            localStorage.setItem('lastLoginTime_' + fallbackUser.id, currentFallbackTime.toString());
+            
+            // TEMPORALMENTE DESHABILITADO - NO MOSTRAR ALERT
+            // setTimeout(() => {
+            //   alert(fallbackWelcome);
+            // }, 100);
+            console.log('🎉 Bienvenida fallback (sin alert):', fallbackWelcome);
+          }
           
           // Navegar automáticamente para fallback también
           setTimeout(() => {
             if (fallbackUser.role === 'admin') {
-              navigate('/admin');
+              navigate('/admin/dashboard');
             } else if (fallbackUser.role === 'visitor') {
-              navigate('/visitor');
+              navigate('/visitor/dashboard');
+            } else if (fallbackUser.role === 'donor') {
+              navigate('/donor/dashboard');
+            } else if (fallbackUser.role === 'volunteer') {
+              navigate('/volunteer/dashboard');
             } else {
               navigate('/dashboard');
             }
@@ -2032,14 +1388,19 @@ function DashboardPage() {
       // Redirect based on role after setting user
       setTimeout(() => {
         if (parsedUser.role === 'admin') {
-          navigate('/admin');
+          navigate('/admin/dashboard');
           return;
         } else if (parsedUser.role === 'visitor') {
-          // Visitors should go to their specific portal
-          navigate('/visitor');
+          navigate('/visitor/dashboard');
+          return;
+        } else if (parsedUser.role === 'donor') {
+          navigate('/donor/dashboard');
+          return;
+        } else if (parsedUser.role === 'volunteer') {
+          navigate('/volunteer/dashboard');
           return;
         }
-        // Volunteers and donors stay on dashboard
+        // Fallback to generic dashboard
       }, 100);
     }
     
@@ -2121,20 +1482,11 @@ function DashboardPage() {
 
   const handleLogout = async () => {
     try {
-      // Cerrar sesión de Supabase si existe
-      if (session && supabase) {
-        await supabase.auth.signOut();
-      }
-      
-      // Limpiar localStorage para autenticación tradicional
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      navigate('/');
+      // Usar el servicio estandarizado de logout
+      await logoutService.performCompleteLogout();
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      // Navegar de todas formas
-      navigate('/');
+      // El servicio ya maneja la redirección en caso de error
     }
   };
 
@@ -2158,14 +1510,14 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">AMISTAD CASIRA</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">AMISTAD CASIRA</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">Hola, {user.first_name}</span>
@@ -2401,19 +1753,19 @@ function ActivitiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <Link to="/" className="flex items-center">
               <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">AMISTAD CASIRA</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">AMISTAD CASIRA</h1>
             </Link>
             <nav className="flex space-x-6">
-              <Link to="/" className="text-gray-700 hover:text-blue-600">Inicio</Link>
-              <Link to="/activities" className="text-blue-600 font-semibold">Actividades</Link>
-              <Link to="/login" className="text-gray-700 hover:text-blue-600">Login</Link>
+              <Link to="/" className="text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg px-3 py-2 transition-all duration-200 font-medium">Inicio</Link>
+              <Link to="/activities" className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-4 py-2 rounded-xl font-semibold shadow-md">Actividades</Link>
+              <Link to="/login" className="text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg px-3 py-2 transition-all duration-200 font-medium">Login</Link>
             </nav>
           </div>
         </div>
@@ -2422,7 +1774,9 @@ function ActivitiesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">Actividades y Proyectos</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-sky-600 via-blue-600 to-blue-700 bg-clip-text text-transparent drop-shadow-sm">
+              ✨ Actividades y Proyectos
+            </h1>
             <button 
               onClick={() => {
                 console.log('Forcing activities refresh...');
@@ -2923,6 +2277,12 @@ function AdminPanelPage() {
       const userData = JSON.parse(storedUser);
       if (userData.role === 'admin') {
         setUser(userData);
+      } else if (userData.role === 'visitor') {
+        navigate('/visitor/dashboard');
+      } else if (userData.role === 'donor') {
+        navigate('/donor/dashboard');
+      } else if (userData.role === 'volunteer') {
+        navigate('/volunteer/dashboard');
       } else {
         navigate('/dashboard');
       }
@@ -2932,10 +2292,12 @@ function AdminPanelPage() {
     setLoading(false);
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await logoutService.performCompleteLogout();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   if (loading) {
@@ -2976,10 +2338,12 @@ function VisitorPortalPage() {
     setLoading(false);
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await logoutService.performCompleteLogout();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   if (loading) {
@@ -3005,43 +2369,76 @@ function AuthRedirectHandler() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [hasProcessedSession, setHasProcessedSession] = useState(false);
 
   useEffect(() => {
     if (loading || hasRedirected) return;
     
-    if (session) {
+    // Verificar si ya hemos procesado esta sesión para evitar ejecución en recargas
+    const sessionId = session?.user?.id;
+    const lastProcessedSession = localStorage.getItem('lastProcessedSession');
+    
+    if (session && sessionId && lastProcessedSession !== sessionId) {
       const handleSessionUser = async () => {
         console.log('🔐 Session detected, processing user...');
+        
+        // Manejar diferentes estructuras de usuario (localStorage vs Supabase)
+        console.log('🔍 CASIRA DEBUG: Google User ID actual:', session.user.id);
+        console.log('🔍 CASIRA DEBUG: Google User email:', session.user.email);
+        console.log('🔍 CASIRA DEBUG: Session user completo:', JSON.stringify(session.user, null, 2));
         
         const userData = {
           id: session.user.id,
           email: session.user.email,
-          first_name: session.user.user_metadata.full_name?.split(' ')[0] || session.user.email.split('@')[0],
-          last_name: session.user.user_metadata.full_name?.split(' ')[1] || '',
-          avatar_url: session.user.user_metadata.avatar_url,
-          role: session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' ? 'admin' : 'visitor',
-          bio: 'Usuario autenticado con Google'
+          first_name: session.user.first_name || 
+                      session.user.user_metadata?.full_name?.split(' ')[0] || 
+                      session.user.email.split('@')[0],
+          last_name: session.user.last_name || 
+                     session.user.user_metadata?.full_name?.split(' ')[1] || '',
+          avatar_url: session.user.avatar_url || session.user.user_metadata?.avatar_url,
+          role: session.user.role || 
+                (session.user.id === '9e8385dc-cf3b-4f6e-87dc-e287c6d444c6' || session.user.id === '112338454180458924045' ? 'admin' : 'visitor'),
+          bio: session.user.bio || 'Usuario autenticado'
         };
+        
+        console.log('🔍 CASIRA DEBUG: Role determinado:', userData.role);
 
         // IMPORTANTE: Sincronizar con dataStore también en esta instancia
         try {
-          const existingUser = await usersAPI.getUserById(session.user.id);
-          if (!existingUser) {
-            await usersAPI.createUser({
-              id: session.user.id,
-              ...userData,
-              provider: 'google',
-              google_id: session.user.id,
-              created_at: new Date().toISOString()
-            });
-            console.log('✅ Usuario de Google (3ra instancia) agregado al dataStore local');
+          // Solo intentar Supabase si el ID es un UUID válido (no Google ID largo)  
+          const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session.user.id);
+          
+          if (isValidUUID) {
+            const existingUser = await usersAPI.getUserById(session.user.id);
+            if (!existingUser) {
+              await usersAPI.createUser({
+                id: session.user.id,
+                ...userData,
+                provider: 'google',
+                google_id: session.user.id,
+                created_at: new Date().toISOString()
+              });
+            } else {
+              await usersAPI.updateUserProfile(session.user.id, {
+                last_login: new Date().toISOString()
+              });
+            }
           } else {
-            await usersAPI.updateUserProfile(session.user.id, {
-              ...userData,
-              provider: 'google',
-              google_id: session.user.id
-            });
-            console.log('✅ Usuario de Google (3ra instancia) actualizado en dataStore local');
+            console.log('🔍 CASIRA: Skipping Supabase sync - Google ID too long for UUID:', session.user.id);
+            // Para Google IDs largos, buscar por email en lugar de ID
+            try {
+              const existingUser = await usersAPI.getUserByEmail(session.user.email);
+              if (!existingUser) {
+                await usersAPI.createUser({
+                  ...userData,
+                  provider: 'google',
+                  google_id: session.user.id,
+                  created_at: new Date().toISOString()
+                });
+              }
+            } catch (emailError) {
+              console.log('⚠️ CASIRA: Could not sync Google user by email:', emailError.message);
+            }
           }
         } catch (dataStoreError) {
           console.error('❌ Error al sincronizar (3ra instancia) con dataStore:', dataStoreError);
@@ -3051,19 +2448,35 @@ function AuthRedirectHandler() {
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('token', 'google-' + session.user.id);
 
-        // Mensaje de bienvenida
-        const welcomeMessage = userData.role === 'admin' 
-          ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
-          : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+        // Verificar si es nueva sesión en handler
+        const lastHandlerLoginTime = localStorage.getItem('lastLoginTime_' + userData.id);
+        const currentHandlerTime = Date.now();
+        const isNewHandlerLogin = !lastHandlerLoginTime || (currentHandlerTime - parseInt(lastHandlerLoginTime)) > 300000;
         
-        alert(welcomeMessage);
+        if (isNewHandlerLogin) {
+          const welcomeMessage = userData.role === 'admin' 
+            ? `🎉 ¡Bienvenido de nuevo, ${userData.first_name}!\n\n👑 Accediendo al panel de administración...`
+            : `🌟 ¡Hola ${userData.first_name}, bienvenido a CASIRA!\n\n🤝 Tu cuenta de ${userData.role === 'volunteer' ? 'voluntario' : 'visitante'} está lista.\nVamos a construir un mundo mejor juntos.`;
+          
+          localStorage.setItem('lastLoginTime_' + userData.id, currentHandlerTime.toString());
+          // TEMPORALMENTE DESHABILITADO - NO MOSTRAR ALERT
+          // alert(welcomeMessage);
+          console.log('🎉 Bienvenida handler (sin alert):', welcomeMessage);
+        }
 
+        // Marcar sesión como procesada para evitar reejecutar en recargas
+        localStorage.setItem('lastProcessedSession', sessionId);
+        
         // Navegar según rol
         setHasRedirected(true);
         if (userData.role === 'admin') {
-          navigate('/admin');
+          navigate('/admin/dashboard');
         } else if (userData.role === 'visitor') {
-          navigate('/visitor');
+          navigate('/visitor/dashboard');
+        } else if (userData.role === 'donor') {
+          navigate('/donor/dashboard');
+        } else if (userData.role === 'volunteer') {
+          navigate('/volunteer/dashboard');
         } else {
           navigate('/dashboard');
         }
@@ -3082,15 +2495,31 @@ function App() {
     <Router>
       <AuthRedirectHandler />
       <Routes>
+        {/* Rutas públicas */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/social" element={<PublicSocialViewPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/enhanced-login" element={<EnhancedLogin />} />
+        <Route path="/login" element={<EnhancedLogin />} />
+        
+        {/* Rutas específicas por rol */}
         <Route path="/visitor" element={<VisitorPortalPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/visitor/dashboard" element={<VisitorPortalPage />} />
+        <Route path="/visitor/activities" element={<ActivitiesPage />} />
+        
+        <Route path="/donor" element={<DashboardPage />} />
+        <Route path="/donor/dashboard" element={<DashboardPage />} />
+        <Route path="/donor/activities" element={<ActivitiesPage />} />
+        
+        <Route path="/volunteer" element={<DashboardPage />} />
+        <Route path="/volunteer/dashboard" element={<DashboardPage />} />
+        <Route path="/volunteer/activities" element={<ActivitiesPage />} />
+        
         <Route path="/admin" element={<AdminPanelPage />} />
-        <Route path="/supabase-test" element={<SupabaseTest />} />
+        <Route path="/admin/dashboard" element={<AdminPanelPage />} />
+        <Route path="/admin/activities" element={<AdminPanelPage />} />
+        
+        {/* Rutas genéricas (compatibilidad) */}
+        <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
     </Router>
   );

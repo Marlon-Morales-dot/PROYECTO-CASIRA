@@ -8,6 +8,7 @@ import {
   activitiesAPI, volunteersAPI, commentsAPI, photosAPI, postsAPI,
   forceRefreshData, permissionsAPI, dataStore 
 } from '../lib/api.js';
+import adminService from '../lib/services/admin.service.js';
 import UniversalHeader from './UniversalHeader.jsx';
 import MobileTabNavigation from './MobileTabNavigation.jsx';
 import ActivityCard from './ActivityCard.jsx';
@@ -25,6 +26,8 @@ const VisitorDashboard = ({ user, onLogout }) => {
   const [comments, setComments] = useState({});
   const [newComment, setNewComment] = useState('');
   const [activeCommentActivity, setActiveCommentActivity] = useState(null);
+  const [volunteerRequests, setVolunteerRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -42,22 +45,25 @@ const VisitorDashboard = ({ user, onLogout }) => {
       setIsLoading(true);
       console.log('Loading visitor dashboard data...');
 
-      // Load activities, posts, and registrations in parallel
-      const [activitiesData, postsData, registrationsData] = await Promise.all([
+      // Load activities, posts, registrations, and volunteer requests in parallel
+      const [activitiesData, postsData, registrationsData, volunteerRequestsData] = await Promise.all([
         activitiesAPI.getPublicActivities(),
         postsAPI.getPublicPosts(10),
-        volunteersAPI.getUserRegistrations(user.id)
+        volunteersAPI.getUserRegistrations(user.id),
+        adminService.getUserVolunteerRequests(user.email || user.id)
       ]);
 
       console.log('Loaded data:', { 
         activities: activitiesData?.length, 
         posts: postsData?.length, 
-        registrations: registrationsData?.length 
+        registrations: registrationsData?.length,
+        volunteerRequests: volunteerRequestsData?.length
       });
 
       setActivities(activitiesData || []);
       setPosts(postsData || []);
       setUserRegistrations(registrationsData || []);
+      setVolunteerRequests(volunteerRequestsData || []);
 
       // Load likes and comments for all activities and posts
       const allItems = [...(activitiesData || []), ...(postsData || [])];
@@ -117,11 +123,12 @@ const VisitorDashboard = ({ user, onLogout }) => {
     if (!user?.id || !commentText.trim()) return;
 
     try {
-      const newComment = await commentsAPI.addComment({
-        activity_id: itemId,
-        user_id: user.id,
-        content: commentText.trim()
-      });
+      // Use the correct API signature: addComment(activityId, userId, content)
+      const newComment = await commentsAPI.addComment(
+        itemId,           // activityId
+        user.id,          // userId  
+        commentText.trim() // content
+      );
 
       setComments(prev => ({
         ...prev,
@@ -161,7 +168,11 @@ const VisitorDashboard = ({ user, onLogout }) => {
         }
       };
 
-      await volunteersAPI.registerForActivity(user.id, activity.id, registrationData);
+      // Usar el nuevo manejador de solicitudes de voluntarios
+      const { createVolunteerRequest } = await import('../lib/volunteer-request-handler.js');
+      const message = `${user.first_name} ${user.last_name} (Visitante) quiere asistir a "${activity.title}"`;
+      
+      await createVolunteerRequest(user, activity.id, message);
       
       alert(`¡Te has registrado exitosamente para "${activity.title}"!\\n\\n✅ Tu solicitud ha sido enviada al equipo de coordinación.\\n🔔 Recibirás una notificación cuando sea aprobada.`);
       
@@ -215,7 +226,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
       label: 'Mis Solicitudes', 
       shortLabel: 'Solicitudes',
       icon: UserCheck,
-      badge: userRegistrations.filter(r => r.status === 'pending').length || null
+      badge: volunteerRequests.filter(r => r.status === 'pending').length || null
     },
     { 
       id: 'profile', 
@@ -340,7 +351,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
             </div>
 
             <div className="space-mobile">
-              {userRegistrations.length === 0 ? (
+              {volunteerRequests.length === 0 ? (
                 <div className="text-center py-12">
                   <UserCheck className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No tienes solicitudes</h3>
@@ -353,12 +364,12 @@ const VisitorDashboard = ({ user, onLogout }) => {
                   </button>
                 </div>
               ) : (
-                userRegistrations.map((registration) => {
-                  const activity = activities.find(a => a.id === registration.activity_id);
-                  if (!activity) return null;
+                volunteerRequests.map((request) => {
+                  const activity = activities.find(a => a.id === request.activity_id) || 
+                                   { title: request.activity_title || 'Actividad', description: 'Solicitud de voluntario' };
 
                   return (
-                    <div key={registration.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-mobile">
+                    <div key={request.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-mobile">
                       <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                         <img
                           src={activity.image_url || '/placeholder-activity.jpg'}
@@ -369,23 +380,31 @@ const VisitorDashboard = ({ user, onLogout }) => {
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
                             <div className="flex-1 mb-3 sm:mb-0">
                               <h3 className="text-lg font-semibold text-gray-900">{activity.title}</h3>
-                              <p className="text-gray-600 text-sm mt-1 line-clamp-2">{activity.description}</p>
+                              <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+                                {request.message || activity.description}
+                              </p>
                             </div>
                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                              registration.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              registration.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              request.status === 'rejected' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {registration.status === 'confirmed' ? '✅ Aprobado' :
-                               registration.status === 'rejected' ? '❌ Rechazado' :
+                              {request.status === 'approved' ? '✅ Aprobada' :
+                               request.status === 'rejected' ? '❌ Rechazada' :
                                '⏳ Pendiente'}
                             </span>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-sm text-gray-500 space-y-2 sm:space-y-0">
                             <div className="flex items-center">
                               <Calendar className="h-4 w-4 mr-1" />
-                              Solicitado: {new Date(registration.registration_date).toLocaleDateString('es-ES')}
+                              Solicitado: {new Date(request.created_at).toLocaleDateString('es-ES')}
                             </div>
+                            {request.reviewed_at && (
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-1" />
+                                Revisado: {new Date(request.reviewed_at).toLocaleDateString('es-ES')}
+                              </div>
+                            )}
                             {activity.location && (
                               <div className="flex items-center">
                                 <MapPin className="h-4 w-4 mr-1" />

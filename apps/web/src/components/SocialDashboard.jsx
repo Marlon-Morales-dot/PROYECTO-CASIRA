@@ -133,27 +133,21 @@ const SocialDashboard = ({ user, onLogout }) => {
         }
       }
 
+      // Usar el nuevo manejador de solicitudes de voluntarios
+      const { createVolunteerRequest } = await import('../lib/volunteer-request-handler.js');
+      
+      const message = user.role === 'visitor' 
+        ? `${user.first_name} ${user.last_name} (Visitante) quiere asistir a la actividad`
+        : `${user.first_name} ${user.last_name} (Voluntario) solicita unirse como voluntario`;
+
+      await createVolunteerRequest(user, activityId, message);
+      
+      // También mantener el registro local para compatibilidad
       await volunteersAPI.registerForActivity(user.id, activityId, {
         notes: `Solicitud de ${user.first_name} ${user.last_name} (${user.role})`,
         skills_offered: user.skills || [],
         role: user.role
       });
-      
-      // Different notification messages for visitors vs volunteers
-      const notificationMessage = user.role === 'visitor' 
-        ? `${user.first_name} ${user.last_name} (Visitante) quiere asistir a la actividad`
-        : `${user.first_name} ${user.last_name} (Voluntario) solicita unirse a la actividad`;
-
-      // Add notification for admin
-      const newNotification = {
-        id: Date.now(),
-        type: user.role === 'visitor' ? 'visitor_attendance' : 'volunteer_request',
-        user_id: user.id,
-        activity_id: activityId,
-        message: notificationMessage,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      };
       
       // Store notification for admin
       if (!dataStore.notifications) {

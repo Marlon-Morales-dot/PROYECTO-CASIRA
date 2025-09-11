@@ -1,5 +1,5 @@
-// ============= CASIRA Notifications Service =============
-import apiClient from '../axios-config.js';
+// ============= CASIRA Notifications Service - SUPABASE ONLY =============
+import { supabase } from '../supabase-client.js';
 
 class NotificationsService {
   
@@ -7,13 +7,29 @@ class NotificationsService {
   
   async getAllNotifications(userId = null) {
     try {
-      const notifications = this.getStoredNotifications();
-      const filtered = userId 
-        ? notifications.filter(n => n.user_id == userId || n.user_id === 'all')
-        : notifications;
+      console.log('📬 NotificationsService: Getting notifications from Supabase for user:', userId);
       
-      console.log('📬 NotificationsService: Retrieved notifications:', filtered.length);
-      return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      // Si se especifica usuario, filtrar por él o notificaciones globales
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error getting notifications:', error);
+        throw error;
+      }
+      
+      const notifications = data || [];
+      console.log('📬 NotificationsService: Retrieved notifications:', notifications.length);
+      return notifications;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error getting notifications:', error);
       throw error;
@@ -22,10 +38,25 @@ class NotificationsService {
 
   async getNotificationById(id) {
     try {
-      const notifications = this.getStoredNotifications();
-      const notification = notifications.find(n => n.id == id);
-      console.log('🔔 NotificationsService: Retrieved notification by ID:', notification?.title || 'Not found');
-      return notification || null;
+      console.log('🔔 NotificationsService: Getting notification by ID:', id);
+      
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          console.log('📭 NotificationsService: Notification not found:', id);
+          return null;
+        }
+        throw error;
+      }
+      
+      console.log('🔔 NotificationsService: Retrieved notification:', data?.title || 'Unknown');
+      return data;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error getting notification by ID:', error);
       throw error;
@@ -34,21 +65,29 @@ class NotificationsService {
 
   async createNotification(notificationData) {
     try {
-      const notifications = this.getStoredNotifications();
+      console.log('✨ NotificationsService: Creating notification:', notificationData.title);
       
       const newNotification = {
-        id: Date.now(),
         ...notificationData,
         created_at: new Date().toISOString(),
         read: false,
         type: notificationData.type || 'info'
       };
 
-      notifications.push(newNotification);
-      this.saveNotifications(notifications);
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert(newNotification)
+        .select()
+        .single();
       
-      console.log('✅ NotificationsService: Notification created:', newNotification.title);
-      return newNotification;
+      if (error) {
+        console.error('❌ NotificationsService: Error creating notification:', error);
+        throw error;
+      }
+      
+      console.log('✅ NotificationsService: Notification created:', data.id);
+      return data;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error creating notification:', error);
       throw error;
@@ -57,19 +96,26 @@ class NotificationsService {
 
   async markAsRead(notificationId) {
     try {
-      const notifications = this.getStoredNotifications();
-      const notificationIndex = notifications.findIndex(n => n.id == notificationId);
+      console.log('👁️ NotificationsService: Marking notification as read:', notificationId);
       
-      if (notificationIndex === -1) {
-        throw new Error('Notificación no encontrada');
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({ 
+          read: true,
+          read_at: new Date().toISOString()
+        })
+        .eq('id', notificationId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error marking as read:', error);
+        throw error;
       }
-
-      notifications[notificationIndex].read = true;
-      notifications[notificationIndex].read_at = new Date().toISOString();
-
-      this.saveNotifications(notifications);
-      console.log('👁️ NotificationsService: Notification marked as read:', notifications[notificationIndex].title);
-      return notifications[notificationIndex];
+      
+      console.log('👁️ NotificationsService: Notification marked as read:', data?.title);
+      return data;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error marking notification as read:', error);
       throw error;
@@ -78,21 +124,33 @@ class NotificationsService {
 
   async markAllAsRead(userId) {
     try {
-      const notifications = this.getStoredNotifications();
-      const userNotifications = notifications.filter(n => 
-        n.user_id == userId || n.user_id === 'all'
-      );
+      console.log('👁️‍🗨️ NotificationsService: Marking all notifications as read for user:', userId);
       
-      userNotifications.forEach(notification => {
-        if (!notification.read) {
-          notification.read = true;
-          notification.read_at = new Date().toISOString();
-        }
-      });
-
-      this.saveNotifications(notifications);
-      console.log('👁️‍🗨️ NotificationsService: All notifications marked as read for user:', userId);
-      return userNotifications.length;
+      const readAt = new Date().toISOString();
+      let query = supabase
+        .from('notifications')
+        .update({ 
+          read: true,
+          read_at: readAt
+        })
+        .eq('read', false);
+      
+      // Filtrar por usuario o notificaciones globales
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      
+      const { data, error } = await query.select();
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error marking all as read:', error);
+        throw error;
+      }
+      
+      const count = data?.length || 0;
+      console.log('👁️‍🗨️ NotificationsService: Marked', count, 'notifications as read');
+      return count;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error marking all notifications as read:', error);
       throw error;
@@ -101,19 +159,23 @@ class NotificationsService {
 
   async deleteNotification(notificationId) {
     try {
-      const notifications = this.getStoredNotifications();
-      const notificationIndex = notifications.findIndex(n => n.id == notificationId);
+      console.log('🗑️ NotificationsService: Deleting notification:', notificationId);
       
-      if (notificationIndex === -1) {
-        throw new Error('Notificación no encontrada');
+      const { data, error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error deleting notification:', error);
+        throw error;
       }
-
-      const deletedNotification = notifications[notificationIndex];
-      notifications.splice(notificationIndex, 1);
       
-      this.saveNotifications(notifications);
-      console.log('🗑️ NotificationsService: Notification deleted:', deletedNotification.title);
-      return deletedNotification;
+      console.log('🗑️ NotificationsService: Notification deleted:', data?.title);
+      return data;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error deleting notification:', error);
       throw error;
@@ -127,9 +189,10 @@ class NotificationsService {
       title: this.getActivityNotificationTitle(type, activityData),
       message: this.getActivityNotificationMessage(type, activityData),
       type: 'activity',
-      activity_id: activityData.id,
-      user_id: 'all', // Broadcast to all users
-      action_url: `/activities/${activityData.id}`
+      data: JSON.stringify({
+        activity_id: activityData.id,
+        action_url: `/activities/${activityData.id}`
+      })
     };
     
     return await this.createNotification(notificationData);
@@ -141,19 +204,23 @@ class NotificationsService {
       message: this.getUserNotificationMessage(type, userData),
       type: 'user',
       user_id: userData.id,
-      action_url: '/profile'
+      data: JSON.stringify({
+        action_url: '/profile'
+      })
     };
     
     return await this.createNotification(notificationData);
   }
 
-  async createSystemNotification(title, message, userId = 'all') {
+  async createSystemNotification(title, message, userId = null) {
     const notificationData = {
       title,
       message,
       type: 'system',
       user_id: userId,
-      action_url: '/dashboard'
+      data: JSON.stringify({
+        action_url: '/dashboard'
+      })
     };
     
     return await this.createNotification(notificationData);
@@ -163,10 +230,29 @@ class NotificationsService {
 
   async getUnreadNotifications(userId) {
     try {
-      const notifications = await this.getAllNotifications(userId);
-      const unread = notifications.filter(n => !n.read);
+      console.log('🔕 NotificationsService: Getting unread notifications for user:', userId);
+      
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('read', false)
+        .order('created_at', { ascending: false });
+      
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error getting unread notifications:', error);
+        throw error;
+      }
+      
+      const unread = data || [];
       console.log('🔕 NotificationsService: Retrieved unread notifications:', unread.length);
       return unread;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error getting unread notifications:', error);
       throw error;
@@ -175,10 +261,29 @@ class NotificationsService {
 
   async getNotificationsByType(type, userId = null) {
     try {
-      const notifications = await this.getAllNotifications(userId);
-      const filtered = notifications.filter(n => n.type === type);
+      console.log(`🏷️ NotificationsService: Getting ${type} notifications for user:`, userId);
+      
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('type', type)
+        .order('created_at', { ascending: false });
+      
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('❌ NotificationsService: Error getting notifications by type:', error);
+        throw error;
+      }
+      
+      const filtered = data || [];
       console.log(`🏷️ NotificationsService: Retrieved ${type} notifications:`, filtered.length);
       return filtered;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error getting notifications by type:', error);
       throw error;
@@ -189,6 +294,8 @@ class NotificationsService {
 
   async getNotificationStats(userId = null) {
     try {
+      console.log('📊 NotificationsService: Getting notification stats for user:', userId);
+      
       const notifications = await this.getAllNotifications(userId);
       
       const stats = {
@@ -199,6 +306,8 @@ class NotificationsService {
           activity: notifications.filter(n => n.type === 'activity').length,
           user: notifications.filter(n => n.type === 'user').length,
           system: notifications.filter(n => n.type === 'system').length,
+          volunteer_request: notifications.filter(n => n.type === 'volunteer_request').length,
+          welcome: notifications.filter(n => n.type === 'welcome').length,
           info: notifications.filter(n => n.type === 'info').length
         },
         recent: notifications.filter(n => {
@@ -210,40 +319,133 @@ class NotificationsService {
 
       console.log('📊 NotificationsService: Notification stats:', stats);
       return stats;
+      
     } catch (error) {
       console.error('❌ NotificationsService: Error getting notification stats:', error);
       throw error;
     }
   }
 
-  // ============= STORAGE HELPERS =============
-
-  getStoredNotifications() {
+  // ============= VOLUNTEER REQUEST MANAGEMENT =============
+  
+  async approveVolunteerRequest(requestId) {
     try {
-      const casiraData = localStorage.getItem('casira-data');
-      if (casiraData) {
-        const data = JSON.parse(casiraData);
-        return data.notifications || this.getDefaultNotifications();
+      console.log('✅ NotificationsService: Approving volunteer request:', requestId);
+      
+      // 1. Obtener la solicitud
+      const { data: request, error: requestError } = await supabase
+        .from('volunteer_requests')
+        .select(`
+          *,
+          user:users!volunteer_requests_user_id_fkey(*),
+          activity:activities!volunteer_requests_activity_id_fkey(*)
+        `)
+        .eq('id', requestId)
+        .single();
+        
+      if (requestError || !request) {
+        throw new Error('Solicitud no encontrada');
       }
-      return this.getDefaultNotifications();
+      
+      // 2. Actualizar estado de la solicitud
+      const { error: updateError } = await supabase
+        .from('volunteer_requests')
+        .update({ 
+          status: 'approved',
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // 3. Agregar a participantes
+      await supabase
+        .from('activity_participants')
+        .insert({
+          activity_id: request.activity_id,
+          user_id: request.user_id,
+          role: 'volunteer',
+          status: 'confirmed'
+        });
+      
+      // 4. Crear notificación de aprobación
+      await this.createNotification({
+        user_id: request.user_id,
+        type: 'volunteer_approved',
+        title: '🎉 ¡Solicitud Aprobada!',
+        message: `Tu solicitud para participar en "${request.activity?.title}" ha sido aprobada. ¡Bienvenido al equipo!`,
+        data: JSON.stringify({
+          activity_id: request.activity_id,
+          volunteer_request_id: requestId
+        })
+      });
+      
+      console.log('✅ NotificationsService: Volunteer request approved successfully');
+      return request;
+      
     } catch (error) {
-      console.error('Error getting stored notifications:', error);
-      return this.getDefaultNotifications();
+      console.error('❌ NotificationsService: Error approving volunteer request:', error);
+      throw error;
     }
   }
 
-  saveNotifications(notifications) {
+  async rejectVolunteerRequest(requestId, reason = '') {
     try {
-      let casiraData = {};
-      const existingData = localStorage.getItem('casira-data');
-      if (existingData) {
-        casiraData = JSON.parse(existingData);
+      console.log('❌ NotificationsService: Rejecting volunteer request:', requestId);
+      
+      // 1. Obtener la solicitud
+      const { data: request, error: requestError } = await supabase
+        .from('volunteer_requests')
+        .select(`
+          *,
+          user:users!volunteer_requests_user_id_fkey(*),
+          activity:activities!volunteer_requests_activity_id_fkey(*)
+        `)
+        .eq('id', requestId)
+        .single();
+        
+      if (requestError || !request) {
+        throw new Error('Solicitud no encontrada');
       }
-      casiraData.notifications = notifications;
-      localStorage.setItem('casira-data', JSON.stringify(casiraData));
-      console.log('💾 NotificationsService: Notifications saved to storage');
+      
+      // 2. Actualizar estado de la solicitud
+      const { error: updateError } = await supabase
+        .from('volunteer_requests')
+        .update({ 
+          status: 'rejected',
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+        
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // 3. Crear notificación de rechazo
+      const rejectionMessage = reason ? 
+        `Tu solicitud para "${request.activity?.title}" no fue aprobada. Razón: ${reason}` :
+        `Tu solicitud para "${request.activity?.title}" no fue aprobada en esta ocasión.`;
+      
+      await this.createNotification({
+        user_id: request.user_id,
+        type: 'volunteer_rejected',
+        title: '📋 Solicitud No Aprobada',
+        message: rejectionMessage,
+        data: JSON.stringify({
+          activity_id: request.activity_id,
+          volunteer_request_id: requestId,
+          reason: reason
+        })
+      });
+      
+      console.log('❌ NotificationsService: Volunteer request rejected successfully');
+      return request;
+      
     } catch (error) {
-      console.error('❌ NotificationsService: Error saving notifications:', error);
+      console.error('❌ NotificationsService: Error rejecting volunteer request:', error);
+      throw error;
     }
   }
 
@@ -285,43 +487,6 @@ class NotificationsService {
       profile_updated: 'Tu perfil ha sido actualizado correctamente.'
     };
     return messages[type] || `Actualización para ${userData.first_name}`;
-  }
-
-  getDefaultNotifications() {
-    return [
-      {
-        id: 1,
-        title: "🎉 ¡Bienvenido a CASIRA Connect!",
-        message: "Gracias por unirte a nuestra plataforma. Explora las actividades disponibles.",
-        type: "system",
-        user_id: "all",
-        read: false,
-        created_at: "2024-01-01T10:00:00Z",
-        action_url: "/activities"
-      },
-      {
-        id: 2,
-        title: "🆕 Nueva actividad: Taller de Programación",
-        message: "Se ha creado una nueva actividad de programación básica. ¡Inscríbete ahora!",
-        type: "activity",
-        activity_id: 1,
-        user_id: "all",
-        read: false,
-        created_at: "2024-01-05T14:30:00Z",
-        action_url: "/activities/1"
-      },
-      {
-        id: 3,
-        title: "📢 Campaña de donación activa",
-        message: "Únete a nuestra campaña de recolección de útiles escolares.",
-        type: "activity", 
-        activity_id: 2,
-        user_id: "all",
-        read: false,
-        created_at: "2024-01-10T09:00:00Z",
-        action_url: "/activities/2"
-      }
-    ];
   }
 }
 

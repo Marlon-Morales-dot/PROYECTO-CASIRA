@@ -32,18 +32,8 @@ class UnifiedGoogleAuthService {
     try {
       console.log('🚀 Unified Google Auth: Comenzando inicialización...');
 
-      // Método 1: Intentar con Google Identity Services (nueva API)
-      try {
-        await this._loadGoogleIdentityServices();
-        await this._setupGoogleIdentity();
-        this.authMethod = 'identity';
-        console.log('✅ Google Identity Services inicializado');
-        return true;
-      } catch (identityError) {
-        console.warn('⚠️ Google Identity falló:', identityError.message);
-      }
-
-      // Método 2: Fallback a gapi.auth2 (API clásica)
+      // TEMPORAL: Usar solo gapi.auth2 para evitar problemas de origen
+      console.log('🔄 TEMPORAL: Forzando uso de gapi.auth2 clásico...');
       try {
         await this._loadGoogleAPI();
         await this._setupGoogleAuth2();
@@ -101,16 +91,8 @@ class UnifiedGoogleAuthService {
           use_fedcm_for_prompt: false
         });
 
-        // Inicializar token client para popup flow sin COOP issues
-        this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: this.config.clientId,
-          scope: this.config.scopes,
-          callback: this._handleTokenResponse.bind(this),
-          // Configuración específica para evitar COOP
-          error_callback: (error) => {
-            console.log('Token client error:', error);
-          }
-        });
+        // Configurar One Tap como método principal (sin popup)
+        this.useOneTap = true;
 
         this.isInitialized = true;
         resolve();
@@ -190,26 +172,40 @@ class UnifiedGoogleAuthService {
 
   async _signInWithIdentity() {
     return new Promise((resolve, reject) => {
-      // Usar token client en lugar de popup directo para evitar COOP
-      this.tokenClient.callback = async (response) => {
-        try {
-          if (response.error) {
-            throw new Error(response.error);
+      // Usar One Tap para evitar COOP completamente
+      try {
+        // Configurar callback temporal
+        const originalCallback = window.google.accounts.id.initialize.callback;
+        
+        window.google.accounts.id.initialize({
+          client_id: this.config.clientId,
+          callback: async (credential) => {
+            try {
+              const userInfo = this._parseJWT(credential.credential);
+              const casiraUser = await this._processGoogleUser(userInfo, 'identity');
+              resolve(casiraUser);
+            } catch (error) {
+              reject(error);
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          use_fedcm_for_prompt: false
+        });
+        
+        // Mostrar One Tap
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            reject(new Error('Google Sign-In no se pudo mostrar'));
           }
-
-          // Obtener información del usuario con el token
-          const userInfo = await this._fetchUserInfo(response.access_token);
-          const casiraUser = await this._processGoogleUser(userInfo, 'identity');
-          resolve(casiraUser);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      // Solicitar token sin popup problemático
-      this.tokenClient.requestAccessToken({
-        prompt: 'consent'
-      });
+          if (notification.isSkippedMoment()) {
+            reject(new Error('Google Sign-In fue omitido por el usuario'));
+          }
+        });
+        
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -314,6 +310,87 @@ class UnifiedGoogleAuthService {
         } catch (fallbackError) {
           console.error('❌ Error en fallback de storage:', fallbackError);
         }
+      }
+
+      // ============= SYNC OBLIGATORIO CON SUPABASE =============
+      try {
+        console.log('🔄 CASIRA: Sincronizando usuario Google con Supabase...');
+        
+        // Importar supabaseAPI
+        const { supabaseAPI } = await import('../supabase-api.js');
+        
+        // Verificar si el usuario ya existe en Supabase
+        let existingUser = null;
+        try {
+          existingUser = await supabaseAPI.users.getUserByEmail(userData.email);
+        } catch (error) {
+          console.log('📧 Usuario no existe aún en Supabase, se creará...');
+        }
+        
+        if (!existingUser) {
+          // Crear nuevo usuario en Supabase - OBLIGATORIO
+          console.log('👤 Creando nuevo usuario Google en Supabase...');
+          const supabaseUser = await supabaseAPI.users.createUser({
+            email: userData.email,
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            role: userData.role,
+            bio: `Usuario registrado vía Google Auth - ${new Date().toLocaleDateString()}`,
+            avatar_url: userData.avatar_url
+          });
+          
+          if (!supabaseUser || !supabaseUser.id) {
+            throw new Error('No se pudo crear usuario en Supabase');
+          }
+          
+          console.log('✅ CASIRA: Usuario Google creado en Supabase:', supabaseUser.id);
+          
+          // Actualizar userData con el ID de Supabase
+          userData.supabase_id = supabaseUser.id;
+          
+          // Crear notificación de bienvenida en Supabase
+          try {
+            const { supabase } = await import('../supabase-client.js');
+            await supabase
+              .from('notifications')
+              .insert({
+                user_id: supabaseUser.id,
+                type: 'welcome',
+                title: '🎉 ¡Bienvenido a CASIRA!',
+                message: `Hola ${userData.first_name}, gracias por unirte a nuestra comunidad. Explora las actividades disponibles y comienza a hacer la diferencia.`,
+                data: JSON.stringify({ welcome: true, provider: 'google' })
+              });
+            console.log('🔔 Notificación de bienvenida creada');
+          } catch (notifError) {
+            console.warn('⚠️ Error creando notificación de bienvenida:', notifError);
+          }
+          
+        } else {
+          // Actualizar usuario existente en Supabase - OBLIGATORIO
+          console.log('🔄 Actualizando usuario Google existente en Supabase...');
+          const updatedUser = await supabaseAPI.users.updateUser(existingUser.id, {
+            avatar_url: userData.avatar_url,
+            first_name: userData.first_name,
+            last_name: userData.last_name
+          });
+          
+          if (!updatedUser) {
+            console.warn('⚠️ No se pudo actualizar usuario, usando datos existentes');
+          } else {
+            console.log('✅ CASIRA: Usuario Google actualizado en Supabase:', updatedUser.id);
+          }
+          
+          // Actualizar userData con el ID de Supabase
+          userData.supabase_id = existingUser.id;
+          userData.role = existingUser.role || userData.role; // Mantener rol existente
+        }
+        
+        console.log('🎉 CASIRA: Sincronización con Supabase OBLIGATORIA completada');
+        
+      } catch (supabaseError) {
+        console.error('❌ CASIRA: Error CRÍTICO sincronizando con Supabase:', supabaseError);
+        // FALLAR el login si no se puede sincronizar con Supabase
+        throw new Error(`No se pudo sincronizar con la base de datos: ${supabaseError.message}`);
       }
 
       this.currentUser = userData;

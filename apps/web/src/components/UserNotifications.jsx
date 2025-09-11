@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, CheckCircle, Clock, X, AlertCircle, Heart, MessageCircle, Users, Award, Star, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { notificationsAPI, volunteersAPI, dataStore } from '../lib/api.js';
+import { supabaseAPI } from '../lib/supabase-api.js';
 
 const UserNotifications = ({ user, onClose }) => {
   const [notifications, setNotifications] = useState([]);
@@ -17,93 +17,152 @@ const UserNotifications = ({ user, onClose }) => {
   const loadUserNotifications = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 NOTIF: Loading notifications from Supabase for user:', user.email);
       
-      // Cargar notificaciones específicas del usuario
-      let userNotifications = [];
+      // Obtener el ID del usuario en Supabase (puede ser UUID o email)
+      let supabaseUserId = user.supabase_id || user.id;
       
-      // Si es visitante, obtener estado de sus solicitudes
-      if (user.role === 'visitor') {
-        const registrations = await volunteersAPI.getUserRegistrations(user.id);
-        
-        userNotifications = registrations.map(registration => {
-          const activity = dataStore?.activities?.find(a => a.id == registration.activity_id);
-          
-          return {
-            id: `reg-${registration.id}`,
-            type: registration.status === 'confirmed' ? 'request_approved' : 'request_pending',
-            title: registration.status === 'confirmed' ? 
-              '✅ ¡Solicitud Aprobada!' : 
-              '⏳ Solicitud en Revisión',
-            message: registration.status === 'confirmed' ? 
-              `Tu solicitud para "${activity?.title || 'la actividad'}" ha sido aprobada. ¡Bienvenido al equipo!` :
-              `Tu solicitud para "${activity?.title || 'la actividad'}" está siendo revisada por nuestro equipo.`,
-            created_at: registration.registration_date,
-            read: false,
-            activity: activity,
-            status: registration.status
-          };
-        });
+      // Para usuarios de Google, usar email si el ID no es UUID válido
+      if (!supabaseUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supabaseUserId)) {
+        supabaseUserId = user.email;
       }
       
-      // Si es voluntario, mostrar responsabilidades y actualizaciones
-      if (user.role === 'volunteer' || user.role === 'donor') {
-        const registrations = await volunteersAPI.getUserRegistrations(user.id);
+      console.log('🆔 NOTIF: Using Supabase user ID:', supabaseUserId);
+      
+      // 1. Obtener notificaciones directas del usuario desde Supabase
+      let userNotifications = [];
+      try {
+        const directNotifications = await supabaseAPI.notifications.getUserNotifications(supabaseUserId);
+        console.log('📨 NOTIF: Found direct notifications:', directNotifications.length);
+        userNotifications.push(...directNotifications);
+      } catch (error) {
+        console.warn('⚠️ NOTIF: Error loading direct notifications:', error);
+      }
+      
+      // 2. Obtener solicitudes de voluntario y convertirlas en notificaciones
+      try {
+        // Buscar solicitudes del usuario por email (para usuarios de Google)
+        const { supabase } = await import('../lib/supabase-client.js');
+        const { data: volunteerRequests, error } = await supabase
+          .from('volunteer_requests')
+          .select(`
+            *,
+            activity:activities!volunteer_requests_activity_id_fkey(*)
+          `)
+          .or(`user_id.eq.${supabaseUserId},user_id.eq.${user.email}`)
+          .order('created_at', { ascending: false });
         
-        // Notificaciones de responsabilidades
-        const responsibilityNotifications = registrations
-          .filter(r => r.status === 'confirmed')
-          .map(registration => {
-            const activity = dataStore?.activities?.find(a => a.id == registration.activity_id);
-            
-            return {
-              id: `resp-${registration.id}`,
+        if (error) {
+          console.error('❌ NOTIF: Error fetching volunteer requests:', error);
+        } else {
+          console.log('📋 NOTIF: Found volunteer requests:', volunteerRequests?.length || 0);
+          
+          // Convertir solicitudes a notificaciones
+          const requestNotifications = (volunteerRequests || []).map(request => ({
+            id: `volunteer-request-${request.id}`,
+            type: request.status === 'approved' ? 'request_approved' : 
+                  request.status === 'rejected' ? 'request_rejected' : 'request_pending',
+            title: request.status === 'approved' ? '✅ ¡Solicitud Aprobada!' : 
+                   request.status === 'rejected' ? '❌ Solicitud Rechazada' :
+                   '⏳ Solicitud en Revisión',
+            message: request.status === 'approved' ? 
+              `Tu solicitud para "${request.activity?.title || 'la actividad'}" ha sido aprobada. ¡Bienvenido al equipo!` :
+              request.status === 'rejected' ?
+              `Tu solicitud para "${request.activity?.title || 'la actividad'}" no fue aprobada.` :
+              `Tu solicitud para "${request.activity?.title || 'la actividad'}" está siendo revisada por nuestro equipo.`,
+            created_at: request.created_at,
+            read: false,
+            activity: request.activity,
+            status: request.status,
+            volunteer_request_id: request.id
+          }));
+          
+          userNotifications.push(...requestNotifications);
+        }
+      } catch (error) {
+        console.warn('⚠️ NOTIF: Error loading volunteer requests:', error);
+      }
+      
+      // 3. Obtener participaciones confirmadas para mostrar responsabilidades
+      try {
+        const { supabase } = await import('../lib/supabase-client.js');
+        const { data: participations, error } = await supabase
+          .from('activity_participants')
+          .select(`
+            *,
+            activity:activities!activity_participants_activity_id_fkey(*)
+          `)
+          .or(`user_id.eq.${supabaseUserId},user_id.eq.${user.email}`)
+          .eq('status', 'confirmed')
+          .order('created_at', { ascending: false });
+        
+        if (!error && participations) {
+          console.log('🎯 NOTIF: Found confirmed participations:', participations.length);
+          
+          // Crear notificaciones de responsabilidades solo para voluntarios/donantes
+          if (user.role === 'volunteer' || user.role === 'donor') {
+            const responsibilityNotifications = participations.map(participation => ({
+              id: `responsibility-${participation.id}`,
               type: 'responsibility',
               title: '📋 Tienes Responsabilidades Pendientes',
-              message: `Como voluntario confirmado en "${activity?.title}", tienes tareas asignadas que requieren tu atención.`,
-              created_at: registration.registration_date,
+              message: `Como voluntario confirmado en "${participation.activity?.title}", tienes tareas asignadas que requieren tu atención.`,
+              created_at: participation.created_at,
               read: false,
-              activity: activity,
-              status: registration.status
-            };
-          });
-        
-        userNotifications.push(...responsibilityNotifications);
+              activity: participation.activity,
+              status: 'confirmed'
+            }));
+            
+            userNotifications.push(...responsibilityNotifications);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ NOTIF: Error loading participations:', error);
       }
       
-      // Agregar notificaciones sociales (likes, comentarios)
-      const socialNotifications = [
-        {
-          id: 'social-1',
-          type: 'social',
-          title: '❤️ Tu Participación Está Generando Impacto',
-          message: 'Tus contribuciones han recibido 15 me gusta esta semana. ¡La comunidad aprecia tu compromiso!',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 'social-2',
-          type: 'social',
-          title: '💬 Nuevos Comentarios en tus Actividades',
-          message: '3 personas han comentado en las actividades donde participas. ¡Ve las conversaciones!',
-          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          read: false
-        }
-      ];
-      
+      // 4. Agregar notificaciones de engagement social (solo si no es admin)
       if (user.role !== 'admin') {
+        const socialNotifications = [
+          {
+            id: 'social-1',
+            type: 'social',
+            title: '❤️ Tu Participación Está Generando Impacto',
+            message: 'Tus contribuciones han recibido reconocimiento de la comunidad. ¡Sigue participando!',
+            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            read: false
+          },
+          {
+            id: 'social-2',
+            type: 'social',
+            title: '💬 Interacciones de la Comunidad',
+            message: 'La comunidad ha mostrado interés en las actividades donde participas.',
+            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            read: false
+          }
+        ];
+        
         userNotifications.push(...socialNotifications);
       }
       
+      // Eliminar duplicados por ID
+      const uniqueNotifications = userNotifications.reduce((acc, notification) => {
+        if (!acc.find(n => n.id === notification.id)) {
+          acc.push(notification);
+        }
+        return acc;
+      }, []);
+      
       // Ordenar por fecha (más recientes primero)
-      userNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      uniqueNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       
-      setNotifications(userNotifications);
-      setUnreadCount(userNotifications.filter(n => !n.read).length);
+      setNotifications(uniqueNotifications);
+      setUnreadCount(uniqueNotifications.filter(n => !n.read).length);
       
-      console.log('Loaded user notifications:', userNotifications.length);
+      console.log('✅ NOTIF: Loaded notifications from Supabase:', uniqueNotifications.length);
       
     } catch (error) {
-      console.error('Error loading user notifications:', error);
+      console.error('❌ NOTIF: Error loading user notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setIsLoading(false);
     }

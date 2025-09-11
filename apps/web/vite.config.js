@@ -25,11 +25,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), copyRedirectsPlugin()],
   base: '/',
   server: {
+    port: 5173,
+    strictPort: true, // Forzar puerto 5173, fallar si está ocupado
+    host: true, // Permitir acceso desde red local
     historyApiFallback: true,
     headers: {
-      'Cross-Origin-Opener-Policy': 'unsafe-none',
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       'Cross-Origin-Embedder-Policy': 'unsafe-none',
-      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://ssl.gstatic.com https://www.google.com https://*.gstatic.com https://gstatic.com; frame-src 'self' https://accounts.google.com https://content.googleapis.com https://www.google.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://proyecto-casira.onrender.com https://wlliqmcpiiktcdzwzhdn.supabase.co https://*.supabase.co; img-src 'self' data: blob: https://* http://* https://images.unsplash.com https://unsplash.com https://*.unsplash.com https://pixabay.com https://cdn.pixabay.com https://pexels.com https://images.pexels.com https://imgur.com https://i.imgur.com https://githubusercontent.com https://raw.githubusercontent.com https://cloudinary.com https://*.cloudinary.com https://amazonaws.com https://*.amazonaws.com https://ui-avatars.com https://api.dicebear.com https://avatar.vercel.sh https://vercel.sh https://lh3.googleusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.google.com/gsi/style https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://ssl.gstatic.com https://www.google.com https://*.gstatic.com https://gstatic.com https://*.googleapis.com; frame-src 'self' https://accounts.google.com https://content.googleapis.com https://www.google.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://proyecto-casira.onrender.com https://wlliqmcpiiktcdzwzhdn.supabase.co https://*.supabase.co https://*.googleapis.com; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.google.com/gsi/style https://fonts.googleapis.com https://*.gstatic.com https://gstatic.com; font-src 'self' https://fonts.gstatic.com https://*.gstatic.com; report-uri /dev/null;"
     }
   },
   build: {

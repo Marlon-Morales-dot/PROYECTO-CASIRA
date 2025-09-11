@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw, X, Globe, Shield, Activity, MapPin } from 'lucide-react';
 import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
+import adminService from '../lib/services/admin.service.js';
+import LogoutButton from './LogoutButton.jsx';
+import e from 'cors';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -10,6 +13,8 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('checking'); // 'online', 'offline', 'checking'
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
   
   // New states for registrations/notifications management
   const [notifications, setNotifications] = useState([]);
@@ -20,6 +25,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [formData, setFormData] = useState({
+  
     title: '',
     description: '',
     detailed_description: '',
@@ -41,6 +47,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [imageOption, setImageOption] = useState('url'); // 'url' or 'upload'
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     checkConnectionStatus();
@@ -87,27 +94,33 @@ const AdminDashboard = ({ user, onLogout }) => {
     try {
       setIsLoading(true);
       
-      const [activitiesData, categoriesData, statsData, notificationsData, registrationsData, usersData] = await Promise.all([
-        activitiesAPI.getPublicActivities(),
+      // FORCE SUPABASE CONNECTION - Real admin functionality
+      console.log('🚀 AdminDashboard: Loading data from Supabase ONLY...');
+      
+      // Cargar solicitudes de voluntarios desde Supabase usando el nuevo handler
+      const { getPendingVolunteerRequests } = await import('../lib/volunteer-request-handler.js');
+      const pendingRequests = await getPendingVolunteerRequests();
+      
+      const [activitiesData, categoriesData, statsData, notificationsData, usersData] = await Promise.all([
+        activitiesAPI.getAllActivities(), // Force Supabase - getAllActivities connects to Supabase
         categoriesAPI.getAllCategories(),
-        statsAPI.getDashboardStats(),
-        notificationsAPI.getAdminNotifications(),
-        volunteersAPI.getAllRegistrations(),
-        usersAPI.getAllUsers()
+        adminService.getAdminStats(),     // Usar el nuevo servicio de admin
+        adminService.getAllNotifications(), // Usar el nuevo servicio de admin
+        adminService.getAllUsers()          // Usar el nuevo servicio de admin
       ]);
       
       setActivities(activitiesData || []);
       setCategories(categoriesData || []);
       setStats(statsData || {});
       setNotifications(notificationsData || []);
-      setRegistrations(registrationsData || []);
+      setRegistrations(pendingRequests || []);
       setAllUsers(usersData || []);
       
       console.log('Admin data loaded successfully:', {
         activities: activitiesData?.length || 0,
         categories: categoriesData?.length || 0,
         notifications: notificationsData?.length || 0,
-        registrations: registrationsData?.length || 0,
+        registrations: pendingRequests?.length || 0,
         users: usersData?.length || 0
       });
       
@@ -152,7 +165,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target.result);
-        setFormData(prev => ({ ...prev, image_url: e.target.result }));
+        // Don't set image_url yet - will be set after Supabase upload
       };
       reader.readAsDataURL(file);
     }
@@ -180,6 +193,14 @@ const AdminDashboard = ({ user, onLogout }) => {
   const handleCreateActivity = async (e) => {
     e.preventDefault();
     
+    // Prevent multiple submissions
+    if (isCreating) {
+      console.log('⚠️ Activity creation already in progress, ignoring duplicate submission');
+      return;
+    }
+    
+    setIsCreating(true);
+    
     // Validation
     if (!formData.title.trim()) {
       alert('El título es requerido');
@@ -203,27 +224,79 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
     
     try {
-      // Prepare activity data with proper date formatting
+      // Get current user ID for activity creation
+      let userId = user?.supabase_id || user?.id;
+      console.log('🔍 Current user for activity creation:', {
+        user: user,
+        userId: userId,
+        email: user?.email
+      });
+
+      // Ensure we have admin access
+      if (user?.role !== 'admin') {
+        throw new Error('Solo los administradores pueden crear actividades');
+      }
+
+      // Handle image - either URL or file upload to Supabase Storage
+      let finalImageUrl = formData.image_url || '/grupo-canadienses.jpg';
+      
+      if (selectedFile) {
+        try {
+          console.log('📷 Uploading image file to Supabase Storage...');
+          // Import the storage API directly from supabase
+          const { storageAPI } = await import('../lib/supabase.js');
+          
+          // Generate unique filename
+          const timestamp = Date.now();
+          const filename = `activity_${timestamp}_${selectedFile.name}`;
+          
+          // Upload to Supabase Storage
+          const uploadResult = await storageAPI.uploadImage(
+            selectedFile, 
+            userId, 
+            null, // activity_id will be null for new activities
+            filename
+          );
+          
+          finalImageUrl = uploadResult.url;
+          console.log('✅ Image file uploaded successfully:', finalImageUrl);
+        } catch (uploadError) {
+          console.error('❌ Image file upload failed:', uploadError);
+          // Use preview as fallback for now
+          finalImageUrl = imagePreview || formData.image_url || '/grupo-canadienses.jpg';
+          console.log('⚠️ Using fallback image URL:', finalImageUrl);
+        }
+      } else if (formData.image_url && formData.image_url.startsWith('http')) {
+        // URL provided - validate it before using
+        console.log('🔗 Validating provided image URL:', formData.image_url);
+        const { storageAPI } = await import('../lib/supabase.js');
+        finalImageUrl = await storageAPI.getWorkingImageUrl(formData.image_url);
+        console.log('✅ Using validated image URL:', finalImageUrl);
+      }
+
+      // Prepare activity data with proper date formatting and user ID
       const activityData = {
         ...formData,
-        created_by: user.id,
+        created_by: userId, // Use current user ID
         requirements: formData.requirements.filter(r => r.trim()),
         benefits: formData.benefits.filter(b => b.trim()),
         max_volunteers: parseInt(formData.max_volunteers) || null,
         // Ensure proper date format
-        date: formData.start_date, // Add backwards compatibility
-        start_date: formData.start_date,
-        end_date: formData.end_date || formData.start_date,
-        // Use selected file as base64 if uploaded, otherwise use URL
-        image_url: imagePreview || formData.image_url || '/grupo-canadienses.jpg',
+        date_start: formData.start_date, // Supabase uses date_start
+        date_end: formData.end_date || formData.start_date, // Supabase uses date_end
+        // Use uploaded image URL or fallback
+        image_url: finalImageUrl,
         current_volunteers: 0,
         // Ensure proper category assignment
-        category_id: formData.category_id ? parseInt(formData.category_id) : null
+        category_id: formData.category_id ? parseInt(formData.category_id) : null,
+        // Force public visibility and active status for new activities
+        visibility: 'public',
+        status: formData.status || 'active'
       };
 
-      console.log('Creating activity with data:', activityData);
+      console.log('🚀 Creating activity with enhanced data:', activityData);
       const result = await activitiesAPI.createActivity(activityData);
-      console.log('Activity created successfully:', result);
+      console.log('✅ Activity created successfully:', result);
       
       // Reset form
       setFormData({
@@ -251,6 +324,8 @@ const AdminDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error creating activity:', error);
       alert('Error al crear la actividad. Por favor, intenta nuevamente.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -291,16 +366,82 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const handleUpdateActivity = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isCreating) {
+      console.log('⚠️ Activity update already in progress, ignoring duplicate submission');
+      return;
+    }
+    
+    setIsCreating(true);
+    
     try {
+      // Ensure user has admin access
+      if (user?.role !== 'admin') {
+        throw new Error('Solo los administradores pueden actualizar actividades');
+      }
+
+      // Get user ID for image uploads
+      const userId = user?.id;
+
+      // Handle image - either URL or file upload to Supabase Storage (same logic as create)
+      let finalImageUrl = formData.image_url || editingActivity.image_url || '/grupo-canadienses.jpg';
+      
+      if (selectedFile) {
+        try {
+          console.log('📷 Uploading new image file to Supabase Storage for update...');
+          // Import the storage API directly from supabase
+          const { storageAPI } = await import('../lib/supabase.js');
+          
+          // Generate unique filename
+          const timestamp = Date.now();
+          const filename = `activity_update_${timestamp}_${selectedFile.name}`;
+          
+          // Upload to Supabase Storage using the existing activity ID
+          const uploadResult = await storageAPI.uploadImage(
+            selectedFile, 
+            userId, 
+            editingActivity.id, // Use existing activity ID for proper folder
+            filename
+          );
+          
+          finalImageUrl = uploadResult.url;
+          console.log('✅ Image file uploaded successfully for update:', finalImageUrl);
+        } catch (uploadError) {
+          console.error('❌ Image file upload failed during update:', uploadError);
+          // Use preview as fallback for now
+          finalImageUrl = imagePreview || formData.image_url || editingActivity.image_url || '/grupo-canadienses.jpg';
+          console.log('⚠️ Using fallback image URL for update:', finalImageUrl);
+        }
+      } else if (formData.image_url && formData.image_url.startsWith('http')) {
+        // URL provided - validate it before using (same as create)
+        console.log('🔗 Validating provided image URL for update:', formData.image_url);
+        const { storageAPI } = await import('../lib/supabase.js');
+        finalImageUrl = await storageAPI.getWorkingImageUrl(formData.image_url);
+        console.log('✅ Using validated image URL for update:', finalImageUrl);
+      }
+
+      // Use category_id directly
+      const finalCategoryId = formData.category_id;
+
       const activityData = {
         ...formData,
         requirements: formData.requirements.filter(r => r.trim()),
         benefits: formData.benefits.filter(b => b.trim()),
         max_volunteers: parseInt(formData.max_volunteers) || null,
-        budget: parseFloat(formData.budget) || null
+        budget: parseFloat(formData.budget) || 0,
+        // Ensure proper date fields for Supabase
+        date_start: formData.start_date,
+        date_end: formData.end_date || formData.start_date,
+        // Use processed image URL
+        image_url: finalImageUrl,
+        category_id: finalCategoryId,
+        updated_at: new Date().toISOString()
       };
 
-      await activitiesAPI.updateActivity(editingActivity.id, activityData);
+      console.log('🔄 Updating activity:', editingActivity.id, 'with data:', activityData);
+      const result = await activitiesAPI.updateActivity(editingActivity.id, activityData);
+      console.log('✅ Activity updated successfully:', result);
       
       // Reset form
       setFormData({
@@ -330,19 +471,30 @@ const AdminDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error updating activity:', error);
       alert('Error al actualizar la actividad: ' + error.message);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   const handleDeleteActivity = async (activityId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta actividad?')) return;
+    // Ensure user has admin access
+    if (user?.role !== 'admin') {
+      alert('Solo los administradores pueden eliminar actividades');
+      return;
+    }
+
+    if (!confirm('¿Estás seguro de que quieres eliminar esta actividad? Esta acción no se puede deshacer.')) return;
     
     try {
-      await activitiesAPI.deleteActivity(activityId);
+      console.log('🗑️ Deleting activity:', activityId);
+      const result = await activitiesAPI.deleteActivity(activityId);
+      console.log('✅ Activity deleted successfully:', result);
+      
       await loadAdminData();
-      alert('Actividad eliminada exitosamente');
+      alert('✅ Actividad eliminada exitosamente de Supabase');
     } catch (error) {
-      console.error('Error deleting activity:', error);
-      alert('Error al eliminar la actividad: ' + error.message);
+      console.error('❌ Error deleting activity:', error);
+      alert('❌ Error al eliminar la actividad: ' + error.message);
     }
   };
 
@@ -370,6 +522,40 @@ const AdminDashboard = ({ user, onLogout }) => {
     });
   };
 
+  // Helper function to identify authentication method
+  const getAuthMethod = (user) => {
+    if (user.provider === 'google' || user.google_id) {
+      return {
+        type: 'google',
+        label: 'Google',
+        icon: <Globe className="h-3 w-3" />,
+        color: 'bg-red-100 text-red-800',
+        description: 'Autenticado con Google'
+      };
+    } else if (user.provider === 'local' || user.provider === 'supabase' || !user.provider) {
+      return {
+        type: 'casira',
+        label: 'CASIRA',
+        icon: <Shield className="h-3 w-3" />,
+        color: 'bg-blue-100 text-blue-800',
+        description: 'Registro directo en CASIRA'
+      };
+    }
+    return {
+      type: 'unknown',
+      label: 'Desconocido',
+      icon: <AlertCircle className="h-3 w-3" />,
+      color: 'bg-gray-100 text-gray-800',
+      description: 'Método de autenticación desconocido'
+    };
+  };
+
+  // Enhanced user details handler
+  const handleViewUserDetails = (user) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+  };
+
   const handleResetData = () => {
     if (confirm('¿Estás seguro de que quieres resetear todos los datos a los valores por defecto? Esta acción no se puede deshacer.')) {
       resetDataToDefaults();
@@ -378,34 +564,42 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Functions for managing registrations and notifications
-  const handleApproveVolunteer = async (notificationId) => {
+  // Functions for managing registrations and notifications - SUPABASE ONLY
+  const handleApproveVolunteer = async (requestId) => {
     try {
-      console.log('Approving volunteer notification:', notificationId);
-      const result = await notificationsAPI.approveVolunteerRequest(notificationId);
-      console.log('Approval result:', result);
+      console.log('🔄 ADMIN: Approving volunteer request in Supabase:', requestId);
       
-      await loadAdminData(); // Reload data
+      // Usar el nuevo servicio de notificaciones que maneja todo en Supabase
+      const { default: notificationsService } = await import('../lib/services/notifications.service.js');
+      
+      const result = await notificationsService.approveVolunteerRequest(requestId);
+      console.log('✅ ADMIN: Approval result:', result);
+      
+      await loadAdminData(); // Reload data from Supabase
       alert('✅ Voluntario aprobado exitosamente. El usuario ha sido notificado y puede comenzar a participar.');
     } catch (error) {
-      console.error('Error approving volunteer:', error);
-      alert('Error al aprobar voluntario. Por favor, intenta nuevamente.');
+      console.error('❌ ADMIN: Error approving volunteer:', error);
+      alert(`Error al aprobar voluntario: ${error.message}`);
     }
   };
 
-  const handleRejectVolunteer = async (notificationId, reason = '') => {
+  const handleRejectVolunteer = async (requestId, reason = '') => {
     try {
       const rejectionReason = reason || prompt('¿Razón del rechazo? (opcional)\nEsto ayudará al usuario a entender el motivo.') || 'No especificada';
       
-      console.log('Rejecting volunteer notification:', notificationId, 'with reason:', rejectionReason);
-      const result = await notificationsAPI.rejectVolunteerRequest(notificationId, rejectionReason);
-      console.log('Rejection result:', result);
+      console.log('🔄 ADMIN: Rejecting volunteer request in Supabase:', requestId, 'with reason:', rejectionReason);
       
-      await loadAdminData(); // Reload data
+      // Usar el nuevo servicio de notificaciones que maneja todo en Supabase
+      const { default: notificationsService } = await import('../lib/services/notifications.service.js');
+      
+      const result = await notificationsService.rejectVolunteerRequest(requestId, rejectionReason);
+      console.log('✅ ADMIN: Rejection result:', result);
+      
+      await loadAdminData(); // Reload data from Supabase
       alert('❌ Solicitud rechazada. El usuario ha sido notificado con la razón proporcionada.');
     } catch (error) {
-      console.error('Error rejecting volunteer:', error);
-      alert('Error al rechazar solicitud. Por favor, intenta nuevamente.');
+      console.error('❌ ADMIN: Error rejecting volunteer:', error);
+      alert(`Error al rechazar voluntario: ${error.message}`);
     }
   };
 
@@ -417,7 +611,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       if (!confirm(`¿Estás seguro de que quieres bloquear a ${userName}?\n\nEsta acción impedirá que el usuario acceda al sistema.`)) return;
       
       console.log('Blocking user:', userId);
-      await usersAPI.blockUser(userId);
+      await adminService.blockUser(userId);
       await loadAdminData(); // Reload data
       alert(`✅ Usuario ${userName} bloqueado exitosamente.\n\nEl usuario no podrá acceder al sistema hasta que sea desbloqueado.`);
     } catch (error) {
@@ -432,7 +626,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       const userName = user ? `${user.first_name} ${user.last_name}` : 'este usuario';
       
       console.log('Unblocking user:', userId);
-      await usersAPI.unblockUser(userId);
+      await adminService.unblockUser(userId);
       await loadAdminData(); // Reload data
       alert(`✅ Usuario ${userName} desbloqueado exitosamente.\n\nEl usuario puede acceder normalmente al sistema.`);
     } catch (error) {
@@ -456,12 +650,72 @@ const AdminDashboard = ({ user, onLogout }) => {
       if (!confirm(`¿Cambiar el rol de ${userName} a ${roleNames[newRole] || newRole}?`)) return;
       
       console.log('Changing user role:', userId, 'to', newRole);
-      await usersAPI.updateUserRole(userId, newRole);
+      await adminService.updateUserRole(userId, newRole);
       await loadAdminData(); // Reload data
       alert(`✅ Rol de ${userName} cambiado exitosamente a ${roleNames[newRole] || newRole}.`);
     } catch (error) {
       console.error('Error changing user role:', error);
       alert('Error al cambiar rol del usuario. Por favor, intenta nuevamente.');
+    }
+  };
+
+  const handleApproveRegistration = async (registrationId) => {
+    try {
+      const registration = Array.isArray(registrations) ? registrations.find(r => r.id == registrationId) : null;
+      let user = null;
+      let userName = 'este usuario';
+      
+      if (registration) {
+        if (registration.source === 'localStorage' && registration.user_email) {
+          // Use embedded user data for localStorage requests
+          userName = registration.user_name || registration.user_email;
+        } else {
+          // For Supabase requests, find user in allUsers array
+          user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id || u.email === registration.user_id) : null;
+          userName = user ? `${user.first_name} ${user.last_name}` : 'este usuario';
+        }
+      }
+      
+      if (!confirm(`¿Estás seguro de que quieres aprobar el registro de ${userName}?`)) return;
+      
+      console.log('Approving registration:', registrationId);
+      await adminService.approveRegistration(registrationId);
+      await loadAdminData(); // Reload data
+      alert(`✅ Registro de ${userName} aprobado exitosamente.`);
+    } catch (error) {
+      console.error('Error approving registration:', error);
+      alert('Error al aprobar registro. Por favor, intenta nuevamente.');
+    }
+  };
+
+  const handleRejectRegistration = async (registrationId, reason = '') => {
+    try {
+      const registration = Array.isArray(registrations) ? registrations.find(r => r.id == registrationId) : null;
+      let user = null;
+      let userName = 'este usuario';
+      
+      if (registration) {
+        if (registration.source === 'localStorage' && registration.user_email) {
+          // Use embedded user data for localStorage requests
+          userName = registration.user_name || registration.user_email;
+        } else {
+          // For Supabase requests, find user in allUsers array
+          user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id || u.email === registration.user_id) : null;
+          userName = user ? `${user.first_name} ${user.last_name}` : 'este usuario';
+        }
+      }
+      
+      const rejectionReason = reason || prompt('¿Razón del rechazo? (opcional)\nEsto ayudará al usuario a entender el motivo.') || 'No especificada';
+      
+      if (!confirm(`¿Estás seguro de que quieres rechazar el registro de ${userName}?\n\nRazón: ${rejectionReason}`)) return;
+      
+      console.log('Rejecting registration:', registrationId, 'Reason:', rejectionReason);
+      await adminService.rejectRegistration(registrationId, rejectionReason);
+      await loadAdminData(); // Reload data
+      alert(`✅ Registro de ${userName} rechazado exitosamente.`);
+    } catch (error) {
+      console.error('Error rejecting registration:', error);
+      alert('Error al rechazar registro. Por favor, intenta nuevamente.');
     }
   };
 
@@ -504,8 +758,19 @@ const AdminDashboard = ({ user, onLogout }) => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-4 space-y-3 sm:space-y-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-sm mr-3">
-                  <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 mr-4 flex items-center justify-center">
+                  <img 
+                    src="/logo.png" 
+                    alt="CASIRA Logo" 
+                    className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-md"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-sm items-center justify-center hidden">
+                    <Settings className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                  </div>
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
@@ -515,12 +780,14 @@ const AdminDashboard = ({ user, onLogout }) => {
                 </div>
               </div>
               {/* Mobile Logout Button */}
-              <button
-                onClick={onLogout}
-                className="sm:hidden bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-sm btn-touch"
-              >
-                Salir
-              </button>
+              <div className="sm:hidden">
+                <LogoutButton 
+                  user={user}
+                  style="button"
+                  className="bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-sm btn-touch"
+                  showText={false}
+                />
+              </div>
             </div>
             
             {/* Desktop Right Side */}
@@ -553,12 +820,11 @@ const AdminDashboard = ({ user, onLogout }) => {
               <span className="text-sm text-gray-700 hidden lg:block">
                 {user?.first_name} {user?.last_name}
               </span>
-              <button
-                onClick={onLogout}
+              <LogoutButton 
+                user={user}
+                style="button"
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 btn-touch"
-              >
-                Cerrar Sesión
-              </button>
+              />
             </div>
             
             {/* Mobile Connection Status */}
@@ -850,10 +1116,24 @@ const AdminDashboard = ({ user, onLogout }) => {
                                     .filter(r => r.activity_id === activity.id && r.status === 'registered')
                                     .slice(0, 3)
                                     .map((registration, idx) => {
-                                      const user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id) : null;
+                                      let user = null;
+                                      let displayName = 'Usuario';
+                                      let firstChar = '?';
+                                      
+                                      if (registration.source === 'localStorage' && registration.user_email) {
+                                        // Use embedded user data for localStorage requests
+                                        displayName = registration.user_name || registration.user_email;
+                                        firstChar = displayName.charAt(0).toUpperCase();
+                                      } else {
+                                        // For Supabase requests, find user in allUsers array
+                                        user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id) : null;
+                                        displayName = user ? `${user.first_name} ${user.last_name}` : 'Usuario';
+                                        firstChar = user?.first_name?.charAt(0) || '?';
+                                      }
+                                      
                                       return (
-                                        <div key={idx} className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border border-white" title={user ? `${user.first_name} ${user.last_name}` : 'Usuario'}>
-                                          {user?.first_name?.charAt(0) || '?'}
+                                        <div key={idx} className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border border-white" title={displayName}>
+                                          {firstChar}
                                         </div>
                                       );
                                     })
@@ -1009,8 +1289,36 @@ const AdminDashboard = ({ user, onLogout }) => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {Array.isArray(registrations) ? registrations.map((registration) => {
-                          const user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id) : null;
-                          const activity = Array.isArray(activities) ? activities.find(a => a.id == registration.activity_id) : null;
+                          // For localStorage requests, user data is embedded in the registration object
+                          let user = null;
+                          if (registration.source === 'localStorage' && registration.user_email) {
+                            // Use embedded user data for localStorage requests
+                            user = {
+                              id: registration.user_id,
+                              email: registration.user_email,
+                              first_name: registration.user_name?.split(' ')[0] || registration.user_email?.split('@')[0] || 'Usuario',
+                              last_name: registration.user_name?.split(' ').slice(1).join(' ') || '',
+                              full_name: registration.user_name || registration.user_email,
+                              avatar_url: registration.user_avatar,
+                              role: 'visitor' // Default role for localStorage users
+                            };
+                          } else {
+                            // For Supabase requests, find user in allUsers array
+                            user = Array.isArray(allUsers) ? allUsers.find(u => u.id == registration.user_id || u.email === registration.user_id) : null;
+                          }
+                          // For localStorage requests, activity data may be embedded
+                          let activity = null;
+                          if (registration.source === 'localStorage' && registration.activity_title) {
+                            // Use embedded activity data for localStorage requests
+                            activity = {
+                              id: registration.activity_id,
+                              title: registration.activity_title,
+                              description: `Actividad: ${registration.activity_title}`
+                            };
+                          } else {
+                            // For Supabase requests, find activity in activities array
+                            activity = Array.isArray(activities) ? activities.find(a => a.id == registration.activity_id) : null;
+                          }
                           
                           return (
                             <tr key={registration.id}>
@@ -1061,6 +1369,24 @@ const AdminDashboard = ({ user, onLogout }) => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex space-x-2">
+                                  {registration.status === 'pending' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleApproveRegistration(registration.id)}
+                                        className="text-green-600 hover:text-green-900"
+                                        title="Aprobar registro"
+                                      >
+                                        <CheckCircle className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleRejectRegistration(registration.id)}
+                                        className="text-red-600 hover:text-red-900"
+                                        title="Rechazar registro"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  )}
                                   <button
                                     onClick={() => handleRemoveFromActivity(registration.id, registration.activity_id)}
                                     className="text-red-600 hover:text-red-900"
@@ -1243,6 +1569,9 @@ const AdminDashboard = ({ user, onLogout }) => {
                             Rol
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Autenticación
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Estado
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1259,19 +1588,37 @@ const AdminDashboard = ({ user, onLogout }) => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {Array.isArray(allUsers) ? allUsers.map((user) => {
                           const userRegistrations = Array.isArray(registrations) ? registrations.filter(r => r.user_id == user.id) : [];
+                          const authMethod = getAuthMethod(user);
                           
                           return (
                             <tr key={user.id}>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">
-                                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    {user.avatar_url && (user.provider === 'google' || user.google_id) ? (
+                                      <img
+                                        className="h-10 w-10 rounded-full object-cover"
+                                        src={user.avatar_url}
+                                        alt={`${user.first_name} ${user.last_name}`}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div className={`w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold ${user.avatar_url && (user.provider === 'google' || user.google_id) ? 'hidden' : ''}`}>
                                       {user.first_name?.charAt(0) || '?'}
                                     </div>
                                   </div>
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
                                       {user.first_name} {user.last_name}
+                                      {authMethod.type === 'google' && (
+                                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                          <Globe className="h-3 w-3 mr-1" />
+                                          G
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-sm text-gray-500">{user.email}</div>
                                     {user.phone && (
@@ -1293,6 +1640,14 @@ const AdminDashboard = ({ user, onLogout }) => {
                                    user.role === 'donor' ? '💝 Donante' :
                                    user.role === 'visitor' ? '👀 Visitante' : user.role}
                                 </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${authMethod.color}`}>
+                                    {authMethod.icon}
+                                    <span className="ml-1">{authMethod.label}</span>
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex flex-col">
@@ -1378,7 +1733,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                                     </>
                                   )}
                                   <button
-                                    onClick={() => alert(`Detalles de ${user.first_name} ${user.last_name}:\n\nEmail: ${user.email}\nTel: ${user.phone || 'No disponible'}\nUbicación: ${user.location || 'No disponible'}\nBio: ${user.bio || 'No disponible'}`)}
+                                    onClick={() => handleViewUserDetails(user)}
                                     className="text-blue-600 hover:text-blue-900 bg-blue-50 px-2 py-1 rounded text-xs"
                                     title="Ver detalles"
                                   >
@@ -1390,7 +1745,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                           );
                         }) : (
                           <tr>
-                            <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                            <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                               No hay usuarios disponibles
                             </td>
                           </tr>
@@ -1457,6 +1812,228 @@ const AdminDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
+      {/* Enhanced User Details Modal */}
+      {showUserModal && selectedUser && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-gray-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0 h-16 w-16">
+                    {selectedUser.avatar_url && (selectedUser.provider === 'google' || selectedUser.google_id) ? (
+                      <img
+                        className="h-16 w-16 rounded-full object-cover border-2 border-white"
+                        src={selectedUser.avatar_url}
+                        alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-16 h-16 bg-gradient-to-r from-white to-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xl border-2 border-white ${selectedUser.avatar_url && (selectedUser.provider === 'google' || selectedUser.google_id) ? 'hidden' : ''}`}>
+                      {selectedUser.first_name?.charAt(0) || '?'}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      {selectedUser.first_name} {selectedUser.last_name}
+                    </h3>
+                    <p className="text-blue-100 text-sm">{selectedUser.email}</p>
+                    <div className="flex items-center mt-2">
+                      <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                        selectedUser.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                        selectedUser.role === 'volunteer' ? 'bg-green-100 text-green-800' :
+                        selectedUser.role === 'donor' ? 'bg-blue-100 text-blue-800' :
+                        selectedUser.role === 'visitor' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedUser.role === 'admin' ? '👑 Admin' :
+                         selectedUser.role === 'volunteer' ? '🤝 Voluntario' :
+                         selectedUser.role === 'donor' ? '💝 Donante' :
+                         selectedUser.role === 'visitor' ? '👀 Visitante' : selectedUser.role}
+                      </span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                        getAuthMethod(selectedUser).color
+                      }`}>
+                        {getAuthMethod(selectedUser).icon}
+                        <span className="ml-1">{getAuthMethod(selectedUser).label}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowUserModal(false)}
+                  className="p-2 text-white hover:text-gray-200 rounded-full hover:bg-white hover:bg-opacity-10"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Authentication Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Shield className="h-5 w-5 mr-2" />
+                  Información de Autenticación
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Método de Autenticación</label>
+                    <div className="mt-1 flex items-center">
+                      <span className={`inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full ${
+                        getAuthMethod(selectedUser).color
+                      }`}>
+                        {getAuthMethod(selectedUser).icon}
+                        <span className="ml-1">{getAuthMethod(selectedUser).description}</span>
+                      </span>
+                    </div>
+                  </div>
+                  {selectedUser.google_id && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">ID de Google</label>
+                      <p className="mt-1 text-sm text-gray-900 font-mono">{selectedUser.google_id}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Proveedor</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedUser.provider || 'local'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Estado</label>
+                    <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      selectedUser.status === 'blocked' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {selectedUser.status === 'blocked' ? '🚫 Bloqueado' : '✅ Activo'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Información Personal
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedUser.phone || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Ubicación</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedUser.location || 'No disponible'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Biografía</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedUser.bio || 'No disponible'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Activity className="h-5 w-5 mr-2" />
+                  Actividad en la Plataforma
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fecha de Registro</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'No disponible'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Último Acceso</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'No disponible'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Actividades Registradas</label>
+                    <p className="mt-1 text-sm text-gray-900 font-semibold">
+                      {Array.isArray(registrations) ? registrations.filter(r => r.user_id == selectedUser.id).length : 0} actividades
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technical Information (for Google users) */}
+              {(selectedUser.provider === 'google' || selectedUser.google_id) && (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <Globe className="h-5 w-5 mr-2 text-red-600" />
+                    Información de Google
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedUser.avatar_url && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Foto de Perfil</label>
+                        <p className="mt-1 text-xs text-gray-500 break-all">{selectedUser.avatar_url}</p>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email Verificado</label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedUser.verified_email !== undefined ? (selectedUser.verified_email ? '✅ Sí' : '❌ No') : 'No disponible'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowUserModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cerrar
+                </button>
+                {selectedUser.role !== 'admin' && (
+                  <>
+                    {selectedUser.status === 'blocked' ? (
+                      <button
+                        onClick={() => {
+                          handleUnblockUser(selectedUser.id);
+                          setShowUserModal(false);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        Desbloquear Usuario
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          handleBlockUser(selectedUser.id);
+                          setShowUserModal(false);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        Bloquear Usuario
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Activity Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
@@ -1465,11 +2042,11 @@ const AdminDashboard = ({ user, onLogout }) => {
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-md flex items-center justify-center p-1">
+                  <div className="w-10 h-10 flex items-center justify-center">
                     <img 
                       src="/logo.png" 
                       alt="CASIRA" 
-                      className="w-full h-full object-contain"
+                      className="w-10 h-10 object-contain drop-shadow-sm"
                       onError={(e) => {
                         // Fallback al icono SVG si el logo no carga
                         e.target.style.display = 'none';
@@ -1816,9 +2393,17 @@ const AdminDashboard = ({ user, onLogout }) => {
                   </button>
                   <button
                     type="submit"
-                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl focus:ring-2 focus:ring-blue-200"
+                    disabled={isCreating}
+                    className={`w-full sm:w-auto px-6 py-3 border border-transparent rounded-lg text-sm font-semibold transition-all duration-200 shadow-lg hover:shadow-xl focus:ring-2 focus:ring-blue-200 ${
+                      isCreating 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+                    }`}
                   >
-                    {editingActivity ? '✅ Actualizar Actividad' : '✨ Crear Actividad'}
+                    {isCreating 
+                      ? (editingActivity ? '⏳ Actualizando...' : '⏳ Creando...') 
+                      : (editingActivity ? '✅ Actualizar Actividad' : '✨ Crear Actividad')
+                    }
                   </button>
                 </div>
               </form>

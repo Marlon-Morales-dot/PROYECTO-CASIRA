@@ -43,16 +43,25 @@ export const storageAPI = {
   },
 
   // Upload image to storage
-  async uploadImage(file, userId, activityId) {
+  async uploadImage(file, userId, activityId, customFilename = null) {
     try {
-      // Initialize bucket first
-      await this.initializeBucket()
+      // Skip bucket initialization since bucket already exists
+      // await this.initializeBucket()
       
       const fileExt = file.name.split('.').pop()
-      const fileName = `${userId}/${activityId}/${Date.now()}.${fileExt}`
+      // Generate proper activity ID for folder structure
+      const finalActivityId = activityId || `temp_${Date.now()}`
+      
+      // Use custom filename or generate one
+      let fileName
+      if (customFilename) {
+        fileName = `${userId}/${finalActivityId}/${customFilename}`
+      } else {
+        fileName = `${userId}/${finalActivityId}/${Date.now()}.${fileExt}`
+      }
       
       const { data, error } = await supabase.storage
-        .from('images')
+        .from('project-images')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false
@@ -64,7 +73,7 @@ export const storageAPI = {
       
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('images')
+        .from('project-images')
         .getPublicUrl(fileName)
       
       return {
@@ -82,7 +91,7 @@ export const storageAPI = {
   async deleteImage(fileName) {
     try {
       const { error } = await supabase.storage
-        .from('images')
+        .from('project-images')
         .remove([fileName])
       
       if (error) {
@@ -99,9 +108,51 @@ export const storageAPI = {
   // Get public URL for image
   getPublicUrl(fileName) {
     const { data } = supabase.storage
-      .from('images')
+      .from('project-images')
       .getPublicUrl(fileName)
     
     return data.publicUrl
+  },
+
+  // Validate if image URL is accessible using Image object
+  async validateImageUrl(url) {
+    return new Promise((resolve) => {
+      if (!url || !url.startsWith('http')) {
+        resolve(false)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+        console.log('✅ Image URL validated successfully:', url)
+        resolve(true)
+      }
+      img.onerror = () => {
+        console.warn('❌ Image URL validation failed:', url)
+        resolve(false)
+      }
+      
+      // Set timeout for validation
+      setTimeout(() => {
+        console.warn('⏰ Image URL validation timeout:', url)
+        resolve(false)
+      }, 5000)
+      
+      img.src = url
+    })
+  },
+
+  // Test and get working image URL
+  async getWorkingImageUrl(url, fallbackUrl = '/grupo-canadienses.jpg') {
+    try {
+      console.log('🔍 Testing image URL:', url)
+      const isValid = await this.validateImageUrl(url)
+      const finalUrl = isValid ? url : fallbackUrl
+      console.log(`📸 Image URL result: ${isValid ? 'VALID' : 'INVALID'} -> Using: ${finalUrl}`)
+      return finalUrl
+    } catch (error) {
+      console.error('Error testing image URL:', error)
+      return fallbackUrl
+    }
   }
 }

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Heart, MessageCircle, Share2, Send, Camera, Image, 
   MoreVertical, Flag, Trash2, Edit, MapPin, Clock,
-  User, Star, ThumbsUp, Eye, EyeOff 
+  User, Star, ThumbsUp, Eye, EyeOff, Calendar 
 } from 'lucide-react';
 import { supabasePosts, supabaseComments, supabaseStorage } from '../lib/supabase-client.js';
 

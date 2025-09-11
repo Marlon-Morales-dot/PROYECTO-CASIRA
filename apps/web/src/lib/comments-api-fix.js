@@ -1,110 +1,58 @@
 // ============= CASIRA Connect - Comments API Fix =============
 // Quick fix for js.addComment is not a function error
 
-// Import the correct APIs
-import { supabaseComments } from './supabase-client.js';
+console.log('🔧 CASIRA: Loading Comments API Fix');
 
-// Fallback comments API for localStorage
-const localStorageComments = {
-  addComment: async (postId, userId, content) => {
-    console.log('📝 CASIRA: Adding comment to localStorage');
+// Emergency function for comments - ensure it exists  
+window.js = window.js || {};
+window.js.addComment = async function(postId, userId, content) {
+  console.log('💬 CASIRA Emergency: Adding comment', { postId, userId, content });
+  
+  try {
+    // Try to import the API directly
+    const { commentsAPI } = await import('./api.js');
     
-    try {
-      // Get existing comments
-      const comments = JSON.parse(localStorage.getItem('casira-comments') || '[]');
-      
-      // Create new comment
-      const newComment = {
-        id: `comment_${Date.now()}_${Math.random()}`,
+    if (commentsAPI && commentsAPI.createComment) {
+      const result = await commentsAPI.createComment({
         post_id: postId,
         author_id: userId,
-        content: content,
-        created_at: new Date().toISOString(),
-        likes_count: 0,
-        author: {
-          id: userId,
-          full_name: 'Usuario',
-          first_name: 'Usuario',
-          last_name: '',
-          avatar_url: null
-        }
-      };
-      
-      // Add to comments array
-      comments.push(newComment);
-      
-      // Save back to localStorage
-      localStorage.setItem('casira-comments', JSON.stringify(comments));
-      
-      console.log('✅ CASIRA: Comment added to localStorage');
-      return newComment;
-      
-    } catch (error) {
-      console.error('❌ CASIRA: Error adding comment to localStorage:', error);
-      throw error;
+        content: content
+      });
+      console.log('✅ CASIRA Emergency: Comment added via commentsAPI');
+      return result;
     }
-  },
-
-  getPostComments: async (postId) => {
-    try {
-      const comments = JSON.parse(localStorage.getItem('casira-comments') || '[]');
-      return comments.filter(comment => comment.post_id === postId);
-    } catch (error) {
-      console.error('❌ CASIRA: Error getting comments from localStorage:', error);
-      return [];
-    }
+    
+    // Fallback to direct localStorage manipulation using CASIRA data format
+    const casiraData = JSON.parse(localStorage.getItem('casira-data') || '{}');
+    if (!casiraData.comments) casiraData.comments = [];
+    
+    const newComment = {
+      id: Date.now(),
+      post_id: Number(postId),
+      author_id: Number(userId),
+      content: content,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    casiraData.comments.push(newComment);
+    localStorage.setItem('casira-data', JSON.stringify(casiraData));
+    
+    // Dispatch update event
+    window.dispatchEvent(new CustomEvent('casira-data-updated', {
+      detail: { type: 'comment', action: 'create', data: newComment }
+    }));
+    
+    console.log('✅ CASIRA Emergency: Comment added via localStorage');
+    return newComment;
+    
+  } catch (error) {
+    console.error('❌ CASIRA Emergency: Error adding comment:', error);
+    throw error;
   }
 };
 
-// Unified Comments API with fallback
-export const commentsAPI = {
-  addComment: async (postId, userId, content, parentId = null) => {
-    console.log('💬 CASIRA: Adding comment with unified API');
-    
-    try {
-      // Try Supabase first
-      return await supabaseComments.addComment(postId, userId, content, parentId);
-    } catch (supabaseError) {
-      console.warn('⚠️ CASIRA: Supabase comment failed, using localStorage:', supabaseError.message);
-      
-      // Fallback to localStorage
-      try {
-        return await localStorageComments.addComment(postId, userId, content);
-      } catch (localError) {
-        console.error('❌ CASIRA: Both Supabase and localStorage failed:', localError);
-        throw new Error('Failed to add comment to both Supabase and localStorage');
-      }
-    }
-  },
+// Also create a simpler version for direct use
+window.addComment = window.js.addComment;
 
-  getPostComments: async (postId) => {
-    try {
-      // Try Supabase first
-      const supabaseComments = await supabaseComments.getPostComments(postId);
-      if (supabaseComments && supabaseComments.length > 0) {
-        return supabaseComments;
-      }
-    } catch (error) {
-      console.warn('⚠️ CASIRA: Supabase comments fetch failed, using localStorage');
-    }
-    
-    // Fallback to localStorage
-    return await localStorageComments.getPostComments(postId);
-  }
-};
-
-// Global fallback - attach to window for emergency access
-if (typeof window !== 'undefined') {
-  window.CASIRA_COMMENTS_API = commentsAPI;
-  
-  // Emergency patch for existing code
-  if (!window.js) {
-    window.js = {};
-  }
-  
-  window.js.addComment = commentsAPI.addComment;
-  
-  console.log('🩹 CASIRA: Emergency comments API patch applied to window.js');
-}
-
-export default commentsAPI;
+console.log('🩹 CASIRA: Emergency comments API patch applied to window.js');

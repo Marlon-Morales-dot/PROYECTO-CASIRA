@@ -4,10 +4,19 @@ import './index.css'
 import App from './App.jsx'
 
 // Import emergency fixes for production issues
-import './lib/csp-fix.js'
+// import './lib/csp-fix.js' // ❌ TEMPORALMENTE DESHABILITADO - Conflicto con Google Auth
 import './lib/comments-api-fix.js'
 import './lib/image-manager.js'
-import './lib/admin-google-fix.js'
+// import './lib/admin-google-fix.js' // ❌ DISABLED - Mensajes de migración
+import './lib/image-debug-fix.js'
+// Import force migration tool for debugging
+// import './lib/force-migration.js' // ❌ DISABLED - No auto-migration
+// Import admin user creation
+import './lib/ensure-admin.js'
+// Create test volunteer request - executed once, now disabled
+// import './lib/create-test-volunteer-request.js'
+// Debug volunteer requests - temporarily disabled
+// import './debug-volunteers.js'
 // import AppSupabase from './AppSupabase.jsx'
 // import { setupDemoData } from './lib/setup-demo-data.js'
 

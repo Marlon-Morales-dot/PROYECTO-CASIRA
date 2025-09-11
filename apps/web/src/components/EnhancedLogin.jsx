@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, User } from 'lucide-react';
 import { enhancedAPI } from '../lib/api-enhanced.js';
+import authService from '../lib/services/auth.service.js'; // ✅ Usar nuestro auth service mejorado
 import unifiedGoogleAuth from '../lib/services/unified-google-auth.service.js';
+import { simpleGoogleAuth } from '../lib/services/google-auth-simple.js';
 
 const EnhancedLogin = () => {
   const navigate = useNavigate();
@@ -31,22 +33,33 @@ const EnhancedLogin = () => {
     setupGoogleAuthListener();
   }, []);
 
-  const checkGoogleAuthStatus = () => {
+  const checkGoogleAuthStatus = async () => {
     try {
-      const isSignedIn = enhancedAPI.usersAPI.isGoogleSignedIn();
-      const currentUser = enhancedAPI.usersAPI.getCurrentGoogleUser();
+      // TEMPORAL: Usar simpleGoogleAuth - dar más tiempo para inicializar
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Dar tiempo para inicializar
+      
+      const isSignedIn = simpleGoogleAuth.isSignedIn();
+      console.log('🔍 Estado de SimpleGoogleAuth:', { isReady: simpleGoogleAuth.isReady, isSignedIn });
       
       setIsGoogleSignedIn(isSignedIn);
-      setGoogleUser(currentUser);
-      setGoogleAuthReady(true);
-
-      // Si ya está autenticado, redirigir automáticamente
-      if (isSignedIn && currentUser) {
-        console.log('🔄 Usuario ya autenticado con Google, redirigiendo...', currentUser.email);
-        handleSuccessfulAuth(currentUser);
+      setGoogleAuthReady(simpleGoogleAuth.isReady);
+      
+      if (isSignedIn && simpleGoogleAuth.authInstance) {
+        const googleUser = simpleGoogleAuth.authInstance.currentUser.get();
+        const profile = googleUser.getBasicProfile();
+        const userData = {
+          email: profile.getEmail(),
+          first_name: profile.getGivenName(),
+          last_name: profile.getFamilyName(),
+          full_name: profile.getName(),
+          avatar_url: profile.getImageUrl()
+        };
+        setGoogleUser(userData);
+        console.log('🔄 Usuario ya autenticado con Google, redirigiendo...', userData.email);
+        handleSuccessfulAuth(userData);
       }
 
-      console.log('🔍 Estado de Google Auth:', { isSignedIn, hasUser: !!currentUser });
+      console.log('🔍 Estado de Google Auth:', { isSignedIn, ready: simpleGoogleAuth.isReady });
     } catch (error) {
       console.warn('⚠️ Error verificando estado de Google Auth:', error);
       setGoogleAuthReady(true); // Continuar sin Google Auth
@@ -95,24 +108,40 @@ const EnhancedLogin = () => {
     setError('');
 
     try {
-      console.log('🔐 Iniciando login interno para:', formData.email);
+      console.log('🔐 CASIRA: Iniciando login con validación real para:', formData.email, 'con contraseña:', formData.password);
+      console.log('🔍 CASIRA: Verificando authService existe:', !!authService);
+      console.log('🔍 CASIRA: Verificando authService.login existe:', !!authService.login);
       
-      // Usar la API simple del authAPI
-      const user = await enhancedAPI.authAPI.login(formData.email, formData.password);
+      // ✅ USAR NUESTRO AUTH SERVICE MEJORADO CON VALIDACIÓN REAL
+      const user = await authService.login(formData.email, formData.password);
+      
+      console.log('🔍 CASIRA: Resultado de login:', user);
       
       if (user) {
-        console.log('✅ Login exitoso:', user.email);
+        console.log('✅ CASIRA: Login exitoso con validación real:', user.email);
+        console.log('🔍 CASIRA: Usuario completo para redirección:', JSON.stringify(user, null, 2));
         setSuccess('Iniciando sesión...');
         
-        // Guardar usuario en la sesión
-        enhancedAPI.authAPI.setCurrentUser(user);
+        // Guardar usuario usando nuestro sistema
+        authService.setCurrentUser(user);
         
-        handleSuccessfulAuth(user);
+        // Solo para compatibilidad si existe
+        try {
+          if (enhancedAPI?.authAPI?.setCurrentUser) {
+            enhancedAPI.authAPI.setCurrentUser(user);
+          }
+        } catch (compatError) {
+          console.warn('⚠️ Enhanced API compatibility error (ignored):', compatError.message);
+        }
+        
+        console.log('🚀 CASIRA: Llamando handleSuccessfulAuth...');
+        await handleSuccessfulAuth(user);
       }
       
     } catch (error) {
-      console.error('❌ Error en login interno:', error);
-      setError(error.message || 'Error al iniciar sesión. Intenta nuevamente.');
+      console.error('❌ CASIRA: Error en login con validación:', error);
+      console.error('❌ CASIRA: Error completo:', error.stack);
+      setError(error.message || 'Email o contraseña incorrectos');
     } finally {
       setIsLoading(false);
     }
@@ -142,16 +171,25 @@ const EnhancedLogin = () => {
     await new Promise(resolve => setTimeout(resolve, 150));
 
     try {
-      console.log('🔐 Iniciando login con Google (Unified)...');
+      console.log('🔐 Iniciando login con Google (Simple)...');
       
-      // Usar el nuevo servicio unificado que maneja COOP y CSP automáticamente
-      const googleUser = await unifiedGoogleAuth.signIn();
+      // TEMPORAL: Usar método simple mientras se arregla el unificado
+      const googleUser = await simpleGoogleAuth.signIn();
       
       if (googleUser) {
         console.log('✅ Login Google exitoso:', googleUser.email);
         
-        // Guardar en API local también
-        enhancedAPI.authAPI.setCurrentUser(googleUser);
+        // ✅ Usar nuestro authService para Google Auth también
+        authService.setCurrentUser(googleUser);
+        
+        // Mantener compatibilidad con enhanced API
+        try {
+          if (enhancedAPI?.authAPI?.setCurrentUser) {
+            enhancedAPI.authAPI.setCurrentUser(googleUser);
+          }
+        } catch (compatError) {
+          console.warn('⚠️ Enhanced API Google compatibility error (ignored):', compatError.message);
+        }
         
         setSuccess(`Autenticación exitosa con Google - Bienvenido como ${googleUser.role}`);
         handleSuccessfulAuth(googleUser);
@@ -189,8 +227,11 @@ const EnhancedLogin = () => {
       provider: user.provider || 'local'
     });
 
-    // Guardar datos de sesión en múltiples lugares para asegurar persistencia
+    // ✅ Usar authService para manejar persistencia de usuario
     try {
+      authService.setCurrentUser(user); // Maneja localStorage y sessionStorage automáticamente
+      
+      // Mantener compatibilidad con sistema anterior
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem('casira-current-user', JSON.stringify(user));
       }
@@ -200,30 +241,72 @@ const EnhancedLogin = () => {
       
       console.log('💾 Usuario guardado en sesión:', user.email);
       
-      // Agregar un pequeño delay para asegurar que el estado se guarde
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Agregar delay para asegurar que el estado se guarde completamente
+      await new Promise(resolve => setTimeout(resolve, 300));
       
     } catch (error) {
       console.error('❌ Error guardando sesión:', error);
     }
 
     // Redirigir basado en el rol del usuario
-    console.log('🚀 Redirigiendo a:', user.role);
+    console.log('🚀 CASIRA: Iniciando redirección para rol:', user.role);
+    console.log('🔍 CASIRA: Navigate function disponible:', !!navigate);
+    console.log('🔍 CASIRA: Tipo de navigate:', typeof navigate);
     
-    switch (user.role) {
-      case 'admin':
-        navigate('/admin', { replace: true });
-        break;
-      case 'volunteer':
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'donor':
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'visitor':
-      default:
-        navigate('/visitor', { replace: true });
-        break;
+    try {
+      let targetPath = '/visitor'; // default
+      
+      switch (user.role) {
+        case 'admin':
+          targetPath = '/admin';
+          console.log('🔄 CASIRA: Usuario admin - navegando a /admin');
+          break;
+        case 'volunteer':
+          targetPath = '/dashboard';
+          console.log('🔄 CASIRA: Usuario volunteer - navegando a /dashboard');
+          break;
+        case 'donor':
+          targetPath = '/dashboard';
+          console.log('🔄 CASIRA: Usuario donor - navegando a /dashboard');
+          break;
+        case 'visitor':
+        default:
+          targetPath = '/visitor';
+          console.log('🔄 CASIRA: Usuario visitor - navegando a /visitor');
+          break;
+      }
+      
+      console.log('🎯 CASIRA: Ruta objetivo determinada:', targetPath);
+      
+      // Intentar navigate primero
+      if (navigate && typeof navigate === 'function') {
+        console.log('✅ CASIRA: Usando React Router navigate...');
+        navigate(targetPath, { replace: true });
+        console.log('✅ CASIRA: Navigate ejecutado exitosamente');
+      } else {
+        console.warn('⚠️ CASIRA: Navigate no disponible, usando window.location');
+        window.location.href = targetPath;
+      }
+      
+      // Fallback adicional por si acaso - aumentar tiempo
+      setTimeout(() => {
+        console.log('🔄 CASIRA: Verificando si navegación fue exitosa...');
+        if (window.location.pathname === '/login') {
+          console.warn('⚠️ CASIRA: Navegación falló, usando window.location.replace como fallback');
+          window.location.replace(targetPath);
+        }
+      }, 1000);
+      
+    } catch (navError) {
+      console.error('❌ Error de navegación:', navError);
+      // Forzar redirección con window.location
+      if (user.role === 'admin') {
+        window.location.href = '/admin';
+      } else if (user.role === 'volunteer' || user.role === 'donor') {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.href = '/visitor';
+      }
     }
   };
 
@@ -237,18 +320,32 @@ const EnhancedLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full mb-4 shadow-sm">
-            <User className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
+          <div className="inline-flex items-center justify-center mb-8">
+            <img 
+              src="/logo.png" 
+              alt="CASIRA Logo" 
+              className="w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 object-contain drop-shadow-lg"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 bg-gradient-to-br from-sky-600 to-blue-700 rounded-3xl shadow-lg items-center justify-center hidden">
+              <User className="w-12 h-12 sm:w-16 sm:h-16 lg:w-18 lg:h-18 text-white" />
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent mb-2">
             CASIRA Connect
           </h1>
-          <p className="text-gray-600 text-base sm:text-lg leading-relaxed px-2">
-            Inicia sesión en tu cuenta
+          <p className="text-slate-600 text-base sm:text-lg leading-relaxed px-2 font-medium">
+            Sistema de Gestión Integral
+          </p>
+          <p className="text-slate-500 text-sm sm:text-base leading-relaxed px-2 mt-1">
+            Inicia sesión para acceder a tu cuenta
           </p>
         </div>
 
@@ -299,7 +396,7 @@ const EnhancedLogin = () => {
             </div>
             <button
               onClick={() => handleSuccessfulAuth(googleUser)}
-              className="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
+              className="mt-4 w-full bg-gradient-to-r from-sky-600 to-blue-700 text-white py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl hover:from-sky-700 hover:to-blue-800 transition-all duration-200 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
             >
               Continuar como {googleUser.full_name || googleUser.first_name}
             </button>
@@ -309,13 +406,13 @@ const EnhancedLogin = () => {
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden transform transition-all duration-300 hover:shadow-2xl">
           <div className="p-6 sm:p-8 lg:p-10 space-y-6">
             {/* Pestañas de autenticación */}
-            <div className="flex mb-6 sm:mb-8 bg-gray-50 rounded-xl p-1.5">
+            <div className="flex mb-6 sm:mb-8 bg-slate-50 rounded-xl p-1.5 border border-slate-200">
               <button
                 onClick={() => setAuthMode('internal')}
                 className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-sm sm:text-base font-semibold transition-all duration-200 btn-touch ${
                   authMode === 'internal' 
-                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200 transform scale-105' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-md transform scale-105' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 Login Tradicional
@@ -324,8 +421,8 @@ const EnhancedLogin = () => {
                 onClick={() => setAuthMode('google')}
                 className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-sm sm:text-base font-semibold transition-all duration-200 btn-touch ${
                   authMode === 'google' 
-                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200 transform scale-105' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-md transform scale-105' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 Google Auth
@@ -349,7 +446,7 @@ const EnhancedLogin = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="w-full pl-12 sm:pl-14 pr-4 py-4 sm:py-5 text-base border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-gray-50 focus:bg-white"
+                    className="w-full pl-12 sm:pl-14 pr-4 py-4 sm:py-5 text-base border-2 border-slate-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200 bg-slate-50 focus:bg-white"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -369,7 +466,7 @@ const EnhancedLogin = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
-                    className="w-full pl-12 sm:pl-14 pr-14 py-4 sm:py-5 text-base border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-gray-50 focus:bg-white"
+                    className="w-full pl-12 sm:pl-14 pr-14 py-4 sm:py-5 text-base border-2 border-slate-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200 bg-slate-50 focus:bg-white"
                     placeholder="Tu contraseña"
                   />
                   <button
@@ -386,7 +483,7 @@ const EnhancedLogin = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 sm:py-5 px-6 rounded-xl sm:rounded-2xl hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
+                className="w-full bg-gradient-to-r from-sky-600 to-blue-700 text-white py-4 sm:py-5 px-6 rounded-xl sm:rounded-2xl hover:from-sky-700 hover:to-blue-800 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] btn-touch"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
@@ -453,38 +550,41 @@ const EnhancedLogin = () => {
           </div>
         </div>
 
-        {/* Cuentas demo */}
-        <div className="mt-8 bg-gray-50 rounded-xl sm:rounded-2xl p-5 sm:p-6 border border-gray-200">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-4">🎮 Cuentas Demo:</h3>
-          <div className="space-y-3">
-            {getDemoCredentials().map((account, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setFormData({ email: account.email, password: 'demo' });
-                  setAuthMode('internal');
-                }}
-                className="w-full text-left p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border-2 border-gray-100 hover:border-green-300 hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] btn-touch"
-              >
-                <div className="font-semibold text-sm sm:text-base text-gray-900">{account.email}</div>
-                <div className="text-xs sm:text-sm text-gray-600 mt-1">{account.role} - {account.desc}</div>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs sm:text-sm text-gray-500 mt-4">
-            💡 Click en cualquier cuenta para usar credenciales demo
-          </p>
+
+        {/* Botón Regresar */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => window.location.href = '/'}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Regresar al inicio
+          </button>
         </div>
 
         {/* Info adicional */}
-        <div className="mt-6 text-center">
-          <p className="text-sm sm:text-base text-gray-600 leading-relaxed px-2">
-            Sistema con almacenamiento persistente y Google Auth integrado
-          </p>
-          <div className="mt-3 flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-500">
-            <span className="flex items-center">🔒 Sesión segura</span>
-            <span className="flex items-center">💾 Datos persistentes</span>
-            <span className="flex items-center">🔄 Sync automático</span>
+        <div className="mt-8 text-center">
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 rounded-2xl p-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-3">
+              Sistema CASIRA
+            </h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-4">
+              Plataforma integral para la gestión de actividades comunitarias y colaboración social
+            </p>
+            <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm text-slate-500">
+              <div className="flex items-center justify-center">
+                <span className="bg-sky-100 text-sky-700 px-3 py-1 rounded-full font-medium">
+                  🔒 Seguro
+                </span>
+              </div>
+              <div className="flex items-center justify-center">
+                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+                  ☁️ En la nube
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

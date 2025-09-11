@@ -1,5 +1,6 @@
 // ============= CASIRA Connect - Supabase API Wrapper =============
 import { supabase } from './supabase-singleton.js'
+import { generateUUID, isUUID, prepareForSupabase } from './uuid-helper.js'
 
 // ============= USERS API =============
 export const supabaseUsersAPI = {
@@ -73,6 +74,13 @@ export const supabaseUsersAPI = {
       return data
     } catch (error) {
       console.error('Error creating user:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        statusCode: error.statusCode
+      })
       throw error
     }
   },
@@ -298,33 +306,99 @@ export const supabaseActivitiesAPI = {
     }
   },
 
+  // Map numeric category IDs to UUID (for dataStore compatibility)
+  async mapCategoryIdToUUID(categoryId) {
+    if (!categoryId) return null;
+    
+    try {
+      // Get categories from Supabase to map dynamically
+      const { data: categories, error } = await supabase
+        .from('activity_categories')
+        .select('id, name')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching categories for mapping:', error);
+        return null;
+      }
+      
+      // Create dynamic mapping based on order (matching dataStore order)
+      const categoryNames = ['Alimentación', 'Educación', 'Medio Ambiente', 'Salud', 'Vivienda'];
+      const categoryMapping = {};
+      
+      categories.forEach((cat, index) => {
+        const matchIndex = categoryNames.findIndex(name => name === cat.name);
+        if (matchIndex !== -1) {
+          categoryMapping[matchIndex + 1] = cat.id;
+        }
+      });
+      
+      // Fallback mapping for known names
+      const nameMapping = {
+        1: categories.find(c => c.name === 'Medio Ambiente')?.id,
+        2: categories.find(c => c.name === 'Alimentación')?.id,
+        3: categories.find(c => c.name === 'Educación')?.id,
+        4: categories.find(c => c.name === 'Salud')?.id,
+        5: categories.find(c => c.name === 'Vivienda')?.id
+      };
+      
+      console.log('🗂️ Dynamic category mapping:', nameMapping);
+      return nameMapping[categoryId] || null;
+      
+    } catch (error) {
+      console.error('Error in category mapping:', error);
+      return null;
+    }
+  },
+
   // Create activity
   async createActivity(activityData) {
     try {
       console.log('🎯 CASIRA: Creating activity in Supabase with data:', activityData);
       
+      // Prepare data for Supabase with proper UUIDs
+      const supabaseData = {
+        id: generateUUID(), // Always generate new UUID for Supabase
+        title: activityData.title,
+        description: activityData.description,
+        detailed_description: activityData.detailed_description || '',
+        status: activityData.status || 'planning',
+        priority: activityData.priority || 'medium',
+        budget: activityData.budget || 0,
+        beneficiaries_count: activityData.beneficiaries_count || 0,
+        location: activityData.location || '',
+        date_start: activityData.date_start || activityData.start_date || null,
+        date_end: activityData.date_end || activityData.end_date || null,
+        max_volunteers: activityData.max_volunteers || null,
+        image_url: activityData.image_url || null,
+        requirements: activityData.requirements || [],
+        benefits: activityData.benefits || [],
+        visibility: activityData.visibility || 'public',
+        featured: activityData.featured || false,
+        category_id: await this.mapCategoryIdToUUID(activityData.category_id),
+        created_by: (() => {
+          // FORCE VALID UUID - no matter what comes in
+          if (activityData.created_by && isUUID(activityData.created_by)) {
+            console.log('✅ CASIRA: Using provided UUID:', activityData.created_by);
+            return activityData.created_by;
+          }
+          
+          if (window.CASIRA_ADMIN_ID && isUUID(window.CASIRA_ADMIN_ID)) {
+            console.log('✅ CASIRA: Using admin UUID:', window.CASIRA_ADMIN_ID);
+            return window.CASIRA_ADMIN_ID;
+          }
+          
+          const newUUID = generateUUID();
+          console.log('🆔 CASIRA: Generated new UUID for created_by:', newUUID);
+          return newUUID;
+        })()
+      };
+      
+      console.log('🔄 CASIRA: Prepared data for Supabase:', supabaseData);
+      
       const { data, error } = await supabase
         .from('activities')
-        .insert([{
-          title: activityData.title,
-          description: activityData.description,
-          detailed_description: activityData.detailed_description || '',
-          status: activityData.status || 'planning',
-          priority: activityData.priority || 'medium',
-          budget: activityData.budget || 0,
-          beneficiaries_count: activityData.beneficiaries_count || 0,
-          location: activityData.location || '',
-          date_start: activityData.date_start || activityData.start_date || null,
-          date_end: activityData.date_end || activityData.end_date || null,
-          max_volunteers: activityData.max_volunteers || null,
-          image_url: activityData.image_url || null,
-          requirements: activityData.requirements || [],
-          benefits: activityData.benefits || [],
-          visibility: activityData.visibility || 'public',
-          featured: activityData.featured || false,
-          category_id: activityData.category_id || null,
-          created_by: activityData.created_by
-        }])
+        .insert([supabaseData])
         .select(`
           *,
           creator:users!activities_created_by_fkey(id, first_name, last_name, email, role)
@@ -340,6 +414,99 @@ export const supabaseActivitiesAPI = {
       return data
     } catch (error) {
       console.error('❌ CASIRA: Error creating activity:', error)
+      throw error
+    }
+  },
+
+  // Delete activity
+  async deleteActivity(activityId) {
+    try {
+      console.log('🗑️ CASIRA: Deleting activity from Supabase:', activityId);
+      
+      // First check if activity exists
+      const { data: existingActivity, error: checkError } = await supabase
+        .from('activities')
+        .select('id')
+        .eq('id', activityId)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ CASIRA: Error checking activity existence:', checkError);
+        throw checkError;
+      }
+
+      if (!existingActivity) {
+        console.warn('⚠️ CASIRA: Activity not found in Supabase, may already be deleted:', activityId);
+        return { id: activityId, status: 'not_found_but_ok' };
+      }
+
+      // Delete the activity
+      const { data, error } = await supabase
+        .from('activities')
+        .delete()
+        .eq('id', activityId)
+        .select()
+
+      if (error) {
+        console.error('❌ CASIRA: Supabase error deleting activity:', error);
+        throw error;
+      }
+      
+      const deletedActivity = data?.[0] || { id: activityId, status: 'deleted' };
+      console.log('✅ CASIRA: Activity deleted successfully from Supabase:', deletedActivity);
+      return deletedActivity;
+    } catch (error) {
+      console.error('❌ CASIRA: Error deleting activity:', error)
+      throw error
+    }
+  },
+
+  // Update activity
+  async updateActivity(activityId, activityData) {
+    try {
+      console.log('📝 CASIRA: Updating activity in Supabase:', activityId, activityData);
+      
+      // First check if activity exists
+      const { data: existingActivity, error: checkError } = await supabase
+        .from('activities')
+        .select('id')
+        .eq('id', activityId)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ CASIRA: Error checking activity for update:', checkError);
+        throw checkError;
+      }
+
+      if (!existingActivity) {
+        console.error('❌ CASIRA: Activity not found for update:', activityId);
+        throw new Error(`Activity with ID ${activityId} not found in Supabase`);
+      }
+
+      const { data, error } = await supabase
+        .from('activities')
+        .update(activityData)
+        .eq('id', activityId)
+        .select(`
+          *,
+          creator:users!activities_created_by_fkey(id, first_name, last_name, email, role)
+        `)
+
+      if (error) {
+        console.error('❌ CASIRA: Supabase error updating activity:', error);
+        throw error;
+      }
+      
+      const updatedActivity = data?.[0];
+      if (!updatedActivity) {
+        console.error('❌ CASIRA: No activity returned from update operation');
+        throw new Error('Update operation did not return updated activity');
+      }
+
+      console.log('✅ CASIRA: Activity updated successfully in Supabase:', updatedActivity);
+      return updatedActivity;
+    } catch (error) {
+      console.error('❌ CASIRA: Error updating activity:', error)
       throw error
     }
   }
