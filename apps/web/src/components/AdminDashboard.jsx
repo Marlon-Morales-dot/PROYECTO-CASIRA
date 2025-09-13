@@ -3,7 +3,6 @@ import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, B
 import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
 import adminService from '../lib/services/admin.service.js';
 import LogoutButton from './LogoutButton.jsx';
-import e from 'cors';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);

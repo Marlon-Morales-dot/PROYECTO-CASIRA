@@ -10,26 +10,69 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ CASIRA: Missing Supabase environment variables');
 }
 
+// Validate URL format
+if (supabaseUrl && !supabaseUrl.includes('.supabase.co')) {
+  console.error('❌ CASIRA: Invalid Supabase URL format:', supabaseUrl);
+}
+
+// Log configuration for debugging
+console.log('🔧 CASIRA: Supabase Configuration:');
+console.log('   URL:', supabaseUrl);
+console.log('   Key:', supabaseAnonKey ? 'Present' : 'Missing');
+
 // Singleton pattern - solo una instancia de Supabase
 let supabaseInstance = null;
+
+// Error handler for HTML responses
+const handleSupabaseError = (error) => {
+  if (error.message && error.message.includes('<!doctype')) {
+    console.error('❌ CASIRA: Received HTML instead of JSON. This usually indicates:');
+    console.error('   1. Environment variables not set in deployment (Vercel/Render)');
+    console.error('   2. Supabase URL or API key incorrect');
+    console.error('   3. CORS issues with Supabase');
+    console.error('   4. Network connectivity problems');
+    console.error('   5. Supabase project not accessible');
+
+    // Check current environment variables
+    console.error('🔧 Current config:');
+    console.error('   - VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL || 'NOT SET');
+    console.error('   - VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+
+    return new Error('Supabase connection error: Received HTML instead of JSON response. Check environment variables in deployment.');
+  }
+  return error;
+};
 
 export const getSupabaseClient = () => {
   if (!supabaseInstance) {
     console.log('🚀 CASIRA: Creating Supabase client instance');
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        storageKey: 'casira-supabase-auth',
-        storage: window.localStorage,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 2
+
+    try {
+      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          storageKey: 'casira-supabase-auth',
+          storage: window?.localStorage,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 2
+          }
+        },
+        global: {
+          headers: {
+            'Access-Control-Allow-Origin': '*'
+          }
         }
-      }
-    });
+      });
+
+      console.log('✅ CASIRA: Supabase client created successfully');
+    } catch (error) {
+      console.error('❌ CASIRA: Failed to create Supabase client:', error);
+      throw handleSupabaseError(error);
+    }
   }
   return supabaseInstance;
 };
@@ -37,15 +80,36 @@ export const getSupabaseClient = () => {
 // Export default instance
 export const supabase = getSupabaseClient();
 
+// API wrapper with error handling
+const withErrorHandling = async (operation, operationName) => {
+  try {
+    const result = await operation();
+    if (result.error) {
+      const handledError = handleSupabaseError(result.error);
+      console.error(`❌ CASIRA ${operationName}:`, handledError);
+      throw handledError;
+    }
+    return result;
+  } catch (error) {
+    const handledError = handleSupabaseError(error);
+    console.error(`❌ CASIRA ${operationName}:`, handledError);
+    throw handledError;
+  }
+};
+
 // Auth helpers
 export const supabaseAuth = {
   getCurrentUser: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) {
+    try {
+      const { data: { user }, error } = await withErrorHandling(
+        () => supabase.auth.getUser(),
+        'getCurrentUser'
+      );
+      return user;
+    } catch (error) {
       console.error('❌ CASIRA Auth: Error getting current user:', error);
       return null;
     }
-    return user;
   },
 
   signInWithGoogle: async () => {
