@@ -284,8 +284,8 @@ export class AppBootstrap {
     // GetDashboardData UseCase
     container.registerTransient(
       'getDashboardDataUseCase',
-      createFactory(GetDashboardData),
-      ['cachedActivityRepository', null, 'cachedUserRepository'] // PostRepository será null por ahora
+      (activityRepo, userRepo) => new GetDashboardData(activityRepo, null, userRepo), // PostRepository será null por ahora
+      ['cachedActivityRepository', 'cachedUserRepository']
     );
     
     // Registrar más casos de uso según sea necesario...

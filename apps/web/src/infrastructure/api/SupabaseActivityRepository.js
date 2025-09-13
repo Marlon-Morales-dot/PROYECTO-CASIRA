@@ -57,7 +57,8 @@ export class SupabaseActivityRepository extends ActivityRepository {
         query = query.eq('creator_id', filters.creatorId);
       }
       if (filters.isFeatured !== undefined) {
-        query = query.eq('is_featured', filters.isFeatured);
+        // Skip is_featured filter since column doesn't exist
+        console.warn('Skipping is_featured filter - column does not exist in database');
       }
       if (filters.priority) {
         query = query.eq('priority', filters.priority);
