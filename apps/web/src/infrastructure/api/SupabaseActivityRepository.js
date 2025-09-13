@@ -106,36 +106,24 @@ export class SupabaseActivityRepository extends ActivityRepository {
    */
   async findFeatured(limit = 10) {
     try {
-      // Try featured query first
-      let { data, error } = await this.supabase
+      // Skip is_featured column completely since it doesn't exist
+      // Just get active activities as featured activities
+      console.log('Getting active activities as featured (is_featured column not available)');
+
+      const { data, error } = await this.supabase
         .from(this.tableName)
         .select('*')
-        .eq('is_featured', true)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      // If is_featured column doesn't exist, fall back to just active activities
-      if (error && error.message.includes('is_featured')) {
-        console.warn('is_featured column not found, falling back to active activities');
-        const fallbackResult = await this.supabase
-          .from(this.tableName)
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(limit);
-
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
-
       if (error) {
-        console.error('Error finding featured activities:', error);
+        console.error('Error finding active activities:', error);
         return [];
       }
 
       return data ? data
-        .filter(activityData => activityData.creator_id) // Filter out activities without creator_id
+        .filter(activityData => activityData.created_by || activityData.creator_id)
         .map(activityData => Activity.fromDatabase(activityData)) : [];
     } catch (error) {
       console.error('Error finding featured activities:', error);
