@@ -306,6 +306,71 @@ export const supabaseActivitiesAPI = {
     }
   },
 
+  // Helper method to get a valid creator ID that exists in the users table
+  async getValidCreatorId(providedCreatorId) {
+    try {
+      // First, try to use the provided creator ID if it's valid and exists
+      if (providedCreatorId && isUUID(providedCreatorId)) {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', providedCreatorId)
+          .single();
+
+        if (existingUser) {
+          console.log('✅ CASIRA: Using provided valid creator ID:', providedCreatorId);
+          return providedCreatorId;
+        }
+      }
+
+      // Try to use admin ID from window global if available
+      if (window.CASIRA_ADMIN_ID && isUUID(window.CASIRA_ADMIN_ID)) {
+        const { data: adminUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', window.CASIRA_ADMIN_ID)
+          .single();
+
+        if (adminUser) {
+          console.log('✅ CASIRA: Using admin ID:', window.CASIRA_ADMIN_ID);
+          return window.CASIRA_ADMIN_ID;
+        }
+      }
+
+      // Fall back to finding any existing admin user
+      const { data: anyAdmin } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+
+      if (anyAdmin) {
+        console.log('✅ CASIRA: Using existing admin user ID:', anyAdmin.id);
+        return anyAdmin.id;
+      }
+
+      // Fall back to any existing user
+      const { data: anyUser } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (anyUser) {
+        console.log('✅ CASIRA: Using existing user ID:', anyUser.id);
+        return anyUser.id;
+      }
+
+      // If no users exist, we need to create one or throw an error
+      throw new Error('No users found in database. Cannot create activity without valid creator.');
+
+    } catch (error) {
+      console.error('❌ CASIRA: Error finding valid creator ID:', error);
+      throw new Error('Failed to find or create valid user for activity creation');
+    }
+  },
+
   // Map numeric category IDs to UUID (for dataStore compatibility)
   async mapCategoryIdToUUID(categoryId) {
     if (!categoryId) return null;
@@ -376,22 +441,7 @@ export const supabaseActivitiesAPI = {
         visibility: activityData.visibility || 'public',
         featured: activityData.featured || false,
         category_id: await this.mapCategoryIdToUUID(activityData.category_id),
-        created_by: (() => {
-          // FORCE VALID UUID - no matter what comes in
-          if (activityData.created_by && isUUID(activityData.created_by)) {
-            console.log('✅ CASIRA: Using provided UUID:', activityData.created_by);
-            return activityData.created_by;
-          }
-          
-          if (window.CASIRA_ADMIN_ID && isUUID(window.CASIRA_ADMIN_ID)) {
-            console.log('✅ CASIRA: Using admin UUID:', window.CASIRA_ADMIN_ID);
-            return window.CASIRA_ADMIN_ID;
-          }
-          
-          const newUUID = generateUUID();
-          console.log('🆔 CASIRA: Generated new UUID for created_by:', newUUID);
-          return newUUID;
-        })()
+        created_by: await this.getValidCreatorId(activityData.created_by)
       };
       
       console.log('🔄 CASIRA: Prepared data for Supabase:', supabaseData);

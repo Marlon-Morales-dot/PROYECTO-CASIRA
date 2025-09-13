@@ -244,7 +244,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         try {
           console.log('📷 Uploading image file to Supabase Storage...');
           // Import the storage API directly from supabase
-          const { storageAPI } = await import('../lib/supabase.js');
+          const { storageAPI } = await import('../lib/supabase-singleton.js');
           
           // Generate unique filename
           const timestamp = Date.now();
@@ -269,7 +269,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       } else if (formData.image_url && formData.image_url.startsWith('http')) {
         // URL provided - validate it before using
         console.log('🔗 Validating provided image URL:', formData.image_url);
-        const { storageAPI } = await import('../lib/supabase.js');
+        const { storageAPI } = await import('../lib/supabase-singleton.js');
         finalImageUrl = await storageAPI.getWorkingImageUrl(formData.image_url);
         console.log('✅ Using validated image URL:', finalImageUrl);
       }
@@ -391,7 +391,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         try {
           console.log('📷 Uploading new image file to Supabase Storage for update...');
           // Import the storage API directly from supabase
-          const { storageAPI } = await import('../lib/supabase.js');
+          const { storageAPI } = await import('../lib/supabase-singleton.js');
           
           // Generate unique filename
           const timestamp = Date.now();
@@ -416,7 +416,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       } else if (formData.image_url && formData.image_url.startsWith('http')) {
         // URL provided - validate it before using (same as create)
         console.log('🔗 Validating provided image URL for update:', formData.image_url);
-        const { storageAPI } = await import('../lib/supabase.js');
+        const { storageAPI } = await import('../lib/supabase-singleton.js');
         finalImageUrl = await storageAPI.getWorkingImageUrl(formData.image_url);
         console.log('✅ Using validated image URL for update:', finalImageUrl);
       }

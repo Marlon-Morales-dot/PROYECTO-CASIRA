@@ -1,5 +1,5 @@
 // ============= CASIRA Connect - Manejador de Solicitudes de Voluntarios =============
-import { supabase } from './supabase-client.js';
+import { supabase } from './supabase-singleton.js';
 
 console.log('🎯 CASIRA: Loading Volunteer Request Handler...');
 

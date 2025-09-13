@@ -4,7 +4,7 @@ const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casir
 
 // Import Supabase API
 import { supabaseAPI } from './supabase-api.js';
-import { storageAPI } from './supabase.js';
+import { storageAPI } from './supabase-singleton.js';
 import { idsMatch, createHybridRecord, generateUUID, isUUID } from './uuid-helper.js';
 
 // Configuration flag - set to true to use Supabase, false for localStorage  

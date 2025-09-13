@@ -42,7 +42,7 @@ const UserNotifications = ({ user, onClose }) => {
       // 2. Obtener solicitudes de voluntario y convertirlas en notificaciones
       try {
         // Buscar solicitudes del usuario por email (para usuarios de Google)
-        const { supabase } = await import('../lib/supabase-client.js');
+        const { supabase } = await import('../lib/supabase-singleton.js');
         const { data: volunteerRequests, error } = await supabase
           .from('volunteer_requests')
           .select(`
@@ -85,7 +85,7 @@ const UserNotifications = ({ user, onClose }) => {
       
       // 3. Obtener participaciones confirmadas para mostrar responsabilidades
       try {
-        const { supabase } = await import('../lib/supabase-client.js');
+        const { supabase } = await import('../lib/supabase-singleton.js');
         const { data: participations, error } = await supabase
           .from('activity_participants')
           .select(`

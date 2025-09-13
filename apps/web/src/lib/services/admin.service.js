@@ -473,7 +473,7 @@ class AdminService {
   async getAllNotifications() {
     try {
       console.log('🔔 AdminService: Obteniendo todas las notificaciones...');
-      
+
       // First try to get notifications without relations to check if table exists
       const { data: notifications, error } = await supabase
         .from('notifications')
@@ -490,6 +490,25 @@ class AdminService {
     } catch (error) {
       console.warn('⚠️ AdminService: Error en getAllNotifications, retornando array vacío:', error);
       return [];
+    }
+  }
+
+  async getNotificationStats() {
+    try {
+      // Try to query notifications table safely
+      const { data, error, count } = await supabase
+        .from('notifications')
+        .select('id, read_at', { count: 'exact' });
+
+      if (error) {
+        console.warn('⚠️ AdminService: Notifications table not available:', error);
+        return { count: 0, data: [] };
+      }
+
+      return { count: count || 0, data: data || [] };
+    } catch (error) {
+      console.warn('⚠️ AdminService: Error getting notification stats:', error);
+      return { count: 0, data: [] };
     }
   }
 
@@ -531,7 +550,8 @@ class AdminService {
         supabase.from('users').select('id, role, status', { count: 'exact' }),
         supabase.from('activities').select('id, status', { count: 'exact' }),
         supabase.from('volunteer_requests').select('id, status', { count: 'exact' }),
-        supabase.from('notifications').select('id, read_at', { count: 'exact' })
+        // Use a safer query for notifications that handles missing table/columns
+        this.getNotificationStats()
       ]);
 
       const stats = {

@@ -204,4 +204,89 @@ export const postsAPI = {
   }
 };
 
+// Storage API
+export const storageAPI = {
+  uploadFile: async (bucket, path, file) => {
+    console.log('📁 CASIRA: Uploading file to storage');
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file);
+
+    if (error) {
+      console.error('❌ CASIRA: Error uploading file:', error);
+      throw error;
+    }
+
+    return data;
+  },
+
+  uploadImage: async (file, folder = 'activity-images') => {
+    try {
+      console.log('🖼️ CASIRA: Uploading image to storage');
+
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${folder}/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('images')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('❌ CASIRA: Error uploading image:', error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      console.log('✅ CASIRA: Image uploaded successfully:', urlData.publicUrl);
+      return {
+        url: urlData.publicUrl,
+        path: filePath,
+        data: data
+      };
+    } catch (error) {
+      console.error('❌ CASIRA: Error in uploadImage:', error);
+      throw error;
+    }
+  },
+
+  getWorkingImageUrl: async (imageUrl) => {
+    try {
+      // If it's already a valid URL, return it
+      if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'))) {
+        return imageUrl;
+      }
+
+      // If it's a file path, get the public URL
+      if (imageUrl && imageUrl.includes('/')) {
+        const { data } = supabase.storage
+          .from('images')
+          .getPublicUrl(imageUrl);
+        return data.publicUrl;
+      }
+
+      // Return fallback if nothing works
+      return imageUrl || null;
+    } catch (error) {
+      console.error('❌ CASIRA: Error getting working image URL:', error);
+      return imageUrl || null;
+    }
+  },
+
+  getPublicUrl: (bucket, path) => {
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(path);
+
+    return data.publicUrl;
+  }
+};
+
 export default supabase;
