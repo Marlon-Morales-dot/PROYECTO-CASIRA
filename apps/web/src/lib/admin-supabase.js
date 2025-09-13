@@ -1,4 +1,5 @@
 // ============= CASIRA Connect - Admin Panel Supabase API =============
+import { supabase } from './supabase-client.js';
 
 // ============= ADMIN - GESTIÓN DE USUARIOS =============
 export const adminUsers = {
