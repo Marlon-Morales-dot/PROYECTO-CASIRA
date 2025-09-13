@@ -63,17 +63,19 @@ export class Activity {
 
   // Validaciones de negocio
   validateActivity() {
-    if (!this.title || this.title.trim().length < 5) {
-      throw new Error('Título debe tener al menos 5 caracteres');
+    // Validaciones más permisivas para datos que vienen de la base de datos
+    if (!this.title || this.title.trim().length < 1) {
+      throw new Error('Título es requerido');
     }
 
-    if (!this.description || this.description.trim().length < 20) {
-      throw new Error('Descripción debe tener al menos 20 caracteres');
+    if (!this.description || this.description.trim().length < 1) {
+      throw new Error('Descripción es requerida');
     }
 
-    if (!this.creatorId) {
-      throw new Error('ID del creador es requerido');
-    }
+    // Hacer creatorId opcional para compatibilidad con datos existentes
+    // if (!this.creatorId) {
+    //   throw new Error('ID del creador es requerido');
+    // }
 
     if (!['draft', 'active', 'completed', 'cancelled'].includes(this.status)) {
       throw new Error('Estado debe ser draft, active, completed o cancelled');

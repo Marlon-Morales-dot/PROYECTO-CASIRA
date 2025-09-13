@@ -229,10 +229,10 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async countByRole() {
     try {
+      // Skip is_active filter since column doesn't exist
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('role')
-        .eq('is_active', true);
+        .select('role');
 
       if (error) throw error;
 
@@ -253,11 +253,11 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findByRole(role) {
     try {
+      // Skip is_active filter since column doesn't exist
       const { data, error } = await this.supabase
         .from(this.tableName)
         .select('*')
         .eq('role', role)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -380,7 +380,8 @@ export class SupabaseUserRepository extends UserRepository {
         query = query.eq('role', filters.role);
       }
       if (filters.isActive !== undefined) {
-        query = query.eq('is_active', filters.isActive);
+        // Skip is_active filter since column doesn't exist
+        console.warn('Skipping is_active filter - column does not exist');
       }
 
       // Aplicar paginación

@@ -4,7 +4,7 @@
  * Reemplaza la lógica de estado dispersa en App.jsx
  */
 
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
 import { appBootstrap } from '../../../shared/utils/AppBootstrap.jsx';
 import { eventBus, DomainEvents } from '../../../shared/utils/EventBus.js';
 import { configManager } from '../../../shared/utils/ConfigManager.js';
@@ -608,9 +608,9 @@ export function AppProvider({ children }) {
   /**
    * Actualizar estadísticas
    */
-  const updateStats = (newStats) => {
+  const updateStats = useCallback((newStats) => {
     appDispatch({ type: 'UPDATE_STATS', payload: newStats });
-  };
+  }, [appDispatch]);
 
   /**
    * Limpiar error
@@ -715,13 +715,23 @@ export function useDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Reset initialization flag when user changes
+  useEffect(() => {
+    setHasInitialized(false);
+  }, [user]);
 
   useEffect(() => {
+    // Avoid infinite loops by only loading once per user change
+    if (hasInitialized) return;
+
     const loadDashboardData = async () => {
       const timeoutId = setTimeout(() => {
         console.warn('⚠️ Dashboard loading timeout, using fallback');
         setError('Dashboard loading timeout');
         setIsLoading(false);
+        setHasInitialized(true); // Prevent further retries
       }, 10000); // 10 second timeout
 
       try {
@@ -738,6 +748,7 @@ export function useDashboard() {
         if (!getDashboardDataUseCase) {
           console.error('❌ getDashboardDataUseCase service not found');
           setError('Dashboard service not available');
+          setHasInitialized(true); // Prevent further retries
           clearTimeout(timeoutId);
           return;
         }
@@ -761,10 +772,12 @@ export function useDashboard() {
           setError(result.message);
         }
 
+        setHasInitialized(true); // Mark as initialized regardless of success/failure
         clearTimeout(timeoutId);
       } catch (err) {
         console.error('❌ Error loading dashboard data:', err);
         setError(err.message || 'Error loading dashboard data');
+        setHasInitialized(true); // Prevent further retries even on error
         clearTimeout(timeoutId);
       } finally {
         setIsLoading(false);
@@ -772,7 +785,7 @@ export function useDashboard() {
     };
 
     loadDashboardData();
-  }, [user, updateStats]);
+  }, [hasInitialized, updateStats]);
 
   return { dashboardData, isLoading, error };
 }
