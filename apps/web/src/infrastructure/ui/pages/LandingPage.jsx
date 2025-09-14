@@ -6,16 +6,32 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar, Search, Filter, MapPin, Clock, User } from 'lucide-react';
+import { Heart, Users, Building, Star, ArrowRight, Menu, X, Calendar, Search, Filter, MapPin, Clock, User, RefreshCw } from 'lucide-react';
 import { useAuth, useDashboard } from '../providers/AppProvider.jsx';
 import GoogleOAuthButton from '../molecules/GoogleOAuthButton.jsx';
 import { Link } from 'react-router-dom';
+import { useLiveCounters } from '../../../lib/hooks/useLiveCounters.js';
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { dashboardData, isLoading: dashboardLoading } = useDashboard();
-  
+
+  // Hook para contadores en tiempo real
+  const {
+    totalUsers,
+    activeProjects,
+    completedProjects,
+    totalActivities,
+    isLoading: countersLoading,
+    error: countersError,
+    lastUpdated,
+    refreshCounters
+  } = useLiveCounters({
+    enableRealTimeSubscription: true,
+    refreshInterval: 20000 // Actualizar cada 20 segundos
+  });
+
   const [projects, setProjects] = useState([]);
   const [posts, setPosts] = useState([]);
   const [stats, setStats] = useState({});
@@ -229,45 +245,77 @@ const LandingPage = () => {
               </h1>
             </div>
             <nav className="hidden md:flex space-x-6">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
               >
                 Inicio
               </Link>
-              <Link 
-                to="/activities" 
+              <Link
+                to="/activities"
                 className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
               >
                 Actividades
               </Link>
-              <Link 
-                to="/login" 
-                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
-              >
-                Iniciar Sesión
-              </Link>
-              <Link 
-                to="/dashboard" 
-                className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
-              >
-                Dashboard
-              </Link>
+              {!user ? (
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Iniciar Sesión
+                </Link>
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <span className="px-4 py-2 text-gray-700 font-medium">
+                    Hola, {user.firstName || user.first_name || 'Usuario'}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+              {user ? (
+                <Link
+                  to="/dashboard"
+                  className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+                >
+                  Mi Dashboard
+                </Link>
+              ) : (
+                <Link
+                  to="/dashboard"
+                  className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+                >
+                  Dashboard
+                </Link>
+              )}
             </nav>
             
             {/* Navegación móvil simplificada */}
             <div className="md:hidden flex items-center space-x-2">
-              <Link 
-                to="/login" 
-                className="px-3 py-2 text-sm text-gray-700 hover:text-sky-600 font-medium"
-              >
-                Login
-              </Link>
-              <Link 
-                to="/dashboard" 
+              {!user ? (
+                <Link
+                  to="/login"
+                  className="px-3 py-2 text-sm text-gray-700 hover:text-sky-600 font-medium"
+                >
+                  Login
+                </Link>
+              ) : (
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-sm text-red-600 hover:text-red-700 font-medium"
+                >
+                  Salir
+                </button>
+              )}
+              <Link
+                to="/dashboard"
                 className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
               >
-                Dashboard
+                {user ? 'Mi Panel' : 'Dashboard'}
               </Link>
             </div>
           </div>
@@ -311,26 +359,125 @@ const LandingPage = () => {
                   <Users className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-3 sm:gap-6 lg:gap-8 pt-6 sm:pt-8">
-                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="grid grid-cols-4 gap-3 sm:gap-6 lg:gap-8 pt-6 sm:pt-8">
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
                   <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-                    {stats.active_projects || 0}
+                    {countersLoading ? (
+                      <div className="animate-pulse bg-gray-300 h-8 w-12 mx-auto rounded"></div>
+                    ) : (
+                      activeProjects
+                    )}
                   </div>
                   <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras en Progreso</div>
+                  {!countersLoading && lastUpdated && (
+                    <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      ⏱️ {new Date(lastUpdated).toLocaleTimeString()}
+                    </div>
+                  )}
                 </div>
-                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
                   <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-                    {stats.completed_projects || 0}
+                    {countersLoading ? (
+                      <div className="animate-pulse bg-gray-300 h-8 w-12 mx-auto rounded"></div>
+                    ) : (
+                      completedProjects
+                    )}
                   </div>
                   <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras Completadas</div>
+                  {!countersLoading && lastUpdated && (
+                    <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      ⏱️ {new Date(lastUpdated).toLocaleTimeString()}
+                    </div>
+                  )}
                 </div>
-                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
                   <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-                    1,200+
+                    {countersLoading ? (
+                      <div className="animate-pulse bg-gray-300 h-8 w-12 mx-auto rounded"></div>
+                    ) : (
+                      totalUsers
+                    )}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-600 font-medium">Vidas Transformadas</div>
+                  <div className="text-xs sm:text-sm text-gray-600 font-medium">Usuarios Registrados</div>
+                  {!countersLoading && lastUpdated && (
+                    <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      ⏱️ {new Date(lastUpdated).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Cuarta tarjeta - Botón de actualización */}
+                <div className="flex items-center justify-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                  <button
+                    onClick={refreshCounters}
+                    disabled={countersLoading}
+                    className="group relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-110 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    title="Actualizar estadísticas en tiempo real"
+                  >
+                    {/* Glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-blue-500 rounded-full blur-lg opacity-30 group-hover:opacity-60 transition-opacity duration-300 scale-125"></div>
+
+                    {/* Contenido del botón */}
+                    <div className="relative flex items-center justify-center w-full h-full">
+                      <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 text-white ${countersLoading ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-500`} />
+                    </div>
+
+                    {/* Indicador de estado */}
+                    {!countersLoading && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full border-2 border-white shadow-lg">
+                        <div className="w-full h-full bg-green-500 rounded-full animate-pulse"></div>
+                      </div>
+                    )}
+
+                    {/* Tooltip mejorado */}
+                    <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-gray-900/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap backdrop-blur-sm z-10">
+                      <div className="text-center">
+                        {countersLoading ? 'Actualizando...' : 'Actualizar datos'}
+                        {!countersLoading && lastUpdated && (
+                          <div className="text-xs text-gray-300 mt-1">
+                            {new Date(lastUpdated).toLocaleTimeString()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900/90 rotate-45"></div>
+                    </div>
+                  </button>
                 </div>
               </div>
+
+
+              {/* Indicador de error mejorado */}
+                {countersError && (
+                  <div className="mt-6 mx-4">
+                    <div className="relative">
+                      {/* Glow de error */}
+                      <div className="absolute inset-0 bg-red-400 rounded-2xl blur-lg opacity-20"></div>
+
+                      <div className="relative bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-400 rounded-2xl p-6 shadow-lg">
+                        <div className="flex items-center">
+                          <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mr-4">
+                            <div className="text-red-500 text-xl">⚠️</div>
+                          </div>
+
+                          <div className="flex-1">
+                            <h4 className="text-red-800 font-bold text-sm mb-1">
+                              Error de Conexión
+                            </h4>
+                            <p className="text-red-700 text-xs leading-relaxed">
+                              No se pudieron cargar las estadísticas en tiempo real: {countersError}
+                            </p>
+                            <button
+                              onClick={refreshCounters}
+                              className="mt-2 text-red-600 hover:text-red-800 text-xs font-medium underline hover:no-underline transition-colors"
+                            >
+                              Reintentar conexión
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
             </div>
             <div className="relative">
               {/* Imagen principal profesional */}
@@ -635,26 +782,57 @@ const LandingPage = () => {
                   </button>
                 </div>
                 
-                {/* Estadísticas rápidas */}
+                {/* Estadísticas rápidas en tiempo real */}
                 <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-purple-50">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">6</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {countersLoading ? (
+                          <div className="animate-pulse bg-gray-300 h-6 w-8 mx-auto rounded"></div>
+                        ) : (
+                          completedProjects
+                        )}
+                      </div>
                       <div className="text-sm text-gray-600">Obras Completadas</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">Q1.6M</div>
-                      <div className="text-sm text-gray-600">Inversión Total</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {countersLoading ? (
+                          <div className="animate-pulse bg-gray-300 h-6 w-8 mx-auto rounded"></div>
+                        ) : (
+                          totalActivities
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Actividades</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">4,230</div>
-                      <div className="text-sm text-gray-600">Beneficiarios</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {countersLoading ? (
+                          <div className="animate-pulse bg-gray-300 h-6 w-8 mx-auto rounded"></div>
+                        ) : (
+                          totalUsers
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">Usuarios Activos</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">18</div>
-                      <div className="text-sm text-gray-600">Comunidades</div>
+                      <div className="text-2xl font-bold text-orange-600">
+                        {countersLoading ? (
+                          <div className="animate-pulse bg-gray-300 h-6 w-8 mx-auto rounded"></div>
+                        ) : (
+                          activeProjects
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">En Progreso</div>
                     </div>
                   </div>
+                  {!countersLoading && lastUpdated && (
+                    <div className="text-center mt-4">
+                      <span className="text-xs text-gray-500">
+                        🔄 Última actualización: {new Date(lastUpdated).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -86,7 +86,21 @@ export class SupabaseActivityRepository extends ActivityRepository {
 
       const { data, error, count } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error finding all activities:', error);
+
+        // Handle 401 Unauthorized (RLS policy issue)
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ 401 Unauthorized: RLS policy issue for activities table');
+          console.warn('🔧 Returning empty activities array as fallback');
+          return {
+            activities: [],
+            total: 0
+          };
+        }
+
+        throw error;
+      }
 
       const activities = data ? data
         .filter(activityData => activityData.creator_id) // Filter out activities without creator_id
@@ -98,6 +112,16 @@ export class SupabaseActivityRepository extends ActivityRepository {
       };
     } catch (error) {
       console.error('Error finding all activities:', error);
+
+      // Return empty results as fallback for 401 errors
+      if (error.code === 401 || (error.message && error.message.includes('401'))) {
+        console.warn('⚠️ Fallback: Returning empty activities due to auth error');
+        return {
+          activities: [],
+          total: 0
+        };
+      }
+
       throw error;
     }
   }
@@ -120,6 +144,14 @@ export class SupabaseActivityRepository extends ActivityRepository {
 
       if (error) {
         console.error('Error finding active activities:', error);
+
+        // Handle 401 Unauthorized (RLS policy issue)
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ 401 Unauthorized: RLS policy issue or invalid auth token');
+          console.warn('🔧 Returning empty featured activities array as fallback');
+          return [];
+        }
+
         return [];
       }
 

@@ -168,6 +168,24 @@ export class UnifiedAuthRepository extends AuthRepository {
    */
   async verifyToken(token) {
     try {
+      // Manejar tokens de Google reales vs tokens CASIRA
+      if (token && token.startsWith('google-auth-token-')) {
+        console.log('🔍 Verificando token Google real...');
+
+        // Para tokens de Google, consideramos válidos si existe usuario en localStorage
+        const savedUser = localStorage.getItem('casira-current-user');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          return {
+            user,
+            token: token,
+            isValid: true
+          };
+        } else {
+          throw new Error('Sesión Google expirada');
+        }
+      }
+
       if (!token || !token.startsWith('casira-jwt-')) {
         throw new Error('Token inválido');
       }
@@ -365,13 +383,36 @@ export class UnifiedAuthRepository extends AuthRepository {
    */
   async findUserById(id) {
     try {
+      // Check if Supabase client is properly initialized
+      if (!this.supabase || !this.supabase.supabaseUrl) {
+        console.error('❌ Supabase client not properly initialized');
+        return null;
+      }
+
+      console.log('🔍 Finding user by ID:', id);
+
       const { data, error } = await this.supabase
         .from(this.usersTable)
         .select('*')
         .eq('id', id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        // Check for API key related errors
+        if (error.message && error.message.includes('No API key found')) {
+          console.error('❌ API Key missing error in findUserById:', error);
+          console.error('🔧 Supabase config check:');
+          console.error('   - URL:', this.supabase.supabaseUrl || 'MISSING');
+          console.error('   - Key present:', !!this.supabase.supabaseKey);
+          return null;
+        }
+
+        // User not found is acceptable
+        if (error.code === 'PGRST116') {
+          console.log('ℹ️ User not found:', id);
+          return null;
+        }
+
         throw error;
       }
 

@@ -88,9 +88,18 @@ export const supabaseUsersAPI = {
   // Update user
   async updateUser(userId, userData) {
     try {
+      // Filtrar campos que no existen en la tabla users
+      const allowedFields = ['email', 'full_name', 'first_name', 'last_name', 'avatar_url', 'role', 'status'];
+      const filteredData = Object.keys(userData)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = userData[key];
+          return obj;
+        }, {});
+
       const { data, error } = await supabase
         .from('users')
-        .update(userData)
+        .update(filteredData)
         .eq('id', userId)
         .select()
         .single()

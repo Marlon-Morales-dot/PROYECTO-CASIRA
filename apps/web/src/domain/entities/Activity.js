@@ -81,8 +81,15 @@ export class Activity {
       throw new Error('Estado debe ser draft, active, completed o cancelled');
     }
 
-    if (!['low', 'normal', 'high', 'urgent'].includes(this.priority)) {
-      throw new Error('Prioridad debe ser low, normal, high o urgent');
+    // More flexible priority validation for existing database data
+    if (this.priority && !['low', 'normal', 'high', 'urgent'].includes(this.priority)) {
+      console.warn(`Activity ${this.id} has invalid priority '${this.priority}', defaulting to 'normal'`);
+      this.priority = 'normal';
+    }
+
+    // Set default priority if null or undefined
+    if (!this.priority) {
+      this.priority = 'normal';
     }
 
     if (this.maxVolunteers !== null && this.maxVolunteers < 1) {

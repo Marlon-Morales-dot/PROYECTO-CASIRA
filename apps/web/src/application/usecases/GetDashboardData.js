@@ -40,6 +40,11 @@ export class GetDashboardData {
         featuredActivities = await this.activityRepository.findFeatured(6);
       } catch (error) {
         console.error('❌ Error loading featured activities:', error);
+        // Provide fallback empty array for 401 errors
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ Using empty array fallback for featured activities due to auth error');
+          featuredActivities = [];
+        }
       }
 
       try {
@@ -49,6 +54,11 @@ export class GetDashboardData {
         );
       } catch (error) {
         console.error('❌ Error loading public activities:', error);
+        // Provide fallback empty result for 401 errors
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ Using empty array fallback for public activities due to auth error');
+          publicActivities = { activities: [] };
+        }
       }
 
       try {
@@ -209,6 +219,16 @@ export class GetDashboardData {
         console.log('✅ User stats retrieved:', userStats);
       } catch (error) {
         console.error('❌ Error getting user stats:', error);
+        // Provide fallback default stats for 401 errors
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ Using default user stats fallback due to auth error');
+          userStats = {
+            visitor: 0,
+            volunteer: 0,
+            admin: 0,
+            donor: 0
+          };
+        }
       }
 
       try {

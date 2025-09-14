@@ -234,7 +234,23 @@ export class SupabaseUserRepository extends UserRepository {
         .from(this.tableName)
         .select('role');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error counting users by role:', error);
+
+        // Handle 401 Unauthorized (RLS policy issue)
+        if (error.code === 401 || (error.message && error.message.includes('401'))) {
+          console.warn('⚠️ 401 Unauthorized: RLS policy issue for users table');
+          console.warn('🔧 Returning default role counts as fallback');
+          return {
+            visitor: 0,
+            volunteer: 0,
+            admin: 0,
+            donor: 0
+          };
+        }
+
+        throw error;
+      }
 
       const roleCount = data.reduce((acc, user) => {
         acc[user.role] = (acc[user.role] || 0) + 1;
@@ -244,6 +260,18 @@ export class SupabaseUserRepository extends UserRepository {
       return roleCount;
     } catch (error) {
       console.error('Error counting users by role:', error);
+
+      // Return default counts as fallback for 401 errors
+      if (error.code === 401 || (error.message && error.message.includes('401'))) {
+        console.warn('⚠️ Fallback: Returning default role counts due to auth error');
+        return {
+          visitor: 0,
+          volunteer: 0,
+          admin: 0,
+          donor: 0
+        };
+      }
+
       throw error;
     }
   }

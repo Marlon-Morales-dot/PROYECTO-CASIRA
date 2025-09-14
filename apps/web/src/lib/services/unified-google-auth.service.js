@@ -32,8 +32,20 @@ class UnifiedGoogleAuthService {
     try {
       console.log('🚀 Unified Google Auth: Comenzando inicialización...');
 
-      // TEMPORAL: Usar solo gapi.auth2 para evitar problemas de origen
-      console.log('🔄 TEMPORAL: Forzando uso de gapi.auth2 clásico...');
+      // Método 1: Intentar Google Identity Services (Nueva API)
+      console.log('🔄 Intentando Google Identity Services...');
+      try {
+        await this._loadGoogleIdentityServices();
+        await this._setupGoogleIdentity();
+        this.authMethod = 'identity';
+        console.log('✅ Google Identity Services inicializado');
+        return true;
+      } catch (identityError) {
+        console.warn('⚠️ Google Identity Services falló:', identityError.message);
+      }
+
+      // Método 2: Fallback a gapi.auth2 clásico
+      console.log('🔄 Fallback: Intentando gapi.auth2 clásico...');
       try {
         await this._loadGoogleAPI();
         await this._setupGoogleAuth2();
@@ -172,38 +184,42 @@ class UnifiedGoogleAuthService {
 
   async _signInWithIdentity() {
     return new Promise((resolve, reject) => {
-      // Usar One Tap para evitar COOP completamente
       try {
-        // Configurar callback temporal
-        const originalCallback = window.google.accounts.id.initialize.callback;
-        
-        window.google.accounts.id.initialize({
+        console.log('🔐 Usando Google Identity Services con OAuth2 popup...');
+
+        // Crear cliente OAuth2 para evitar problemas de CSP con iframe
+        const client = window.google.accounts.oauth2.initTokenClient({
           client_id: this.config.clientId,
-          callback: async (credential) => {
+          scope: 'profile email openid',
+          callback: async (tokenResponse) => {
             try {
-              const userInfo = this._parseJWT(credential.credential);
-              const casiraUser = await this._processGoogleUser(userInfo, 'identity');
+              console.log('✅ Token OAuth2 recibido:', tokenResponse);
+
+              if (tokenResponse.error) {
+                throw new Error(tokenResponse.error);
+              }
+
+              const casiraUser = await this._handleTokenResponse(tokenResponse);
               resolve(casiraUser);
             } catch (error) {
+              console.error('❌ Error procesando token OAuth2:', error);
               reject(error);
             }
           },
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          use_fedcm_for_prompt: false
-        });
-        
-        // Mostrar One Tap
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed()) {
-            reject(new Error('Google Sign-In no se pudo mostrar'));
-          }
-          if (notification.isSkippedMoment()) {
-            reject(new Error('Google Sign-In fue omitido por el usuario'));
+          error_callback: (error) => {
+            console.error('❌ Error en callback OAuth2:', error);
+            reject(new Error('Error en autenticación OAuth2: ' + error.type));
           }
         });
-        
+
+        // Solicitar token con popup
+        client.requestAccessToken({
+          prompt: 'consent',
+          hint: null
+        });
+
       } catch (error) {
+        console.error('❌ Error en _signInWithIdentity:', error);
         reject(error);
       }
     });
@@ -351,16 +367,32 @@ class UnifiedGoogleAuthService {
           // Crear notificación de bienvenida en Supabase
           try {
             const { supabase } = await import('../supabase-client.js');
+
+            // Notificación específica según el rol asignado
+            const isAdmin = userData.role === 'admin';
+            const welcomeMessage = isAdmin
+              ? `¡Hola ${userData.first_name}! Has sido autenticado como administrador. Tienes acceso completo al panel de administración para gestionar usuarios, actividades y notificaciones.`
+              : `Hola ${userData.first_name}, gracias por unirte a nuestra comunidad. Explora las actividades disponibles y comienza a hacer la diferencia.`;
+
+            const welcomeTitle = isAdmin
+              ? '🔑 ¡Bienvenido Administrador!'
+              : '🎉 ¡Bienvenido a CASIRA!';
+
             await supabase
               .from('notifications')
               .insert({
                 user_id: supabaseUser.id,
-                type: 'welcome',
-                title: '🎉 ¡Bienvenido a CASIRA!',
-                message: `Hola ${userData.first_name}, gracias por unirte a nuestra comunidad. Explora las actividades disponibles y comienza a hacer la diferencia.`,
-                data: JSON.stringify({ welcome: true, provider: 'google' })
+                type: isAdmin ? 'admin_welcome' : 'welcome',
+                title: welcomeTitle,
+                message: welcomeMessage,
+                data: JSON.stringify({
+                  welcome: true,
+                  provider: 'google',
+                  role: userData.role,
+                  admin_access: isAdmin
+                })
               });
-            console.log('🔔 Notificación de bienvenida creada');
+            console.log('🔔 Notificación de bienvenida creada para usuario Google:', { role: userData.role, isAdmin });
           } catch (notifError) {
             console.warn('⚠️ Error creando notificación de bienvenida:', notifError);
           }
@@ -372,6 +404,7 @@ class UnifiedGoogleAuthService {
             avatar_url: userData.avatar_url,
             first_name: userData.first_name,
             last_name: userData.last_name
+            // Removido updated_at porque no existe en la tabla
           });
           
           if (!updatedUser) {
@@ -388,9 +421,9 @@ class UnifiedGoogleAuthService {
         console.log('🎉 CASIRA: Sincronización con Supabase OBLIGATORIA completada');
         
       } catch (supabaseError) {
-        console.error('❌ CASIRA: Error CRÍTICO sincronizando con Supabase:', supabaseError);
-        // FALLAR el login si no se puede sincronizar con Supabase
-        throw new Error(`No se pudo sincronizar con la base de datos: ${supabaseError.message}`);
+        console.error('❌ CASIRA: Error sincronizando con Supabase (continuando sin sync):', supabaseError);
+        // No fallar el login, solo continuar sin sincronización
+        console.log('⚠️ CASIRA: Continuando con datos locales únicamente');
       }
 
       this.currentUser = userData;

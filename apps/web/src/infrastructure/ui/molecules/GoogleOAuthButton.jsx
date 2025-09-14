@@ -20,25 +20,20 @@ const GoogleOAuthButton = ({
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Usar el nuevo servicio unificado de Google Auth a través del provider
-      console.log('🔐 Starting Google Authentication with Unified Service...');
-      
-      // TODO: Implementar Google Auth cuando sea necesario
-      throw new Error('Google Auth temporalmente deshabilitado');
-      
-      if (googleToken) {
+      console.log('🔐 Starting REAL Google Authentication...');
+
+      // Usar el servicio unificado de Google Auth a través del provider
+      const result = await loginWithGoogle();
+
+      if (result && result.success) {
         console.log('✅ Google Auth success');
-        
-        // Usar el provider para manejar el login
-        const result = await loginWithGoogle(googleToken);
-        
-        if (result.success && onSuccess) {
+
+        if (onSuccess) {
           onSuccess(result.user);
-        } else if (!result.success && onError) {
-          onError(new Error(result.message));
         }
       } else {
-        throw new Error('No token returned from Google Auth');
+        const errorMsg = result?.message || 'Error de autenticación';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('❌ Google OAuth error:', error);

@@ -200,28 +200,47 @@ export function AuthProvider({ children }) {
 
         if (savedUser && savedToken && loginUseCase) {
           const userData = JSON.parse(savedUser);
-          
-          // Verificar si el token sigue siendo válido
-          const result = await loginUseCase.verifyExistingToken(savedToken);
-          
-          if (result.success) {
+
+          // Manejar tokens de Google reales de manera especial
+          if (savedToken.startsWith('google-auth-token-')) {
+            console.log('🔄 Restaurando sesión Google real...');
+
             authDispatch({
               type: 'LOGIN_SUCCESS',
               payload: {
-                user: result.user,
-                token: result.token
+                user: userData,
+                token: savedToken
               }
             });
-            
+
             // Emitir evento de login
             eventBus.emit(DomainEvents.USER_LOGGED_IN, {
-              user: result.user,
-              method: 'session_restore'
+              user: userData,
+              method: 'google'
             });
           } else {
-            // Token inválido, limpiar
-            localStorage.removeItem('casira-current-user');
-            localStorage.removeItem('casira-token');
+            // Verificar tokens CASIRA normales
+            const result = await loginUseCase.verifyExistingToken(savedToken);
+
+            if (result.success) {
+              authDispatch({
+                type: 'LOGIN_SUCCESS',
+                payload: {
+                  user: result.user,
+                  token: result.token
+                }
+              });
+
+              // Emitir evento de login
+              eventBus.emit(DomainEvents.USER_LOGGED_IN, {
+                user: result.user,
+                method: 'session_restore'
+              });
+            } else {
+              // Token inválido, limpiar
+              localStorage.removeItem('casira-current-user');
+              localStorage.removeItem('casira-token');
+            }
           }
         }
       } catch (error) {
@@ -327,19 +346,26 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Login con Google
+   * Login con Google - Usa el servicio unificado directamente
    */
-  const loginWithGoogle = async (googleToken) => {
-    if (!loginUseCase) {
-      throw new Error('Login service not available');
-    }
-
+  const loginWithGoogle = async () => {
     authDispatch({ type: 'LOGIN_START' });
 
     try {
-      const result = await loginUseCase.executeWithGoogle(googleToken);
+      // Importar el servicio unificado de Google Auth
+      const { default: unifiedGoogleAuth } = await import('../../../lib/services/unified-google-auth.service.js');
 
-      if (result.success) {
+      // Usar el servicio unificado que maneja todo internamente
+      const user = await unifiedGoogleAuth.signIn();
+
+      if (user) {
+        const result = {
+          success: true,
+          user: user,
+          token: 'google-auth-token-' + Date.now(),
+          message: `¡Bienvenido ${user.first_name}!`
+        };
+
         // Guardar en localStorage
         localStorage.setItem('casira-current-user', JSON.stringify(result.user));
         localStorage.setItem('casira-token', result.token);
@@ -360,13 +386,15 @@ export function AuthProvider({ children }) {
 
         return result;
       } else {
+        const errorMsg = 'Error de autenticación con Google';
         authDispatch({
           type: 'LOGIN_FAILURE',
-          payload: result.message
+          payload: errorMsg
         });
-        return result;
+        return { success: false, message: errorMsg };
       }
     } catch (error) {
+      console.error('❌ Error en loginWithGoogle:', error);
       authDispatch({
         type: 'LOGIN_FAILURE',
         payload: error.message
@@ -459,11 +487,33 @@ export function NotificationProvider({ children }) {
     const unsubscribers = [
       // Notificación de login exitoso
       eventBus.on(DomainEvents.USER_LOGGED_IN, (eventData) => {
+        const user = eventData.data.user;
+        const method = eventData.data.method;
+        const isAdmin = user?.role === 'admin';
+        const isGoogle = method === 'google';
+
+        let title, message;
+
+        if (isGoogle && isAdmin) {
+          title = '🔑 ¡Acceso Administrativo!';
+          message = `Hola ${user.first_name || user.firstName || 'Administrador'}, has iniciado sesión con Google. Panel de administración disponible.`;
+        } else if (isGoogle) {
+          title = '✨ ¡Autenticado con Google!';
+          message = `Bienvenido ${user.first_name || user.firstName || 'Usuario'}. Tu cuenta ha sido sincronizada exitosamente.`;
+        } else if (isAdmin) {
+          title = '🔑 ¡Bienvenido Administrador!';
+          message = `Hola ${user.firstName || user.first_name || 'Administrador'}`;
+        } else {
+          title = '¡Bienvenido!';
+          message = `Hola ${user.firstName || user.first_name || 'Usuario'}`;
+        }
+
         addNotification({
           type: 'success',
-          title: '¡Bienvenido!',
-          message: `Hola ${eventData.data.user?.firstName || 'Usuario'}`,
-          autoClose: true
+          title,
+          message,
+          autoClose: true,
+          duration: isAdmin ? 8000 : 5000 // Admins ven la notificación más tiempo
         });
       }),
 

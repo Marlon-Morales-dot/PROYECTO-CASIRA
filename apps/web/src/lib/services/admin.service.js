@@ -23,19 +23,43 @@ class AdminService {
         console.warn('⚠️ AdminService: Error obteniendo usuarios de Supabase:', error);
       }
 
-      // 2. Obtener usuarios de Google desde localStorage
+      // 2. Obtener usuarios de Google desde localStorage y storageManager
       let googleUsers = [];
       try {
+        // Primero intentar desde localStorage directo
         const googleUsersData = JSON.parse(localStorage.getItem('google_users') || '[]');
-        googleUsers = googleUsersData.map(user => ({
-          ...user,
-          source: 'google',
-          role: user.role || 'visitor',
-          status: user.status || 'active',
-          created_at: user.created_at || new Date().toISOString(),
-          provider: 'google'
-        }));
-        console.log(`📱 AdminService: ${googleUsers.length} usuarios de Google encontrados en localStorage`);
+
+        // Luego desde storageManager (usuarios autenticados con Google)
+        const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
+        const casiraUsers = (casiraData.users || []).filter(user => user.provider === 'google');
+
+        // Combinar ambos, eliminando duplicados por email
+        const allGoogleUsers = [...googleUsersData, ...casiraUsers];
+        const seenGoogleEmails = new Set();
+
+        googleUsers = allGoogleUsers
+          .filter(user => {
+            if (!seenGoogleEmails.has(user.email)) {
+              seenGoogleEmails.add(user.email);
+              return true;
+            }
+            return false;
+          })
+          .map(user => ({
+            ...user,
+            source: 'google',
+            role: user.role || 'visitor',
+            status: user.status || 'active',
+            created_at: user.created_at || new Date().toISOString(),
+            provider: 'google',
+            // Asegurar que admin@casira.org tenga rol de admin
+            ...(user.email === 'admin@casira.org' ? { role: 'admin' } : {})
+          }));
+
+        console.log(`📱 AdminService: ${googleUsers.length} usuarios de Google encontrados`);
+        console.log('🔍 AdminService: Usuarios Google por rol:',
+          googleUsers.reduce((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; return acc; }, {})
+        );
       } catch (error) {
         console.warn('⚠️ AdminService: Error obteniendo usuarios de Google:', error);
       }
