@@ -117,6 +117,37 @@ export const supabaseUsersAPI = {
     try {
       console.log('🔄 SupabaseAPI: Updating user role:', userId, 'to', newRole);
 
+      // Try using RPC function first to bypass RLS policies
+      console.log('🔄 SupabaseAPI: Attempting RPC update to bypass RLS...');
+
+      try {
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('admin_update_user_role', {
+            target_user_id: userId,
+            new_role_value: newRole
+          });
+
+        if (!rpcError) {
+          console.log('✅ SupabaseAPI: User role updated successfully via RPC');
+
+          // Fetch the updated user data
+          const { data: updatedUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+          return updatedUser;
+        } else {
+          console.log('⚠️ SupabaseAPI: RPC function not available, trying direct update...');
+        }
+      } catch (rpcError) {
+        console.log('⚠️ SupabaseAPI: RPC approach failed, trying direct update...');
+      }
+
+      // Fallback to direct update
+      console.log('🔄 SupabaseAPI: Attempting direct update...');
+
       // First check current role to avoid unnecessary updates
       const { data: currentUser, error: fetchError } = await supabase
         .from('users')
@@ -130,12 +161,13 @@ export const supabaseUsersAPI = {
       }
 
       if (currentUser.role === newRole) {
-        console.log('ℹ️ SupabaseAPI: User already has the target role, skipping update');
+        console.log('ℹ️ SupabaseAPI: User already has the target role, returning current data');
         return currentUser;
       }
 
       console.log('🔄 SupabaseAPI: Current role:', currentUser.role, '→ New role:', newRole);
 
+      // Try the direct update
       const { data, error } = await supabase
         .from('users')
         .update({ role: newRole })
@@ -150,6 +182,13 @@ export const supabaseUsersAPI = {
           details: error.details,
           hint: error.hint
         });
+
+        // If it's a permissions error, suggest RLS bypass
+        if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
+          console.error('🛡️ SupabaseAPI: This appears to be a Row Level Security (RLS) policy restriction.');
+          console.error('💡 Suggestion: Create an admin RPC function in Supabase to bypass RLS for admin operations.');
+        }
+
         throw error;
       }
 

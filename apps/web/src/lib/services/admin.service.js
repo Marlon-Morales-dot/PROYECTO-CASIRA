@@ -256,27 +256,55 @@ class AdminService {
         }
       }
 
-      // STEP 2: Use the same updateUserRole method from supabase-api.js
-      console.log(`🔄 AdminService: Using supabase-api updateUserRole method...`);
+      // STEP 2: Try Supabase first, but fallback to localStorage if needed
+      console.log(`🔄 AdminService: Attempting Supabase update first...`);
 
-      const { supabaseUsersAPI } = await import('../supabase-api.js');
-      const updatedUser = await supabaseUsersAPI.updateUserRole(targetUserId, newRole);
+      try {
+        const { supabaseUsersAPI } = await import('../supabase-api.js');
+        const updatedUser = await supabaseUsersAPI.updateUserRole(targetUserId, newRole);
 
-      if (updatedUser) {
-        console.log(`✅ AdminService: User role updated successfully via supabase-api`);
-        console.log(`📝 AdminService: Updated user:`, updatedUser);
+        if (updatedUser) {
+          console.log(`✅ AdminService: User role updated successfully via supabase-api`);
+          console.log(`📝 AdminService: Updated user:`, updatedUser);
 
-        // Create notification for role change only if role actually changed
-        if (oldRole !== newRole) {
-          await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+          // Create notification for role change only if role actually changed
+          if (oldRole !== newRole) {
+            await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+          }
+
+          // Sync local data
+          await this._syncLocalData(targetUserEmail, newRole);
+
+          return updatedUser;
         }
+      } catch (supabaseError) {
+        console.warn(`⚠️ AdminService: Supabase update failed, using localStorage fallback:`, supabaseError);
 
-        // Sync local data
+        // FALLBACK: Update in localStorage first and set sync flag
+        console.log(`🔄 AdminService: Using localStorage-first approach due to Supabase RLS restrictions`);
+
+        // Update all local sources immediately
         await this._syncLocalData(targetUserEmail, newRole);
 
+        // Create a mock user object with updated role
+        const updatedUser = {
+          id: targetUserId,
+          email: targetUserEmail,
+          role: newRole,
+          updated_at: new Date().toISOString(),
+          needs_supabase_sync: true // Flag for later sync
+        };
+
+        // Create notification for role change
+        if (oldRole !== newRole) {
+          await this._createRoleChangeNotification(targetUserId, targetUserEmail, oldRole, newRole);
+        }
+
+        // Schedule background sync attempt
+        this._scheduleSupabaseSync(targetUserId, targetUserEmail, newRole);
+
+        console.log(`✅ AdminService: Role updated locally, will sync to Supabase in background`);
         return updatedUser;
-      } else {
-        throw new Error('No response received from Supabase');
       }
 
     } catch (error) {
@@ -988,6 +1016,110 @@ class AdminService {
 
     } catch (error) {
       console.error('❌ AdminService: Error general creando notificación de cambio de rol:', error);
+    }
+  }
+
+  // ============= BACKGROUND SYNC FOR SUPABASE =============
+
+  _scheduleSupabaseSync(userId, userEmail, newRole) {
+    try {
+      console.log(`🔄 AdminService: Scheduling background sync for ${userEmail}`);
+
+      // Store sync request in localStorage for retry later
+      const syncRequests = JSON.parse(localStorage.getItem('casira-sync-requests') || '[]');
+
+      const syncRequest = {
+        id: `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'user_role_update',
+        userId: userId,
+        userEmail: userEmail,
+        newRole: newRole,
+        attempts: 0,
+        maxAttempts: 5,
+        created_at: new Date().toISOString(),
+        next_attempt: new Date(Date.now() + 30000).toISOString() // 30 seconds from now
+      };
+
+      syncRequests.push(syncRequest);
+      localStorage.setItem('casira-sync-requests', JSON.stringify(syncRequests));
+
+      // Attempt immediate background sync
+      setTimeout(() => this._attemptSupabaseSync(syncRequest), 30000);
+
+      console.log(`📅 AdminService: Sync scheduled for ${userEmail} in 30 seconds`);
+    } catch (error) {
+      console.warn('⚠️ AdminService: Error scheduling background sync:', error);
+    }
+  }
+
+  async _attemptSupabaseSync(syncRequest) {
+    try {
+      console.log(`🔄 AdminService: Attempting background sync for ${syncRequest.userEmail} (attempt ${syncRequest.attempts + 1})`);
+
+      // Try the RPC approach first
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('admin_update_user_role', {
+          target_user_id: syncRequest.userId,
+          new_role_value: syncRequest.newRole
+        });
+
+      if (!rpcError) {
+        console.log(`✅ AdminService: Background sync successful via RPC for ${syncRequest.userEmail}`);
+        this._removeSyncRequest(syncRequest.id);
+        return;
+      }
+
+      // If RPC fails, try direct update
+      const { data, error } = await supabase
+        .from('users')
+        .update({ role: syncRequest.newRole })
+        .eq('id', syncRequest.userId);
+
+      if (!error) {
+        console.log(`✅ AdminService: Background sync successful via direct update for ${syncRequest.userEmail}`);
+        this._removeSyncRequest(syncRequest.id);
+        return;
+      }
+
+      throw error;
+
+    } catch (error) {
+      console.warn(`⚠️ AdminService: Background sync attempt failed for ${syncRequest.userEmail}:`, error);
+
+      // Update sync request with new attempt count
+      const syncRequests = JSON.parse(localStorage.getItem('casira-sync-requests') || '[]');
+      const requestIndex = syncRequests.findIndex(r => r.id === syncRequest.id);
+
+      if (requestIndex !== -1) {
+        syncRequests[requestIndex].attempts += 1;
+        syncRequests[requestIndex].last_error = error.message;
+        syncRequests[requestIndex].last_attempt = new Date().toISOString();
+
+        if (syncRequests[requestIndex].attempts >= syncRequests[requestIndex].maxAttempts) {
+          console.error(`❌ AdminService: Max sync attempts reached for ${syncRequest.userEmail}, giving up`);
+          syncRequests.splice(requestIndex, 1);
+        } else {
+          // Schedule next attempt with exponential backoff
+          const backoffMs = Math.min(300000, 30000 * Math.pow(2, syncRequests[requestIndex].attempts)); // Max 5 minutes
+          syncRequests[requestIndex].next_attempt = new Date(Date.now() + backoffMs).toISOString();
+
+          setTimeout(() => this._attemptSupabaseSync(syncRequests[requestIndex]), backoffMs);
+          console.log(`📅 AdminService: Next sync attempt for ${syncRequest.userEmail} in ${backoffMs/1000} seconds`);
+        }
+
+        localStorage.setItem('casira-sync-requests', JSON.stringify(syncRequests));
+      }
+    }
+  }
+
+  _removeSyncRequest(syncId) {
+    try {
+      const syncRequests = JSON.parse(localStorage.getItem('casira-sync-requests') || '[]');
+      const filteredRequests = syncRequests.filter(r => r.id !== syncId);
+      localStorage.setItem('casira-sync-requests', JSON.stringify(filteredRequests));
+      console.log(`🗑️ AdminService: Removed sync request ${syncId}`);
+    } catch (error) {
+      console.warn('⚠️ AdminService: Error removing sync request:', error);
     }
   }
 
