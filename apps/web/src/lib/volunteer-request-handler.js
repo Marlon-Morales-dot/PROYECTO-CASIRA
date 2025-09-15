@@ -176,24 +176,60 @@ export const createVolunteerRequest = async (userOrId, activityId, message = '')
       const created = data[0];
       console.log('✅ VOLUNTEER: Request created in Supabase:', created.id);
       
-      // Crear notificación en Supabase para el admin
+      // Crear notificación en Supabase para TODOS los admins
       try {
         const userName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
-        
-        // Crear notificación para admin (user_id = null para notificaciones globales del admin)
-        await supabase
-          .from('notifications')
-          .insert({
-            type: 'volunteer_request',
-            title: '🙋‍♀️ Nueva Solicitud de Voluntario',
-            message: `${userName} quiere unirse a "${activity.title}"`,
-            data: JSON.stringify({ 
-              volunteer_request_id: created.id, 
-              activity_id: activityId,
-              user_email: user.email,
-              user_name: userName
-            })
-          });
+
+        // Obtener todos los usuarios admin
+        const { supabaseAPI } = await import('./supabase-api.js');
+        let adminUsers = [];
+
+        try {
+          const allUsers = await supabaseAPI.users.getAllUsers();
+          adminUsers = allUsers.filter(u => u.role === 'admin');
+          console.log('📋 VOLUNTEER: Found', adminUsers.length, 'admin users for notifications');
+        } catch (adminError) {
+          console.warn('⚠️ Could not fetch admin users, creating general notification');
+        }
+
+        // Si hay admins específicos, crear notificación para cada uno
+        if (adminUsers.length > 0) {
+          const notificationPromises = adminUsers.map(admin =>
+            supabase
+              .from('notifications')
+              .insert({
+                user_id: admin.id,
+                type: 'volunteer_request',
+                title: '🙋‍♀️ Nueva Solicitud de Voluntario',
+                message: `${userName} quiere unirse a "${activity.title}"`,
+                data: JSON.stringify({
+                  volunteer_request_id: created.id,
+                  activity_id: activityId,
+                  user_email: user.email,
+                  user_name: userName
+                })
+              })
+          );
+
+          await Promise.all(notificationPromises);
+          console.log('✅ VOLUNTEER: Admin notifications created for', adminUsers.length, 'admins');
+        } else {
+          // Fallback: crear notificación general sin user_id
+          await supabase
+            .from('notifications')
+            .insert({
+              type: 'volunteer_request',
+              title: '🙋‍♀️ Nueva Solicitud de Voluntario',
+              message: `${userName} quiere unirse a "${activity.title}"`,
+              data: JSON.stringify({
+                volunteer_request_id: created.id,
+                activity_id: activityId,
+                user_email: user.email,
+                user_name: userName
+              })
+            });
+          console.log('✅ VOLUNTEER: General admin notification created');
+        }
         
         console.log('🔔 VOLUNTEER: Admin notification created');
       } catch (notifError) {

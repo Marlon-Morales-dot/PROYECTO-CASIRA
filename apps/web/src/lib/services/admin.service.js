@@ -80,24 +80,87 @@ class AdminService {
         console.warn('⚠️ AdminService: Error obteniendo usuarios locales:', error);
       }
 
-      // 4. Combinar todos los usuarios eliminando duplicados
+      // 4. Combinar todos los usuarios eliminando duplicados y aplicando actualizaciones locales
       const allUsers = [];
       const seenEmails = new Set();
+      const seenIds = new Set();
 
-      // Prioridad: Supabase > Local > Google
+      // Crear mapa de cambios locales para preservar modificaciones manuales
+      const localUpdatesMap = new Map();
+
+      // Mapear actualizaciones de storageManager
+      localUsers.forEach(user => {
+        if (user.updated_at) {
+          localUpdatesMap.set(user.email, user);
+          localUpdatesMap.set(user.id, user);
+        }
+      });
+
+      // También revisar actualizaciones en Google users localStorage
+      try {
+        const googleUsersLocal = JSON.parse(localStorage.getItem('google_users') || '[]');
+        googleUsersLocal.forEach(user => {
+          if (user.updated_at) {
+            localUpdatesMap.set(user.email, user);
+            localUpdatesMap.set(user.id, user);
+          }
+        });
+      } catch (error) {
+        console.warn('⚠️ AdminService: Error leyendo actualizaciones de Google users:', error);
+      }
+
+      // También revisar actualizaciones en CASIRA data
+      try {
+        const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
+        const casiraUsers = casiraData.users || [];
+        casiraUsers.forEach(user => {
+          if (user.updated_at) {
+            localUpdatesMap.set(user.email, user);
+            localUpdatesMap.set(user.id, user);
+          }
+        });
+      } catch (error) {
+        console.warn('⚠️ AdminService: Error leyendo actualizaciones de CASIRA data:', error);
+      }
+
+      // Prioridad: Supabase > Local > Google, pero con actualizaciones locales aplicadas
       [...(supabaseUsers || []), ...localUsers, ...googleUsers].forEach(user => {
-        if (!seenEmails.has(user.email)) {
-          seenEmails.add(user.email);
-          allUsers.push({
+        const email = user.email;
+        const id = user.id;
+
+        if (!seenEmails.has(email) && !seenIds.has(id)) {
+          seenEmails.add(email);
+          seenIds.add(id);
+
+          // Verificar si hay una actualización local para este usuario
+          const localUpdate = localUpdatesMap.get(email) || localUpdatesMap.get(id);
+
+          const finalUser = {
             ...user,
+            // Aplicar actualización local si existe
+            ...(localUpdate ? {
+              role: localUpdate.role,
+              updated_at: localUpdate.updated_at,
+              source: user.source || 'local_updated'
+            } : {}),
             // Asegurar campos requeridos
             id: user.id || user.email.replace('@', '_at_').replace('.', '_'),
             full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
             first_name: user.first_name || user.email.split('@')[0],
             last_name: user.last_name || '',
-            role: user.role || 'visitor',
+            role: localUpdate?.role || user.role || 'visitor',
             status: user.status || 'active'
-          });
+          };
+
+          allUsers.push(finalUser);
+
+          if (localUpdate) {
+            console.log(`🔄 AdminService: Aplicando actualización local para ${email}:`, {
+              oldRole: user.role,
+              newRole: localUpdate.role,
+              updated_at: localUpdate.updated_at
+            });
+          }
         }
       });
 
@@ -167,6 +230,7 @@ class AdminService {
 
           if (!errorById && dataById && dataById.length > 0) {
             console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
+            this._clearUserCache();
             return dataById[0];
           }
 
@@ -179,6 +243,7 @@ class AdminService {
 
           if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
             console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
+            this._clearUserCache();
             return dataByEmail[0];
           }
 
@@ -206,6 +271,7 @@ class AdminService {
 
           storageManager.set('users', users);
           console.log('✅ AdminService: Rol actualizado en almacenamiento local');
+          this._clearUserCache();
           return users[userIndex];
         }
       } catch (localError) {
@@ -227,6 +293,7 @@ class AdminService {
 
           localStorage.setItem('google_users', JSON.stringify(googleUsers));
           console.log('✅ AdminService: Rol actualizado en usuarios de Google');
+          this._clearUserCache();
           return googleUsers[googleUserIndex];
         }
       } catch (googleError) {
@@ -251,10 +318,75 @@ class AdminService {
           casiraData.users = casiraUsers;
           localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
           console.log('✅ AdminService: Rol actualizado en datos CASIRA');
+          this._clearUserCache();
           return casiraUsers[casiraUserIndex];
         }
       } catch (casiraError) {
         console.warn('⚠️ AdminService: Error actualizando en datos CASIRA:', casiraError);
+      }
+
+      // 5. If user is from Google but not updated yet, force update in all possible sources
+      if (targetUser.source === 'google' || targetUser.auth_provider === 'google') {
+        console.log('🔄 AdminService: Forzando actualización para usuario de Google en todas las fuentes');
+
+        const updatedUser = {
+          ...targetUser,
+          role: newRole,
+          updated_at: new Date().toISOString()
+        };
+
+        // Force update in all Google-related storage
+        try {
+          // Update in google_users
+          const googleUsers = JSON.parse(localStorage.getItem('google_users') || '[]');
+          const updatedGoogleUsers = googleUsers.map(u =>
+            u.id === targetUser.id || u.email === targetUser.email ? updatedUser : u
+          );
+          localStorage.setItem('google_users', JSON.stringify(updatedGoogleUsers));
+
+          // Update in casira-data-v2
+          const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
+          casiraData.users = casiraData.users || [];
+
+          // Add or update user in CASIRA data
+          const existingIndex = casiraData.users.findIndex(u =>
+            u.id === targetUser.id || u.email === targetUser.email
+          );
+
+          if (existingIndex !== -1) {
+            casiraData.users[existingIndex] = updatedUser;
+          } else {
+            casiraData.users.push(updatedUser);
+          }
+
+          localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
+
+          // Update in storageManager
+          const { default: storageManager } = await import('../storage-manager.js');
+          const localData = storageManager.exportData();
+          localData.users = localData.users || [];
+
+          const localUserIndex = localData.users.findIndex(u =>
+            u.id === targetUser.id || u.email === targetUser.email
+          );
+
+          if (localUserIndex !== -1) {
+            localData.users[localUserIndex] = updatedUser;
+          } else {
+            localData.users.push(updatedUser);
+          }
+
+          storageManager.set('users', localData.users);
+
+          console.log('✅ AdminService: Usuario de Google actualizado forzadamente en todas las fuentes');
+
+          // Clear any potential cache to force refresh
+          this._clearUserCache();
+
+          return updatedUser;
+        } catch (error) {
+          console.warn('⚠️ AdminService: Error en actualización forzada:', error);
+        }
       }
 
       throw new Error('No se pudo actualizar el rol en ninguna fuente de datos');

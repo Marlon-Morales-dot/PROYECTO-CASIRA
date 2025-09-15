@@ -4,7 +4,7 @@ const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casir
 
 // Import Supabase API
 import { supabaseAPI } from './supabase-api.js';
-import { storageAPI } from './supabase-singleton.js';
+import { storageAPI, supabase } from './supabase-singleton.js';
 import { idsMatch, createHybridRecord, generateUUID, isUUID } from './uuid-helper.js';
 
 // Configuration flag - set to true to use Supabase, false for localStorage  
@@ -1269,10 +1269,31 @@ export const notificationsAPI = {
         }
 
         const supabaseNotifications = await supabaseAPI.notifications.getUserNotifications(supabaseUserId);
-        console.log('✅ CASIRA: Found', supabaseNotifications.length, 'notifications in Supabase');
+        console.log('✅ CASIRA: Found', supabaseNotifications.length, 'user-specific notifications in Supabase');
 
-        if (supabaseNotifications.length > 0) {
-          return supabaseNotifications;
+        // Para admins, también obtener notificaciones generales (sin user_id)
+        let generalNotifications = [];
+        if (currentUser && currentUser.role === 'admin') {
+          try {
+            console.log('👑 CASIRA: Loading general admin notifications...');
+            const { data: general, error } = await supabase
+              .from('notifications')
+              .select('*')
+              .is('user_id', null)
+              .order('created_at', { ascending: false });
+
+            if (!error && general) {
+              generalNotifications = general;
+              console.log('✅ CASIRA: Found', generalNotifications.length, 'general admin notifications');
+            }
+          } catch (generalError) {
+            console.warn('⚠️ Error loading general notifications:', generalError.message);
+          }
+        }
+
+        const allNotifications = [...supabaseNotifications, ...generalNotifications];
+        if (allNotifications.length > 0) {
+          return allNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         }
       }
 

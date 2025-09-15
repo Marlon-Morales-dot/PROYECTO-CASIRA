@@ -66,6 +66,47 @@ const SocialDashboard = ({ user, onLogout }) => {
     };
   }, [showNotifications]);
 
+  // Actualización en tiempo real de notificaciones
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Función para actualizar solo las notificaciones
+    const updateNotifications = async () => {
+      try {
+        const freshNotifications = await notificationsAPI.getUserNotifications(user.id);
+        setNotifications(freshNotifications);
+
+        // Solo mostrar en consola si hay cambios
+        if (freshNotifications.length !== notifications.length) {
+          console.log('🔔 Notificaciones actualizadas:', freshNotifications.length);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error actualizando notificaciones:', error);
+      }
+    };
+
+    // Actualizar cada 10 segundos cuando la página está visible
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        updateNotifications();
+      }
+    }, 10000);
+
+    // También actualizar cuando la página vuelve a ser visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        updateNotifications();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id, notifications.length]);
+
   const loadSocialData = async () => {
     try {
       // Load all data for social feed
@@ -467,8 +508,26 @@ const SocialDashboard = ({ user, onLogout }) => {
                       className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
                     >
                       <div className="p-4 border-b border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
-                        <p className="text-sm text-gray-500">{notifications.length} notificaciones</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
+                            <p className="text-sm text-gray-500">{notifications.length} notificaciones</p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const freshNotifications = await notificationsAPI.getUserNotifications(user.id);
+                                setNotifications(freshNotifications);
+                                console.log('🔄 Notificaciones actualizadas manualmente:', freshNotifications.length);
+                              } catch (error) {
+                                console.error('❌ Error actualizando notificaciones:', error);
+                              }
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded bg-blue-50 hover:bg-blue-100"
+                          >
+                            🔄 Actualizar
+                          </button>
+                        </div>
                       </div>
 
                       <div className="max-h-96 overflow-y-auto">
