@@ -807,16 +807,28 @@ export const volunteersAPI = {
     dataStore.volunteers.push(registration);
 
     // Create notification for admin
-    const user = dataStore.getUserById(userId);
+    // Para usuarios de Google, buscar por email en lugar de ID
+    let user = dataStore.getUserById(userId);
+
+    // Si no encuentra el usuario por ID (caso común con IDs de Google), buscar por usuario actual
+    if (!user) {
+      const currentUser = authAPI.getCurrentUser();
+      if (currentUser && (currentUser.id == userId || currentUser.email)) {
+        user = currentUser;
+        console.log('✅ CASIRA: Using current user for notification:', user.email);
+      }
+    }
+
     const activity = dataStore.getActivityById(activityId);
-    
+
     console.log('🔍 Creating volunteer request notification:', {
       userId,
       activityId,
       userFound: !!user,
       activityFound: !!activity,
-      userName: user ? `${user.first_name} ${user.last_name}` : 'Unknown',
-      activityTitle: activity ? activity.title : 'Unknown'
+      userName: user ? `${user.first_name || user.firstName} ${user.last_name || user.lastName}` : 'Unknown',
+      activityTitle: activity ? activity.title : 'Unknown',
+      userEmail: user ? user.email : 'Unknown'
     });
     
     if (user && activity) {
@@ -825,7 +837,7 @@ export const volunteersAPI = {
         type: 'volunteer_request',
         user_id: userId,
         activity_id: activityId,
-        message: `${user.first_name} ${user.last_name} solicita unirse a ${activity.title}`,
+        message: `${user.first_name || user.firstName} ${user.last_name || user.lastName} solicita unirse a ${activity.title}`,
         status: 'pending',
         created_at: new Date().toISOString(),
         user_email: user.email,
@@ -976,9 +988,38 @@ export const commentsAPI = {
   // Alias for compatibility with components that expect addComment
   addComment: async (activityId, userId, content) => {
     console.log('💬 CASIRA: addComment called with:', { activityId, userId, content });
+
+    // Resolver el ID correcto del usuario para Supabase
+    let resolvedUserId = userId;
+
+    // Si es un ID de Google (no es UUID), necesitamos obtener el supabase_id
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      console.log('🔍 CASIRA: Non-UUID userId detected, resolving supabase_id...');
+
+      try {
+        // Obtener el usuario actual del contexto
+        const currentUser = authAPI.getCurrentUser();
+        if (currentUser && currentUser.supabase_id) {
+          resolvedUserId = currentUser.supabase_id;
+          console.log('✅ CASIRA: Using supabase_id from current user:', resolvedUserId);
+        } else if (currentUser && currentUser.email) {
+          // Si no tenemos supabase_id, buscar por email en Supabase
+          const supabaseUser = await supabaseAPI.users.getUserByEmail(currentUser.email);
+          if (supabaseUser && supabaseUser.id) {
+            resolvedUserId = supabaseUser.id;
+            console.log('✅ CASIRA: Found supabase_id by email lookup:', resolvedUserId);
+          }
+        }
+      } catch (error) {
+        console.error('❌ CASIRA: Error resolving user ID:', error);
+        throw new Error('No se pudo resolver el ID del usuario para comentarios');
+      }
+    }
+
+    console.log('💬 CASIRA: Creating comment with resolved userId:', resolvedUserId);
     return await commentsAPI.createComment({
       activity_id: activityId,
-      author_id: userId,
+      author_id: resolvedUserId,
       content: content
     });
   }
