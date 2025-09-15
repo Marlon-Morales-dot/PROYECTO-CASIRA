@@ -1241,6 +1241,94 @@ export const notificationsAPI = {
       return { success: true };
     }
     throw new Error('Notificación no válida');
+  },
+
+  // Obtener notificaciones de usuario normal
+  getUserNotifications: async (userId) => {
+    try {
+      // Intentar obtener de Supabase primero
+      if (USE_SUPABASE) {
+        console.log('🔔 CASIRA: Getting notifications from Supabase for user:', userId);
+
+        // Para usuarios de Google, necesitamos obtener el supabase_id correcto
+        let supabaseUserId = userId;
+        const currentUser = authAPI.getCurrentUser();
+
+        if (currentUser && currentUser.supabase_id) {
+          supabaseUserId = currentUser.supabase_id;
+        } else if (currentUser && currentUser.email) {
+          // Buscar por email si no tenemos supabase_id
+          try {
+            const supabaseUser = await supabaseAPI.users.getUserByEmail(currentUser.email);
+            if (supabaseUser && supabaseUser.id) {
+              supabaseUserId = supabaseUser.id;
+            }
+          } catch (emailError) {
+            console.warn('⚠️ No se pudo buscar usuario por email:', emailError.message);
+          }
+        }
+
+        const supabaseNotifications = await supabaseAPI.notifications.getUserNotifications(supabaseUserId);
+        console.log('✅ CASIRA: Found', supabaseNotifications.length, 'notifications in Supabase');
+
+        if (supabaseNotifications.length > 0) {
+          return supabaseNotifications;
+        }
+      }
+
+      // Fallback a localStorage
+      console.log('🔔 CASIRA: Falling back to localStorage notifications');
+      let notifications = dataStore.notifications.filter(n =>
+        n.user_id == userId ||
+        (n.user_email && authAPI.getCurrentUser()?.email === n.user_email)
+      );
+
+      // También incluir notificaciones generales (sin user_id específico)
+      const generalNotifications = dataStore.notifications.filter(n =>
+        !n.user_id && n.type === 'general'
+      );
+
+      notifications = [...notifications, ...generalNotifications];
+
+      // Ordenar por fecha más reciente
+      return notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } catch (error) {
+      console.error('❌ Error getting user notifications:', error);
+      return [];
+    }
+  },
+
+  // Marcar notificación como leída
+  markAsRead: async (notificationId, userId) => {
+    try {
+      // Intentar marcar en Supabase primero
+      if (USE_SUPABASE) {
+        console.log('🔔 CASIRA: Marking notification as read in Supabase:', notificationId);
+        try {
+          const result = await supabaseAPI.notifications.markAsRead(notificationId);
+          if (result && result.length > 0) {
+            console.log('✅ CASIRA: Notification marked as read in Supabase');
+            return result[0];
+          }
+        } catch (supabaseError) {
+          console.warn('⚠️ Failed to mark as read in Supabase:', supabaseError.message);
+        }
+      }
+
+      // Fallback a localStorage
+      const notification = dataStore.notifications.find(n => n.id == notificationId);
+      if (notification) {
+        notification.read = true;
+        notification.read_at = new Date().toISOString();
+        dataStore.saveToStorage();
+        dataStore.notify();
+        return notification;
+      }
+      throw new Error('Notificación no encontrada');
+    } catch (error) {
+      console.error('❌ Error marking notification as read:', error);
+      return null;
+    }
   }
 };
 

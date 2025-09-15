@@ -4,9 +4,9 @@ import {
   Heart, MessageCircle, Share2, ThumbsUp, Camera, MapPin, Clock, Users, 
   Bell, Settings, LogOut, Plus, Send, MoreHorizontal, UserPlus, CheckCircle, Award, AlertCircle
 } from 'lucide-react';
-import { 
-  usersAPI, volunteersAPI, activitiesAPI, categoriesAPI, 
-  commentsAPI, photosAPI, dataStore 
+import {
+  usersAPI, volunteersAPI, activitiesAPI, categoriesAPI,
+  commentsAPI, photosAPI, notificationsAPI, dataStore
 } from '../lib/api.js';
 import UniversalHeader from './UniversalHeader.jsx';
 import VolunteerResponsibilities from './VolunteerResponsibilities.jsx';
@@ -39,27 +39,46 @@ const SocialDashboard = ({ user, onLogout }) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sendingComment, setSendingComment] = useState({});
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'responsibilities'
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     loadSocialData();
-    
+
     // Subscribe to store changes
     const unsubscribe = dataStore.subscribe(() => {
       loadSocialData();
     });
-    
+
     return unsubscribe;
   }, [user?.id]);
+
+  // Cerrar dropdown de notificaciones al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.notifications-dropdown')) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const loadSocialData = async () => {
     try {
       // Load all data for social feed
-      const [allActivities, allComments, allPhotos, userRegistrations] = await Promise.all([
+      const [allActivities, allComments, allPhotos, userRegistrations, userNotifications] = await Promise.all([
         activitiesAPI.getPublicActivities(),
         Promise.resolve(dataStore.comments || []),
         Promise.resolve(dataStore.photos || []),
-        volunteersAPI.getUserRegistrations(user.id)
+        volunteersAPI.getUserRegistrations(user.id),
+        notificationsAPI.getUserNotifications(user.id)
       ]);
+
+      console.log('🔔 SocialDashboard: Loaded notifications count:', userNotifications.length);
+      setNotifications(userNotifications);
 
       console.log('SocialDashboard: Loaded activities count:', allActivities.length);
       console.log('SocialDashboard: Activities:', allActivities.map(a => a.title));
@@ -419,20 +438,114 @@ const SocialDashboard = ({ user, onLogout }) => {
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative p-2 rounded-full hover:bg-blue-50 transition-colors"
-              >
-                <Bell className="h-5 w-5 text-gray-600" />
-                <motion.span 
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+              <div className="relative notifications-dropdown">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 rounded-full hover:bg-blue-50 transition-colors"
                 >
-                  {notifications.length || ''}
-                </motion.span>
-              </motion.button>
+                  <Bell className="h-5 w-5 text-gray-600" />
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                    >
+                      {notifications.filter(n => !n.read).length}
+                    </motion.span>
+                  )}
+                </motion.button>
+
+                {/* Dropdown de Notificaciones */}
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                    >
+                      <div className="p-4 border-b border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
+                        <p className="text-sm text-gray-500">{notifications.length} notificaciones</p>
+                      </div>
+
+                      <div className="max-h-96 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center">
+                            <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-gray-500">No tienes notificaciones</p>
+                          </div>
+                        ) : (
+                          notifications.slice(0, 10).map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                                !notification.read ? 'bg-blue-50' : ''
+                              }`}
+                              onClick={() => {
+                                if (!notification.read) {
+                                  notificationsAPI.markAsRead(notification.id, user.id);
+                                  setNotifications(prev =>
+                                    prev.map(n =>
+                                      n.id === notification.id ? { ...n, read: true } : n
+                                    )
+                                  );
+                                }
+                              }}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0">
+                                  {notification.type === 'volunteer_request' && (
+                                    <UserPlus className="h-5 w-5 text-blue-500" />
+                                  )}
+                                  {notification.type === 'welcome' && (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                  )}
+                                  {!notification.type && (
+                                    <Bell className="h-5 w-5 text-gray-500" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {notification.title || 'Notificación'}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    {new Date(notification.created_at).toLocaleDateString('es-ES', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                                {!notification.read && (
+                                  <div className="flex-shrink-0">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {notifications.length > 10 && (
+                        <div className="p-3 border-t border-gray-200 text-center">
+                          <button className="text-sm text-blue-600 hover:text-blue-800">
+                            Ver todas las notificaciones
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               
               <motion.div 
                 whileHover={{ scale: 1.02 }}

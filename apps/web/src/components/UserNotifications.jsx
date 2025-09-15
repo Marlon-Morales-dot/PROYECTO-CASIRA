@@ -99,8 +99,8 @@ const UserNotifications = ({ user, onClose }) => {
         if (!error && participations) {
           console.log('🎯 NOTIF: Found confirmed participations:', participations.length);
           
-          // Crear notificaciones de responsabilidades solo para voluntarios/donantes
-          if (user.role === 'volunteer' || user.role === 'donor') {
+          // Crear notificaciones de responsabilidades solo para voluntarios
+          if (user.role === 'volunteer') {
             const responsibilityNotifications = participations.map(participation => ({
               id: `responsibility-${participation.id}`,
               type: 'responsibility',
@@ -408,11 +408,6 @@ const UserNotifications = ({ user, onClose }) => {
             {user.role === 'volunteer' && (
               <>
                 🌟 <strong>¡Eres increíble!</strong> Tu participación está creando un impacto real.
-              </>
-            )}
-            {user.role === 'donor' && (
-              <>
-                🚀 <strong>¡Gracias por tu generosidad!</strong> Estás transformando vidas.
               </>
             )}
           </motion.p>

@@ -642,7 +642,6 @@ const AdminDashboard = ({ user, onLogout }) => {
       const roleNames = {
         'visitor': 'Visitante',
         'volunteer': 'Voluntario',
-        'donor': 'Donante',
         'admin': 'Administrador'
       };
       
@@ -1727,7 +1726,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                                         <option value={user.role} disabled>Cambiar rol...</option>
                                         {user.role !== 'visitor' && <option value="visitor">👀 Visitante</option>}
                                         {user.role !== 'volunteer' && <option value="volunteer">🤝 Voluntario</option>}
-                                        {user.role !== 'donor' && <option value="donor">💝 Donante</option>}
+                                        {user.role !== 'admin' && <option value="admin">👑 Administrador</option>}
                                       </select>
                                     </>
                                   )}

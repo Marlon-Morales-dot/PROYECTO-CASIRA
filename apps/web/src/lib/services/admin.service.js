@@ -131,36 +131,79 @@ class AdminService {
   async updateUserRole(userId, newRole) {
     try {
       console.log(`🔄 AdminService: Actualizando rol de usuario ${userId} a ${newRole}`);
-      
-      // 1. Intentar actualizar en Supabase primero
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .update({ 
-            role: newRole
-          })
-          .eq('id', userId)
-          .select();
 
-        if (!error && data && data.length > 0) {
-          console.log('✅ AdminService: Rol actualizado en Supabase');
-          return data[0];
-        }
-      } catch (supabaseError) {
-        console.warn('⚠️ AdminService: Error actualizando en Supabase, intentando localmente:', supabaseError);
+      // First get all users to find the target user across all sources
+      const allUsers = await this.getAllUsers();
+      const targetUser = allUsers.find(u =>
+        u.id === userId ||
+        u.email === userId ||
+        String(u.id) === String(userId)
+      );
+
+      if (!targetUser) {
+        console.error(`❌ AdminService: Usuario ${userId} no encontrado en ninguna fuente`);
+        throw new Error('Usuario no encontrado en ninguna fuente de datos');
       }
 
-      // 2. Actualizar en almacenamiento local
+      console.log(`🎯 AdminService: Usuario encontrado:`, {
+        id: targetUser.id,
+        email: targetUser.email,
+        currentRole: targetUser.role,
+        source: targetUser.source
+      });
+
+      // 1. Try to update in Supabase if user has a valid UUID and exists there
+      if (targetUser.source === 'supabase' || targetUser.source === 'both') {
+        try {
+          // Try with both the ID and email to handle UUID issues
+          let supabaseUpdate;
+
+          // First try with ID
+          const { data: dataById, error: errorById } = await supabase
+            .from('users')
+            .update({ role: newRole, updated_at: new Date().toISOString() })
+            .eq('id', targetUser.id)
+            .select();
+
+          if (!errorById && dataById && dataById.length > 0) {
+            console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
+            return dataById[0];
+          }
+
+          // If ID failed, try with email
+          const { data: dataByEmail, error: errorByEmail } = await supabase
+            .from('users')
+            .update({ role: newRole, updated_at: new Date().toISOString() })
+            .eq('email', targetUser.email)
+            .select();
+
+          if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
+            console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
+            return dataByEmail[0];
+          }
+
+          console.warn('⚠️ AdminService: No se pudo actualizar en Supabase:', errorById, errorByEmail);
+        } catch (supabaseError) {
+          console.warn('⚠️ AdminService: Error actualizando en Supabase:', supabaseError);
+        }
+      }
+
+      // 2. Update in local storage
       try {
         const { default: storageManager } = await import('../storage-manager.js');
         const localData = storageManager.exportData();
         const users = localData.users || [];
-        
-        const userIndex = users.findIndex(u => u.id === userId || u.email === userId);
+
+        const userIndex = users.findIndex(u =>
+          u.id === targetUser.id ||
+          u.email === targetUser.email ||
+          String(u.id) === String(targetUser.id)
+        );
+
         if (userIndex !== -1) {
           users[userIndex].role = newRole;
           users[userIndex].updated_at = new Date().toISOString();
-          
+
           storageManager.set('users', users);
           console.log('✅ AdminService: Rol actualizado en almacenamiento local');
           return users[userIndex];
@@ -169,15 +212,19 @@ class AdminService {
         console.warn('⚠️ AdminService: Error actualizando localmente:', localError);
       }
 
-      // 3. Actualizar en Google users si existe
+      // 3. Update in Google users localStorage
       try {
         const googleUsers = JSON.parse(localStorage.getItem('google_users') || '[]');
-        const googleUserIndex = googleUsers.findIndex(u => u.id === userId || u.email === userId);
-        
+        const googleUserIndex = googleUsers.findIndex(u =>
+          u.id === targetUser.id ||
+          u.email === targetUser.email ||
+          String(u.id) === String(targetUser.id)
+        );
+
         if (googleUserIndex !== -1) {
           googleUsers[googleUserIndex].role = newRole;
           googleUsers[googleUserIndex].updated_at = new Date().toISOString();
-          
+
           localStorage.setItem('google_users', JSON.stringify(googleUsers));
           console.log('✅ AdminService: Rol actualizado en usuarios de Google');
           return googleUsers[googleUserIndex];
@@ -186,7 +233,31 @@ class AdminService {
         console.warn('⚠️ AdminService: Error actualizando usuario de Google:', googleError);
       }
 
-      throw new Error('Usuario no encontrado en ninguna fuente de datos');
+      // 4. Update in CASIRA data if exists
+      try {
+        const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
+        const casiraUsers = casiraData.users || [];
+
+        const casiraUserIndex = casiraUsers.findIndex(u =>
+          u.id === targetUser.id ||
+          u.email === targetUser.email ||
+          String(u.id) === String(targetUser.id)
+        );
+
+        if (casiraUserIndex !== -1) {
+          casiraUsers[casiraUserIndex].role = newRole;
+          casiraUsers[casiraUserIndex].updated_at = new Date().toISOString();
+
+          casiraData.users = casiraUsers;
+          localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
+          console.log('✅ AdminService: Rol actualizado en datos CASIRA');
+          return casiraUsers[casiraUserIndex];
+        }
+      } catch (casiraError) {
+        console.warn('⚠️ AdminService: Error actualizando en datos CASIRA:', casiraError);
+      }
+
+      throw new Error('No se pudo actualizar el rol en ninguna fuente de datos');
     } catch (error) {
       console.error('❌ AdminService: Error en updateUserRole:', error);
       throw error;
@@ -584,8 +655,7 @@ class AdminService {
           by_role: {
             admin: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.role === 'admin').length || 0) : 0,
             volunteer: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.role === 'volunteer').length || 0) : 0,
-            visitor: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.role === 'visitor').length || 0) : 0,
-            donor: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.role === 'donor').length || 0) : 0
+            visitor: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.role === 'visitor').length || 0) : 0
           },
           by_status: {
             active: usersResult.status === 'fulfilled' ? (usersResult.value.data?.filter(u => u.status === 'active').length || 0) : 0,
@@ -612,7 +682,7 @@ class AdminService {
     } catch (error) {
       console.warn('⚠️ AdminService: Error en getAdminStats, retornando estadísticas vacías:', error);
       return {
-        users: { total: 0, by_role: { admin: 0, volunteer: 0, visitor: 0, donor: 0 }, by_status: { active: 0, blocked: 0 } },
+        users: { total: 0, by_role: { admin: 0, volunteer: 0, visitor: 0 }, by_status: { active: 0, blocked: 0 } },
         activities: { total: 0, active: 0 },
         registrations: { total: 0, pending: 0, approved: 0 },
         notifications: { total: 0, unread: 0 }
