@@ -239,6 +239,23 @@ class AdminService {
         }
       }
 
+      // Check if role is actually changing
+      if (oldRole === newRole) {
+        console.log(`ℹ️ AdminService: User already has role ${newRole}, but continuing for UI consistency`);
+
+        // Still return the user data and sync local data for consistency
+        const { data: currentUserData, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+
+        if (!error && currentUserData) {
+          await this._syncLocalData(targetUserEmail, newRole);
+          return currentUserData;
+        }
+      }
+
       // STEP 2: Use the same updateUserRole method from supabase-api.js
       console.log(`🔄 AdminService: Using supabase-api updateUserRole method...`);
 
@@ -249,8 +266,10 @@ class AdminService {
         console.log(`✅ AdminService: User role updated successfully via supabase-api`);
         console.log(`📝 AdminService: Updated user:`, updatedUser);
 
-        // Create notification for role change
-        await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+        // Create notification for role change only if role actually changed
+        if (oldRole !== newRole) {
+          await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+        }
 
         // Sync local data
         await this._syncLocalData(targetUserEmail, newRole);

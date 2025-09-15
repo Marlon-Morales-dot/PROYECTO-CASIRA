@@ -117,6 +117,25 @@ export const supabaseUsersAPI = {
     try {
       console.log('🔄 SupabaseAPI: Updating user role:', userId, 'to', newRole);
 
+      // First check current role to avoid unnecessary updates
+      const { data: currentUser, error: fetchError } = await supabase
+        .from('users')
+        .select('id, email, role')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ SupabaseAPI: Error fetching current user:', fetchError);
+        throw fetchError;
+      }
+
+      if (currentUser.role === newRole) {
+        console.log('ℹ️ SupabaseAPI: User already has the target role, skipping update');
+        return currentUser;
+      }
+
+      console.log('🔄 SupabaseAPI: Current role:', currentUser.role, '→ New role:', newRole);
+
       const { data, error } = await supabase
         .from('users')
         .update({ role: newRole })
@@ -124,7 +143,15 @@ export const supabaseUsersAPI = {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ SupabaseAPI: Detailed error:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
 
       console.log('✅ SupabaseAPI: User role updated successfully');
       return data
