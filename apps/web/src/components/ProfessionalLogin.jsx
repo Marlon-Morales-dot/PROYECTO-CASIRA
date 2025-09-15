@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 
 export default function ProfessionalLogin() {
   const navigate = useNavigate();
-  const { loginWithCasira, isLoading, error, isAuthenticated, user } = useAuth();
+  const { loginWithCasira, loginWithGoogle, isLoading, error, isAuthenticated, user } = useAuth();
 
   // Verificar si ya está autenticado y redirigir
   React.useEffect(() => {
@@ -42,22 +42,23 @@ export default function ProfessionalLogin() {
 
   const handleGoogleLogin = async () => {
     try {
-      console.log('🔐 ProfessionalLogin: Iniciando REAL Google Auth...');
+      console.log('🔐 ProfessionalLogin: Iniciando Google Auth con context...');
 
-      // Importar el servicio unificado de Google Auth
-      const { default: unifiedGoogleAuth } = await import('../lib/services/unified-google-auth.service.js');
+      // Usar directamente el método del contexto que incluye toda la lógica
+      const result = await loginWithGoogle();
 
-      // Usar el servicio unificado que maneja todo internamente
-      const user = await unifiedGoogleAuth.signIn();
+      if (result && result.success) {
+        console.log('✅ ProfessionalLogin: Google Auth exitoso a través del contexto', result.user);
 
-      if (user) {
-        console.log('✅ ProfessionalLogin: Google Auth exitoso', user);
-
-        // Pequeño delay para asegurar que el estado se guarde
+        // El contexto ya actualiza el estado, solo necesitamos redirigir
         setTimeout(() => {
-          // Redirigir según el rol del usuario real usando React Router
-          navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
-        }, 500);
+          const redirectPath = result.user.role === 'admin' ? '/admin' : '/dashboard';
+          console.log('🔄 Redirigiendo a:', redirectPath);
+          navigate(redirectPath, { replace: true });
+        }, 1000); // Aumentar delay para asegurar que el estado se actualice
+      } else {
+        console.error('❌ Google Auth falló:', result?.message);
+        alert('❌ Error en la autenticación. Intenta de nuevo.');
       }
     } catch (error) {
       console.error('❌ ProfessionalLogin: Error en Google Auth:', error);

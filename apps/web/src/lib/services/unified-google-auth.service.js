@@ -403,8 +403,8 @@ class UnifiedGoogleAuthService {
           const updatedUser = await supabaseAPI.users.updateUser(existingUser.id, {
             avatar_url: userData.avatar_url,
             first_name: userData.first_name,
-            last_name: userData.last_name
-            // Removido updated_at porque no existe en la tabla
+            last_name: userData.last_name,
+            full_name: userData.full_name
           });
           
           if (!updatedUser) {
