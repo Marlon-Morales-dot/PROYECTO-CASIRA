@@ -253,6 +253,44 @@ export function AuthProvider({ children }) {
     }
   }, [loginUseCase]);
 
+  // Listener para cambios de rol en tiempo real
+  useEffect(() => {
+    const handleRoleChange = (event) => {
+      const { userEmail, oldRole, newRole } = event.detail;
+
+      // Solo actualizar si es el usuario actual
+      if (authState.user && authState.user.email === userEmail) {
+        console.log(`🔄 AuthProvider: Rol cambió para ${userEmail}: ${oldRole} → ${newRole}`);
+
+        // Actualizar el usuario en el estado de autenticación
+        authDispatch({
+          type: 'UPDATE_USER',
+          payload: { role: newRole }
+        });
+
+        // Actualizar localStorage
+        const savedUser = localStorage.getItem('casira-current-user');
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          userData.role = newRole;
+          localStorage.setItem('casira-current-user', JSON.stringify(userData));
+        }
+
+        // Recargar la página después de un momento para que se actualice la UI
+        setTimeout(() => {
+          console.log('🔄 AuthProvider: Recargando página para aplicar nuevo rol...');
+          window.location.reload();
+        }, 3000);
+      }
+    };
+
+    window.addEventListener('role-changed', handleRoleChange);
+
+    return () => {
+      window.removeEventListener('role-changed', handleRoleChange);
+    };
+  }, [authState.user]);
+
   /**
    * Login con credenciales CASIRA
    */

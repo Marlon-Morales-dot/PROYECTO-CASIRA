@@ -228,6 +228,10 @@ class AdminService {
 
         if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
           console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(dataByEmail[0].id, targetUser.email, targetUser.role, newRole);
+
           return dataByEmail[0];
         }
 
@@ -241,6 +245,10 @@ class AdminService {
 
           if (!errorById && dataById && dataById.length > 0) {
             console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
+
+            // Crear notificación de cambio de rol
+            await this._createRoleChangeNotification(dataById[0].id, targetUser.email, targetUser.role, newRole);
+
             return dataById[0];
           }
         }
@@ -266,6 +274,10 @@ class AdminService {
 
         if (!createError && createdUser) {
           console.log('✅ AdminService: Usuario creado exitosamente en Supabase');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(createdUser.id, createdUser.email, 'visitor', newRole);
+
           return createdUser;
         } else {
           console.warn('⚠️ AdminService: Error creando usuario en Supabase:', createError);
@@ -293,6 +305,10 @@ class AdminService {
 
           storageManager.set('users', users);
           console.log('✅ AdminService: Rol actualizado en almacenamiento local');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
+
           return users[userIndex];
         }
       } catch (localError) {
@@ -314,6 +330,10 @@ class AdminService {
 
           localStorage.setItem('google_users', JSON.stringify(googleUsers));
           console.log('✅ AdminService: Rol actualizado en usuarios de Google');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
+
           return googleUsers[googleUserIndex];
         }
       } catch (googleError) {
@@ -338,6 +358,10 @@ class AdminService {
           casiraData.users = casiraUsers;
           localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
           console.log('✅ AdminService: Rol actualizado en datos CASIRA');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
+
           return casiraUsers[casiraUserIndex];
         }
       } catch (casiraError) {
@@ -398,6 +422,10 @@ class AdminService {
           storageManager.set('users', localData.users);
 
           console.log('✅ AdminService: Usuario de Google actualizado forzadamente en todas las fuentes');
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
+
           return updatedUser;
         } catch (error) {
           console.warn('⚠️ AdminService: Error en actualización forzada:', error);
@@ -897,6 +925,128 @@ class AdminService {
     } catch (error) {
       console.error('❌ AdminService: Error obteniendo solicitudes del usuario:', error);
       return [];
+    }
+  }
+
+  // ============= NOTIFICACIONES DE CAMBIO DE ROL =============
+
+  async _createRoleChangeNotification(userId, userEmail, oldRole, newRole) {
+    try {
+      if (oldRole === newRole) return; // No hay cambio
+
+      console.log(`🔔 AdminService: Creando notificación de cambio de rol para ${userEmail}: ${oldRole} → ${newRole}`);
+
+      const roleNames = {
+        'visitor': 'Visitante',
+        'volunteer': 'Voluntario',
+        'admin': 'Administrador'
+      };
+
+      const roleEmojis = {
+        'visitor': '👁️',
+        'volunteer': '🤝',
+        'admin': '👑'
+      };
+
+      const messages = {
+        'visitor': 'Ahora puedes explorar actividades y registrarte como voluntario.',
+        'volunteer': '¡Felicitaciones! Ahora puedes participar activamente en actividades y hacer la diferencia en tu comunidad.',
+        'admin': '¡Bienvenido al equipo administrativo! Tienes acceso completo para gestionar usuarios, actividades y el sistema.'
+      };
+
+      const title = `${roleEmojis[newRole]} ¡Has sido promovido a ${roleNames[newRole]}!`;
+      const message = `Tu rol ha cambiado de ${roleNames[oldRole]} a ${roleNames[newRole]}. ${messages[newRole]}`;
+
+      // Intentar crear en Supabase primero
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: 'role_change',
+            title: title,
+            message: message,
+            data: JSON.stringify({
+              old_role: oldRole,
+              new_role: newRole,
+              changed_at: new Date().toISOString(),
+              admin_promoted: true
+            })
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          console.log('✅ AdminService: Notificación de cambio de rol creada en Supabase');
+
+          // Disparar evento para UI en tiempo real
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('role-changed', {
+              detail: {
+                userId,
+                userEmail,
+                oldRole,
+                newRole,
+                notificationId: data.id,
+                timestamp: new Date().toISOString()
+              }
+            }));
+          }
+
+          return data;
+        }
+      } catch (supabaseError) {
+        console.warn('⚠️ AdminService: Error creando notificación en Supabase:', supabaseError);
+      }
+
+      // Fallback a localStorage
+      try {
+        const { default: storageManager } = await import('../storage-manager.js');
+        const localData = storageManager.exportData();
+        localData.notifications = localData.notifications || [];
+
+        const notification = {
+          id: `role_change_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          user_id: userId,
+          type: 'role_change',
+          title: title,
+          message: message,
+          status: 'unread',
+          created_at: new Date().toISOString(),
+          data: {
+            old_role: oldRole,
+            new_role: newRole,
+            changed_at: new Date().toISOString(),
+            admin_promoted: true
+          }
+        };
+
+        localData.notifications.push(notification);
+        storageManager.set('notifications', localData.notifications);
+
+        console.log('✅ AdminService: Notificación de cambio de rol creada en localStorage');
+
+        // Disparar evento para UI en tiempo real
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('role-changed', {
+            detail: {
+              userId,
+              userEmail,
+              oldRole,
+              newRole,
+              notificationId: notification.id,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+
+        return notification;
+      } catch (localError) {
+        console.warn('⚠️ AdminService: Error creando notificación en localStorage:', localError);
+      }
+
+    } catch (error) {
+      console.error('❌ AdminService: Error general creando notificación de cambio de rol:', error);
     }
   }
 
