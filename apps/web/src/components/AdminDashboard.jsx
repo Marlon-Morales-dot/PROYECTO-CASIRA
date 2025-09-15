@@ -646,14 +646,19 @@ const AdminDashboard = ({ user, onLogout }) => {
       };
       
       if (!confirm(`¿Cambiar el rol de ${userName} a ${roleNames[newRole] || newRole}?`)) return;
-      
-      console.log('Changing user role:', userId, 'to', newRole);
-      await adminService.updateUserRole(userId, newRole);
-      await loadAdminData(); // Reload data
-      alert(`✅ Rol de ${userName} cambiado exitosamente a ${roleNames[newRole] || newRole}.`);
+
+      console.log('🔄 AdminDashboard: Iniciando cambio de rol para:', { userId, newRole, userName });
+
+      const result = await adminService.updateUserRole(userId, newRole);
+      console.log('✅ AdminDashboard: Cambio de rol completado:', result);
+
+      // Recargar datos para mostrar el cambio
+      await loadAdminData();
+
+      alert(`✅ Rol de ${userName} cambiado exitosamente a ${roleNames[newRole] || newRole}.\n\nEl usuario recibirá una notificación y su interfaz se actualizará automáticamente.`);
     } catch (error) {
-      console.error('Error changing user role:', error);
-      alert('Error al cambiar rol del usuario. Por favor, intenta nuevamente.');
+      console.error('❌ AdminDashboard: Error cambiando rol del usuario:', error);
+      alert(`❌ Error al cambiar rol del usuario: ${error.message}\n\nVerifica que el usuario exista en Supabase y que tengas permisos suficientes.`);
     }
   };
 

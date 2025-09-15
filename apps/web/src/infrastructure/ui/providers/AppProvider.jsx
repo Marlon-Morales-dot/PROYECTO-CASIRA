@@ -258,11 +258,14 @@ export function AuthProvider({ children }) {
     const handleRoleChange = (event) => {
       const { userEmail, oldRole, newRole } = event.detail;
 
+      console.log('🔄 AuthProvider: Evento role-changed recibido:', { userEmail, oldRole, newRole });
+      console.log('🔄 AuthProvider: Usuario actual:', authState.user?.email);
+
       // Solo actualizar si es el usuario actual
       if (authState.user && authState.user.email === userEmail) {
-        console.log(`🔄 AuthProvider: Rol cambió para ${userEmail}: ${oldRole} → ${newRole}`);
+        console.log(`✅ AuthProvider: Aplicando cambio de rol para ${userEmail}: ${oldRole} → ${newRole}`);
 
-        // Actualizar el usuario en el estado de autenticación
+        // Actualizar el usuario en el estado de autenticación inmediatamente
         authDispatch({
           type: 'UPDATE_USER',
           payload: { role: newRole }
@@ -274,20 +277,63 @@ export function AuthProvider({ children }) {
           const userData = JSON.parse(savedUser);
           userData.role = newRole;
           localStorage.setItem('casira-current-user', JSON.stringify(userData));
+          console.log('✅ AuthProvider: localStorage actualizado con nuevo rol:', newRole);
         }
 
-        // Recargar la página después de un momento para que se actualice la UI
-        setTimeout(() => {
-          console.log('🔄 AuthProvider: Recargando página para aplicar nuevo rol...');
-          window.location.reload();
-        }, 3000);
+        // Determinar la ruta correcta según el nuevo rol
+        const roleRoutes = {
+          'admin': '/admin/dashboard',
+          'volunteer': '/volunteer/dashboard',
+          'visitor': '/visitor/dashboard'
+        };
+
+        const newRoute = roleRoutes[newRole] || '/dashboard';
+
+        // Redirigir inmediatamente si no estamos ya en la ruta correcta
+        const currentPath = window.location.pathname;
+        if (!currentPath.includes(newRoute.split('/')[1])) {
+          console.log(`🚀 AuthProvider: Redirigiendo a ${newRoute} para rol ${newRole}`);
+          setTimeout(() => {
+            window.location.href = newRoute;
+          }, 1500); // Menor tiempo para redirección más rápida
+        } else {
+          // Si ya estamos en la ruta correcta, solo recargar
+          setTimeout(() => {
+            console.log('🔄 AuthProvider: Recargando página para aplicar nuevo rol...');
+            window.location.reload();
+          }, 1500);
+        }
+      }
+    };
+
+    // Listener para notificaciones específicas
+    const handleRoleNotification = (event) => {
+      const { title, message, userEmail, newRole } = event.detail;
+
+      if (authState.user && authState.user.email === userEmail) {
+        console.log('🔔 AuthProvider: Mostrando notificación de cambio de rol');
+
+        // Crear y mostrar notificación visual
+        if (window.showNotification) {
+          window.showNotification({
+            type: 'success',
+            title: title,
+            message: message,
+            duration: 6000
+          });
+        } else {
+          // Fallback a alert si no hay sistema de notificaciones
+          alert(`${title}\n\n${message}`);
+        }
       }
     };
 
     window.addEventListener('role-changed', handleRoleChange);
+    window.addEventListener('casira-role-notification', handleRoleNotification);
 
     return () => {
       window.removeEventListener('role-changed', handleRoleChange);
+      window.removeEventListener('casira-role-notification', handleRoleNotification);
     };
   }, [authState.user]);
 

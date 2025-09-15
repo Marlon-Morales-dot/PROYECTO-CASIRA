@@ -193,9 +193,13 @@ class AdminService {
 
   async updateUserRole(userId, newRole) {
     try {
-      console.log(`🔄 AdminService: Actualizando rol de usuario ${userId} a ${newRole}`);
+      console.log(`🔄 AdminService: FORZANDO actualización de rol en Supabase PRIMERO ${userId} a ${newRole}`);
 
-      // First get all users to find the target user across all sources
+      // STEP 1: OBLIGATORIO - Buscar/crear usuario en Supabase
+      let supabaseUser = null;
+      let targetUserEmail = null;
+
+      // Primero intentar encontrar al usuario por todas las fuentes para obtener el email
       const allUsers = await this.getAllUsers();
       const targetUser = allUsers.find(u =>
         u.id === userId ||
@@ -203,67 +207,53 @@ class AdminService {
         String(u.id) === String(userId)
       );
 
-      if (!targetUser) {
-        console.error(`❌ AdminService: Usuario ${userId} no encontrado en ninguna fuente`);
-        throw new Error('Usuario no encontrado en ninguna fuente de datos');
+      if (targetUser) {
+        targetUserEmail = targetUser.email;
+        console.log(`🎯 AdminService: Usuario encontrado localmente:`, {
+          id: targetUser.id,
+          email: targetUser.email,
+          currentRole: targetUser.role
+        });
+      } else {
+        // Si userId parece un email, usarlo directamente
+        if (userId.includes('@')) {
+          targetUserEmail = userId;
+        } else {
+          throw new Error(`Usuario ${userId} no encontrado en ninguna fuente de datos`);
+        }
       }
 
-      console.log(`🎯 AdminService: Usuario encontrado:`, {
-        id: targetUser.id,
-        email: targetUser.email,
-        currentRole: targetUser.role,
-        source: targetUser.source
-      });
+      // STEP 2: OBLIGATORIO - Verificar/crear en Supabase
+      console.log(`🔍 AdminService: Buscando usuario en Supabase por email: ${targetUserEmail}`);
 
-      // 1. Try to update in Supabase - handle creating user if doesn't exist
       try {
-        console.log('🔄 AdminService: Intentando actualizar en Supabase...');
-
-        // First try with email (more reliable for Google users)
-        let { data: dataByEmail, error: errorByEmail } = await supabase
+        // Buscar por email en Supabase
+        const { data: existingUser, error: findError } = await supabase
           .from('users')
-          .update({ role: newRole })
-          .eq('email', targetUser.email)
-          .select();
+          .select('*')
+          .eq('email', targetUserEmail)
+          .single();
 
-        if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
-          console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
-
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(dataByEmail[0].id, targetUser.email, targetUser.role, newRole);
-
-          return dataByEmail[0];
+        if (!findError && existingUser) {
+          supabaseUser = existingUser;
+          console.log(`✅ AdminService: Usuario encontrado en Supabase:`, supabaseUser.id);
         }
+      } catch (findError) {
+        console.log(`🆕 AdminService: Usuario no encontrado en Supabase, será creado`);
+      }
 
-        // If email failed, try with ID
-        if (targetUser.id && targetUser.id !== targetUser.email) {
-          const { data: dataById, error: errorById } = await supabase
-            .from('users')
-            .update({ role: newRole })
-            .eq('id', targetUser.id)
-            .select();
-
-          if (!errorById && dataById && dataById.length > 0) {
-            console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
-
-            // Crear notificación de cambio de rol
-            await this._createRoleChangeNotification(dataById[0].id, targetUser.email, targetUser.role, newRole);
-
-            return dataById[0];
-          }
-        }
-
-        // If user doesn't exist in Supabase, create them first
-        console.log('🆕 AdminService: Usuario no existe en Supabase, creándolo...');
+      // Si no existe en Supabase, crear el usuario
+      if (!supabaseUser && targetUser) {
+        console.log(`🆕 AdminService: Creando usuario en Supabase...`);
 
         const newUserData = {
-          email: targetUser.email,
-          first_name: targetUser.first_name || targetUser.email.split('@')[0],
+          email: targetUserEmail,
+          first_name: targetUser.first_name || targetUserEmail.split('@')[0],
           last_name: targetUser.last_name || '',
-          full_name: targetUser.full_name || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUser.email,
-          role: newRole,
+          full_name: targetUser.full_name || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUserEmail,
+          role: newRole, // Directamente el nuevo rol
           avatar_url: targetUser.avatar_url || null,
-          auth_provider: targetUser.auth_provider || 'google'
+          status: 'active'
         };
 
         const { data: createdUser, error: createError } = await supabase
@@ -273,171 +263,116 @@ class AdminService {
           .single();
 
         if (!createError && createdUser) {
-          console.log('✅ AdminService: Usuario creado exitosamente en Supabase');
+          supabaseUser = createdUser;
+          console.log(`✅ AdminService: Usuario creado en Supabase con rol ${newRole}:`, supabaseUser.id);
 
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(createdUser.id, createdUser.email, 'visitor', newRole);
+          // Crear notificación
+          await this._createRoleChangeNotification(supabaseUser.id, targetUserEmail, targetUser?.role || 'visitor', newRole);
 
-          return createdUser;
+          return supabaseUser;
         } else {
-          console.warn('⚠️ AdminService: Error creando usuario en Supabase:', createError);
+          console.error(`❌ AdminService: Error creando usuario en Supabase:`, createError);
+          throw new Error(`No se pudo crear usuario en Supabase: ${createError?.message || 'Error desconocido'}`);
         }
-
-      } catch (supabaseError) {
-        console.warn('⚠️ AdminService: Error general con Supabase:', supabaseError);
       }
 
-      // 2. Update in local storage
+      // STEP 3: OBLIGATORIO - Actualizar rol en Supabase
+      if (supabaseUser) {
+        console.log(`🔄 AdminService: Actualizando rol en Supabase para usuario ${supabaseUser.id}...`);
+
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({ role: newRole })
+          .eq('id', supabaseUser.id)
+          .select()
+          .single();
+
+        if (!updateError && updatedUser) {
+          console.log(`✅ AdminService: Rol actualizado exitosamente en Supabase`);
+
+          // Crear notificación de cambio de rol
+          await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, supabaseUser.role, newRole);
+
+          // STEP 4: Actualizar también en fuentes locales para sincronización
+          await this._syncLocalData(targetUserEmail, newRole);
+
+          return updatedUser;
+        } else {
+          console.error(`❌ AdminService: Error actualizando rol en Supabase:`, updateError);
+          throw new Error(`No se pudo actualizar rol en Supabase: ${updateError?.message || 'Error desconocido'}`);
+        }
+      }
+
+      throw new Error('No se pudo procesar el cambio de rol en Supabase');
+
+    } catch (error) {
+      console.error('❌ AdminService: Error crítico en updateUserRole:', error);
+      throw error;
+    }
+  }
+
+  // Método auxiliar para sincronizar datos locales después del cambio en Supabase
+  async _syncLocalData(userEmail, newRole) {
+    try {
+      console.log(`🔄 AdminService: Sincronizando datos locales para ${userEmail} con rol ${newRole}`);
+
+      // Actualizar en storageManager
       try {
         const { default: storageManager } = await import('../storage-manager.js');
         const localData = storageManager.exportData();
         const users = localData.users || [];
 
-        const userIndex = users.findIndex(u =>
-          u.id === targetUser.id ||
-          u.email === targetUser.email ||
-          String(u.id) === String(targetUser.id)
-        );
-
+        const userIndex = users.findIndex(u => u.email === userEmail);
         if (userIndex !== -1) {
           users[userIndex].role = newRole;
           users[userIndex].updated_at = new Date().toISOString();
-
           storageManager.set('users', users);
-          console.log('✅ AdminService: Rol actualizado en almacenamiento local');
-
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
-
-          return users[userIndex];
+          console.log('✅ AdminService: Rol sincronizado en storageManager');
         }
-      } catch (localError) {
-        console.warn('⚠️ AdminService: Error actualizando localmente:', localError);
+      } catch (error) {
+        console.warn('⚠️ AdminService: Error sincronizando storageManager:', error);
       }
 
-      // 3. Update in Google users localStorage
+      // Actualizar en Google users localStorage
       try {
         const googleUsers = JSON.parse(localStorage.getItem('google_users') || '[]');
-        const googleUserIndex = googleUsers.findIndex(u =>
-          u.id === targetUser.id ||
-          u.email === targetUser.email ||
-          String(u.id) === String(targetUser.id)
-        );
+        const googleUserIndex = googleUsers.findIndex(u => u.email === userEmail);
 
         if (googleUserIndex !== -1) {
           googleUsers[googleUserIndex].role = newRole;
           googleUsers[googleUserIndex].updated_at = new Date().toISOString();
-
           localStorage.setItem('google_users', JSON.stringify(googleUsers));
-          console.log('✅ AdminService: Rol actualizado en usuarios de Google');
-
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
-
-          return googleUsers[googleUserIndex];
+          console.log('✅ AdminService: Rol sincronizado en Google users');
         }
-      } catch (googleError) {
-        console.warn('⚠️ AdminService: Error actualizando usuario de Google:', googleError);
+      } catch (error) {
+        console.warn('⚠️ AdminService: Error sincronizando Google users:', error);
       }
 
-      // 4. Update in CASIRA data if exists
+      // Actualizar en CASIRA data
       try {
         const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
         const casiraUsers = casiraData.users || [];
 
-        const casiraUserIndex = casiraUsers.findIndex(u =>
-          u.id === targetUser.id ||
-          u.email === targetUser.email ||
-          String(u.id) === String(targetUser.id)
-        );
-
+        const casiraUserIndex = casiraUsers.findIndex(u => u.email === userEmail);
         if (casiraUserIndex !== -1) {
           casiraUsers[casiraUserIndex].role = newRole;
           casiraUsers[casiraUserIndex].updated_at = new Date().toISOString();
-
           casiraData.users = casiraUsers;
           localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
-          console.log('✅ AdminService: Rol actualizado en datos CASIRA');
-
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
-
-          return casiraUsers[casiraUserIndex];
+          console.log('✅ AdminService: Rol sincronizado en CASIRA data');
         }
-      } catch (casiraError) {
-        console.warn('⚠️ AdminService: Error actualizando en datos CASIRA:', casiraError);
+      } catch (error) {
+        console.warn('⚠️ AdminService: Error sincronizando CASIRA data:', error);
       }
 
-      // 5. If user is from Google but not updated yet, force update in all possible sources
-      if (targetUser.source === 'google' || targetUser.auth_provider === 'google') {
-        console.log('🔄 AdminService: Forzando actualización para usuario de Google en todas las fuentes');
+      console.log('✅ AdminService: Sincronización local completada');
 
-        const updatedUser = {
-          ...targetUser,
-          role: newRole,
-          updated_at: new Date().toISOString()
-        };
-
-        // Force update in all Google-related storage
-        try {
-          // Update in google_users
-          const googleUsers = JSON.parse(localStorage.getItem('google_users') || '[]');
-          const updatedGoogleUsers = googleUsers.map(u =>
-            u.id === targetUser.id || u.email === targetUser.email ? updatedUser : u
-          );
-          localStorage.setItem('google_users', JSON.stringify(updatedGoogleUsers));
-
-          // Update in casira-data-v2
-          const casiraData = JSON.parse(localStorage.getItem('casira-data-v2') || '{}');
-          casiraData.users = casiraData.users || [];
-
-          // Add or update user in CASIRA data
-          const existingIndex = casiraData.users.findIndex(u =>
-            u.id === targetUser.id || u.email === targetUser.email
-          );
-
-          if (existingIndex !== -1) {
-            casiraData.users[existingIndex] = updatedUser;
-          } else {
-            casiraData.users.push(updatedUser);
-          }
-
-          localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
-
-          // Update in storageManager
-          const { default: storageManager } = await import('../storage-manager.js');
-          const localData = storageManager.exportData();
-          localData.users = localData.users || [];
-
-          const localUserIndex = localData.users.findIndex(u =>
-            u.id === targetUser.id || u.email === targetUser.email
-          );
-
-          if (localUserIndex !== -1) {
-            localData.users[localUserIndex] = updatedUser;
-          } else {
-            localData.users.push(updatedUser);
-          }
-
-          storageManager.set('users', localData.users);
-
-          console.log('✅ AdminService: Usuario de Google actualizado forzadamente en todas las fuentes');
-
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(targetUser.id, targetUser.email, targetUser.role, newRole);
-
-          return updatedUser;
-        } catch (error) {
-          console.warn('⚠️ AdminService: Error en actualización forzada:', error);
-        }
-      }
-
-      throw new Error('No se pudo actualizar el rol en ninguna fuente de datos');
     } catch (error) {
-      console.error('❌ AdminService: Error en updateUserRole:', error);
-      throw error;
+      console.warn('⚠️ AdminService: Error en sincronización local:', error);
     }
   }
+
+
 
   async blockUser(userId) {
     try {
@@ -981,14 +916,30 @@ class AdminService {
 
           // Disparar evento para UI en tiempo real
           if (typeof window !== 'undefined') {
+            const eventDetail = {
+              userId,
+              userEmail,
+              oldRole,
+              newRole,
+              notificationId: data.id,
+              timestamp: new Date().toISOString()
+            };
+
+            console.log('🔔 AdminService: Disparando evento role-changed:', eventDetail);
+
             window.dispatchEvent(new CustomEvent('role-changed', {
+              detail: eventDetail
+            }));
+
+            // También disparar evento de notificación específica
+            window.dispatchEvent(new CustomEvent('casira-role-notification', {
               detail: {
-                userId,
-                userEmail,
-                oldRole,
-                newRole,
-                notificationId: data.id,
-                timestamp: new Date().toISOString()
+                type: 'role_change',
+                title: title,
+                message: message,
+                userEmail: userEmail,
+                newRole: newRole,
+                autoShow: true
               }
             }));
           }
@@ -1028,14 +979,30 @@ class AdminService {
 
         // Disparar evento para UI en tiempo real
         if (typeof window !== 'undefined') {
+          const eventDetail = {
+            userId,
+            userEmail,
+            oldRole,
+            newRole,
+            notificationId: notification.id,
+            timestamp: new Date().toISOString()
+          };
+
+          console.log('🔔 AdminService: Disparando evento role-changed (localStorage):', eventDetail);
+
           window.dispatchEvent(new CustomEvent('role-changed', {
+            detail: eventDetail
+          }));
+
+          // También disparar evento de notificación específica
+          window.dispatchEvent(new CustomEvent('casira-role-notification', {
             detail: {
-              userId,
-              userEmail,
-              oldRole,
-              newRole,
-              notificationId: notification.id,
-              timestamp: new Date().toISOString()
+              type: 'role_change',
+              title: title,
+              message: message,
+              userEmail: userEmail,
+              newRole: newRole,
+              autoShow: true
             }
           }));
         }

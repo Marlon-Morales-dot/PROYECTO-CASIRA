@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Heart, MessageCircle, Search, User, LogOut, Settings, Menu, X } from 'lucide-react';
+import { Bell, Heart, MessageCircle, Search, User, LogOut, Settings, Menu, X, Crown, UserCheck, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserNotifications from './UserNotifications.jsx';
 import LogoutButton from './LogoutButton.jsx';
 import logoutService from '../lib/services/logout.service.js';
 import { volunteersAPI } from '../lib/api.js';
+import adminService from '../lib/services/admin.service.js';
 
 const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
   const navigate = useNavigate();
@@ -57,6 +58,26 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
       default:
         return { name: 'Usuario', color: 'gray', icon: '👤' };
      }
+  };
+
+  const handleRoleChange = async (newRole) => {
+    if (!user || user.role === newRole) return;
+
+    try {
+      console.log(`🔄 UniversalHeader: Cambiando rol de ${user.role} a ${newRole}`);
+
+      // Cerrar el dropdown
+      setShowUserDropdown(false);
+
+      // Cambiar el rol usando el servicio de admin
+      await adminService.updateUserRole(user.id || user.email, newRole);
+
+      console.log('✅ UniversalHeader: Cambio de rol solicitado exitosamente');
+
+    } catch (error) {
+      console.error('❌ UniversalHeader: Error cambiando rol:', error);
+      alert('Error al cambiar el rol. Por favor, intenta nuevamente.');
+    }
   };
 
   const roleInfo = getRoleDisplay(user?.role);
@@ -228,7 +249,54 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
                           <Settings className="h-4 w-4" />
                           <span>Configuración</span>
                         </button>
-                        
+
+                        {/* Role Switcher - Solo para admins */}
+                        {user.role === 'admin' && (
+                          <div className="border-t border-gray-100 mt-2 pt-2">
+                            <div className="px-4 py-2">
+                              <span className="text-xs text-gray-500 font-medium">CAMBIAR VISTA</span>
+                            </div>
+
+                            <button
+                              onClick={() => handleRoleChange('admin')}
+                              className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-3 transition-colors ${
+                                user.role === 'admin'
+                                  ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-500'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                              disabled={user.role === 'admin'}
+                            >
+                              <Crown className="h-4 w-4" />
+                              <span>👑 Panel de Administrador</span>
+                              {user.role === 'admin' && <span className="ml-auto text-xs">Actual</span>}
+                            </button>
+
+                            <button
+                              onClick={() => handleRoleChange('volunteer')}
+                              className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-3 transition-colors ${
+                                user.role === 'volunteer'
+                                  ? 'bg-green-50 text-green-700 border-r-2 border-green-500'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              <span>🤝 Vista de Voluntario</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleRoleChange('visitor')}
+                              className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-3 transition-colors ${
+                                user.role === 'visitor'
+                                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>👁️ Vista de Visitante</span>
+                            </button>
+                          </div>
+                        )}
+
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <button
                             onClick={async () => {
