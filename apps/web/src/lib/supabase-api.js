@@ -110,6 +110,64 @@ export const supabaseUsersAPI = {
       console.error('Error updating user:', error)
       throw error
     }
+  },
+
+  // Update user role specifically
+  async updateUserRole(userId, newRole) {
+    try {
+      console.log('🔄 SupabaseAPI: Updating user role:', userId, 'to', newRole);
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      console.log('✅ SupabaseAPI: User role updated successfully');
+      return data
+    } catch (error) {
+      console.error('❌ SupabaseAPI: Error updating user role:', error)
+      throw error
+    }
+  },
+
+  // Block user
+  async blockUser(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update({ status: 'blocked' })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error blocking user:', error)
+      throw error
+    }
+  },
+
+  // Unblock user
+  async unblockUser(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update({ status: 'active' })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error unblocking user:', error)
+      throw error
+    }
   }
 }
 

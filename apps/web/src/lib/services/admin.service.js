@@ -215,16 +215,27 @@ class AdminService {
         source: targetUser.source
       });
 
-      // 1. Try to update in Supabase if user has a valid UUID and exists there
-      if (targetUser.source === 'supabase' || targetUser.source === 'both') {
-        try {
-          // Try with both the ID and email to handle UUID issues
-          let supabaseUpdate;
+      // 1. Try to update in Supabase - handle creating user if doesn't exist
+      try {
+        console.log('🔄 AdminService: Intentando actualizar en Supabase...');
 
-          // First try with ID
+        // First try with email (more reliable for Google users)
+        let { data: dataByEmail, error: errorByEmail } = await supabase
+          .from('users')
+          .update({ role: newRole })
+          .eq('email', targetUser.email)
+          .select();
+
+        if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
+          console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
+          return dataByEmail[0];
+        }
+
+        // If email failed, try with ID
+        if (targetUser.id && targetUser.id !== targetUser.email) {
           const { data: dataById, error: errorById } = await supabase
             .from('users')
-            .update({ role: newRole, updated_at: new Date().toISOString() })
+            .update({ role: newRole })
             .eq('id', targetUser.id)
             .select();
 
@@ -232,23 +243,36 @@ class AdminService {
             console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
             return dataById[0];
           }
-
-          // If ID failed, try with email
-          const { data: dataByEmail, error: errorByEmail } = await supabase
-            .from('users')
-            .update({ role: newRole, updated_at: new Date().toISOString() })
-            .eq('email', targetUser.email)
-            .select();
-
-          if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
-            console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
-            return dataByEmail[0];
-          }
-
-          console.warn('⚠️ AdminService: No se pudo actualizar en Supabase:', errorById, errorByEmail);
-        } catch (supabaseError) {
-          console.warn('⚠️ AdminService: Error actualizando en Supabase:', supabaseError);
         }
+
+        // If user doesn't exist in Supabase, create them first
+        console.log('🆕 AdminService: Usuario no existe en Supabase, creándolo...');
+
+        const newUserData = {
+          email: targetUser.email,
+          first_name: targetUser.first_name || targetUser.email.split('@')[0],
+          last_name: targetUser.last_name || '',
+          full_name: targetUser.full_name || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUser.email,
+          role: newRole,
+          avatar_url: targetUser.avatar_url || null,
+          auth_provider: targetUser.auth_provider || 'google'
+        };
+
+        const { data: createdUser, error: createError } = await supabase
+          .from('users')
+          .insert([newUserData])
+          .select()
+          .single();
+
+        if (!createError && createdUser) {
+          console.log('✅ AdminService: Usuario creado exitosamente en Supabase');
+          return createdUser;
+        } else {
+          console.warn('⚠️ AdminService: Error creando usuario en Supabase:', createError);
+        }
+
+      } catch (supabaseError) {
+        console.warn('⚠️ AdminService: Error general con Supabase:', supabaseError);
       }
 
       // 2. Update in local storage
