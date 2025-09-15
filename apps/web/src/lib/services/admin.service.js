@@ -230,7 +230,6 @@ class AdminService {
 
           if (!errorById && dataById && dataById.length > 0) {
             console.log('✅ AdminService: Rol actualizado en Supabase (por ID)');
-            this._clearUserCache();
             return dataById[0];
           }
 
@@ -243,7 +242,6 @@ class AdminService {
 
           if (!errorByEmail && dataByEmail && dataByEmail.length > 0) {
             console.log('✅ AdminService: Rol actualizado en Supabase (por email)');
-            this._clearUserCache();
             return dataByEmail[0];
           }
 
@@ -271,7 +269,6 @@ class AdminService {
 
           storageManager.set('users', users);
           console.log('✅ AdminService: Rol actualizado en almacenamiento local');
-          this._clearUserCache();
           return users[userIndex];
         }
       } catch (localError) {
@@ -293,7 +290,6 @@ class AdminService {
 
           localStorage.setItem('google_users', JSON.stringify(googleUsers));
           console.log('✅ AdminService: Rol actualizado en usuarios de Google');
-          this._clearUserCache();
           return googleUsers[googleUserIndex];
         }
       } catch (googleError) {
@@ -318,7 +314,6 @@ class AdminService {
           casiraData.users = casiraUsers;
           localStorage.setItem('casira-data-v2', JSON.stringify(casiraData));
           console.log('✅ AdminService: Rol actualizado en datos CASIRA');
-          this._clearUserCache();
           return casiraUsers[casiraUserIndex];
         }
       } catch (casiraError) {
@@ -379,10 +374,6 @@ class AdminService {
           storageManager.set('users', localData.users);
 
           console.log('✅ AdminService: Usuario de Google actualizado forzadamente en todas las fuentes');
-
-          // Clear any potential cache to force refresh
-          this._clearUserCache();
-
           return updatedUser;
         } catch (error) {
           console.warn('⚠️ AdminService: Error en actualización forzada:', error);
@@ -884,6 +875,7 @@ class AdminService {
       return [];
     }
   }
+
 }
 
 // Crear instancia singleton
