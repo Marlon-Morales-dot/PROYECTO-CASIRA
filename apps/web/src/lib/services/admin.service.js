@@ -193,120 +193,75 @@ class AdminService {
 
   async updateUserRole(userId, newRole) {
     try {
-      console.log(`🔄 AdminService: FORZANDO actualización de rol en Supabase PRIMERO ${userId} a ${newRole}`);
+      console.log(`🔄 AdminService: Updating user role in Supabase FIRST ${userId} to ${newRole}`);
 
-      // STEP 1: OBLIGATORIO - Buscar/crear usuario en Supabase
-      let supabaseUser = null;
+      // STEP 1: Find user by ID or email - use the same approach as supabase-api.js
+      let targetUserId = userId;
       let targetUserEmail = null;
 
-      // Primero intentar encontrar al usuario por todas las fuentes para obtener el email
-      const allUsers = await this.getAllUsers();
-      const targetUser = allUsers.find(u =>
-        u.id === userId ||
-        u.email === userId ||
-        String(u.id) === String(userId)
-      );
+      // Store old role for notification
+      let oldRole = 'visitor';
 
-      if (targetUser) {
-        targetUserEmail = targetUser.email;
-        console.log(`🎯 AdminService: Usuario encontrado localmente:`, {
-          id: targetUser.id,
-          email: targetUser.email,
-          currentRole: targetUser.role
-        });
-      } else {
-        // Si userId parece un email, usarlo directamente
-        if (userId.includes('@')) {
-          targetUserEmail = userId;
-        } else {
-          throw new Error(`Usuario ${userId} no encontrado en ninguna fuente de datos`);
-        }
-      }
+      // If userId looks like an email, try to find the actual UUID
+      if (userId.includes('@')) {
+        targetUserEmail = userId;
+        console.log(`📧 AdminService: Searching for user by email: ${targetUserEmail}`);
 
-      // STEP 2: OBLIGATORIO - Verificar/crear en Supabase
-      console.log(`🔍 AdminService: Buscando usuario en Supabase por email: ${targetUserEmail}`);
-
-      try {
-        // Buscar por email en Supabase
-        const { data: existingUser, error: findError } = await supabase
+        const { data: foundUser, error: findError } = await supabase
           .from('users')
-          .select('*')
+          .select('id, email, role')
           .eq('email', targetUserEmail)
           .single();
 
-        if (!findError && existingUser) {
-          supabaseUser = existingUser;
-          console.log(`✅ AdminService: Usuario encontrado en Supabase:`, supabaseUser.id);
+        if (!findError && foundUser) {
+          targetUserId = foundUser.id;
+          oldRole = foundUser.role || 'visitor';
+          console.log(`✅ AdminService: Found user by email, ID: ${targetUserId}, current role: ${oldRole}`);
+        } else {
+          console.log(`❌ AdminService: User not found by email: ${targetUserEmail}`);
+          throw new Error(`Usuario con email ${targetUserEmail} no encontrado en Supabase`);
         }
-      } catch (findError) {
-        console.log(`🆕 AdminService: Usuario no encontrado en Supabase, será creado`);
-      }
-
-      // Si no existe en Supabase, crear el usuario
-      if (!supabaseUser && targetUser) {
-        console.log(`🆕 AdminService: Creando usuario en Supabase...`);
-
-        const newUserData = {
-          email: targetUserEmail,
-          first_name: targetUser.first_name || targetUserEmail.split('@')[0],
-          last_name: targetUser.last_name || '',
-          full_name: targetUser.full_name || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUserEmail,
-          role: newRole, // Directamente el nuevo rol
-          avatar_url: targetUser.avatar_url || null,
-          status: 'active'
-        };
-
-        const { data: createdUser, error: createError } = await supabase
+      } else {
+        // Verify that the ID exists in Supabase
+        const { data: existingUser, error: verifyError } = await supabase
           .from('users')
-          .insert([newUserData])
-          .select()
+          .select('id, email, role')
+          .eq('id', targetUserId)
           .single();
 
-        if (!createError && createdUser) {
-          supabaseUser = createdUser;
-          console.log(`✅ AdminService: Usuario creado en Supabase con rol ${newRole}:`, supabaseUser.id);
-
-          // Crear notificación
-          await this._createRoleChangeNotification(supabaseUser.id, targetUserEmail, targetUser?.role || 'visitor', newRole);
-
-          return supabaseUser;
+        if (!verifyError && existingUser) {
+          targetUserEmail = existingUser.email;
+          oldRole = existingUser.role || 'visitor';
+          console.log(`✅ AdminService: User verified in Supabase: ${targetUserId}, current role: ${oldRole}`);
         } else {
-          console.error(`❌ AdminService: Error creando usuario en Supabase:`, createError);
-          throw new Error(`No se pudo crear usuario en Supabase: ${createError?.message || 'Error desconocido'}`);
+          console.log(`❌ AdminService: User ID not found in Supabase: ${targetUserId}`);
+          throw new Error(`Usuario con ID ${targetUserId} no encontrado en Supabase`);
         }
       }
 
-      // STEP 3: OBLIGATORIO - Actualizar rol en Supabase
-      if (supabaseUser) {
-        console.log(`🔄 AdminService: Actualizando rol en Supabase para usuario ${supabaseUser.id}...`);
+      // STEP 2: Use the same updateUserRole method from supabase-api.js
+      console.log(`🔄 AdminService: Using supabase-api updateUserRole method...`);
 
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update({ role: newRole })
-          .eq('id', supabaseUser.id)
-          .select()
-          .single();
+      const { supabaseUsersAPI } = await import('../supabase-api.js');
+      const updatedUser = await supabaseUsersAPI.updateUserRole(targetUserId, newRole);
 
-        if (!updateError && updatedUser) {
-          console.log(`✅ AdminService: Rol actualizado exitosamente en Supabase`);
+      if (updatedUser) {
+        console.log(`✅ AdminService: User role updated successfully via supabase-api`);
+        console.log(`📝 AdminService: Updated user:`, updatedUser);
 
-          // Crear notificación de cambio de rol
-          await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, supabaseUser.role, newRole);
+        // Create notification for role change
+        await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-          // STEP 4: Actualizar también en fuentes locales para sincronización
-          await this._syncLocalData(targetUserEmail, newRole);
+        // Sync local data
+        await this._syncLocalData(targetUserEmail, newRole);
 
-          return updatedUser;
-        } else {
-          console.error(`❌ AdminService: Error actualizando rol en Supabase:`, updateError);
-          throw new Error(`No se pudo actualizar rol en Supabase: ${updateError?.message || 'Error desconocido'}`);
-        }
+        return updatedUser;
+      } else {
+        throw new Error('No response received from Supabase');
       }
-
-      throw new Error('No se pudo procesar el cambio de rol en Supabase');
 
     } catch (error) {
-      console.error('❌ AdminService: Error crítico en updateUserRole:', error);
+      console.error('❌ AdminService: Critical error in updateUserRole:', error);
       throw error;
     }
   }
