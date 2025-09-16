@@ -127,22 +127,46 @@ export const supabaseUsersAPI = {
             new_role_value: newRole
           });
 
-        if (!rpcError) {
+        console.log('🔍 SupabaseAPI: RPC Response:', { rpcData, rpcError });
+
+        if (!rpcError && rpcData) {
           console.log('✅ SupabaseAPI: User role updated successfully via RPC');
+          console.log('📝 SupabaseAPI: RPC Result:', rpcData);
 
-          // Fetch the updated user data
-          const { data: updatedUser } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', userId)
-            .single();
+          // Check if RPC returned success
+          if (rpcData && rpcData.success) {
+            console.log('✅ SupabaseAPI: RPC succeeded:', rpcData);
 
-          return updatedUser;
+            // Fetch the updated user data to get full user object
+            const { data: updatedUser, error: fetchError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            if (fetchError) {
+              console.warn('⚠️ SupabaseAPI: Error fetching updated user after RPC:', fetchError);
+              // Create a minimal user object from RPC response
+              return {
+                id: rpcData.user_id,
+                email: rpcData.email,
+                role: rpcData.new_role
+              };
+            } else {
+              console.log('✅ SupabaseAPI: Fetched complete updated user:', updatedUser);
+              return updatedUser;
+            }
+          } else {
+            console.error('❌ SupabaseAPI: RPC returned failure:', rpcData);
+            if (rpcData && rpcData.error) {
+              throw new Error(`RPC Error: ${rpcData.error} (${rpcData.error_code})`);
+            }
+          }
         } else {
-          console.log('⚠️ SupabaseAPI: RPC function not available, trying direct update...');
+          console.log('⚠️ SupabaseAPI: RPC error or no data:', rpcError);
         }
       } catch (rpcError) {
-        console.log('⚠️ SupabaseAPI: RPC approach failed, trying direct update...');
+        console.error('❌ SupabaseAPI: RPC approach failed with exception:', rpcError);
       }
 
       // Fallback to direct update
