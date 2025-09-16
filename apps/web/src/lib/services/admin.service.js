@@ -154,6 +154,25 @@ class AdminService {
 
       // 2. Local and Google users ONLY if not already in Supabase
       [...localUsers, ...googleUsers].forEach(user => {
+        const email = user.email;
+        const id = user.id || user.email;
+
+        if (!seenEmails.has(email) && !seenIds.has(id)) {
+          seenEmails.add(email);
+          seenIds.add(id);
+
+          const finalUser = {
+            ...user,
+            source: user.source || 'local',
+            id: id,
+            role: user.role || 'visitor',
+            status: user.status || 'active'
+          };
+
+          allUsers.push(finalUser);
+          console.log(`✅ AdminService: Added ${user.source || 'local'} user: ${email} (role: ${finalUser.role})`);
+        }
+      });
 
       // Ordenar por fecha de creación (más recientes primero)
       allUsers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
