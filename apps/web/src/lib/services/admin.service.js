@@ -367,33 +367,37 @@ class AdminService {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-        // ENVIAR NOTIFICACIÓN EN TIEMPO REAL VIA SUPABASE REALTIME
-        console.log(`🚀 AdminService: Enviando notificación en tiempo real vía Supabase Realtime`);
+        // DISPARAR EVENTO INMEDIATO PARA NOTIFICACIÓN EN TIEMPO REAL
+        console.log(`🚀 AdminService: Disparando evento inmediato de cambio de rol`);
+        console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
+        console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
 
+        // Disparar evento inmediatamente sin delay
+        window.dispatchEvent(new CustomEvent('role-changed', {
+          detail: {
+            userEmail: targetUserEmail,
+            userId: targetUserId,
+            oldRole: oldRole,
+            newRole: newRole,
+            timestamp: new Date().toISOString(),
+            source: 'admin_service'
+          }
+        }));
+
+        console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
+
+        // También intentar enviar vía Supabase Realtime como backup
         try {
-          // Importar servicio de tiempo real
           const realtimeService = await import('./realtime-role-change.service.js');
-
-          // Enviar broadcast inmediato al usuario afectado
-          const broadcastSent = await realtimeService.default.sendImmediateRoleChangeNotification(
+          await realtimeService.default.sendImmediateRoleChangeNotification(
             targetUserEmail,
             targetUserId,
             oldRole,
             newRole
           );
-
-          if (broadcastSent) {
-            console.log(`✅ AdminService: Notificación en tiempo real enviada exitosamente`);
-          } else {
-            console.warn(`⚠️ AdminService: No se pudo enviar notificación en tiempo real, usando fallback`);
-            // Fallback al método anterior
-            this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
-          }
-
+          console.log(`✅ AdminService: Backup realtime notification sent`);
         } catch (realtimeError) {
-          console.warn(`⚠️ AdminService: Error con servicio en tiempo real, usando fallback:`, realtimeError);
-          // Fallback al método anterior
-          this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
+          console.warn(`⚠️ AdminService: Backup realtime notification failed:`, realtimeError);
         }
       }
 

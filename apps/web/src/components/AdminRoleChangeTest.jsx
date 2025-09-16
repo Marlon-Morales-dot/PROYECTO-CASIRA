@@ -18,6 +18,12 @@ const AdminRoleChangeTest = () => {
 
     try {
       console.log(`🧪 AdminRoleChangeTest: Probando cambio de rol para ${targetUserEmail} a ${newRole}`);
+      console.log(`🧪 AdminRoleChangeTest: Administrador actual:`, user);
+
+      // Verificar que hay email válido
+      if (!targetUserEmail || !targetUserEmail.includes('@')) {
+        throw new Error('Por favor ingresa un email válido');
+      }
 
       // Usar el AdminService real para hacer el cambio
       const result = await adminService.updateUserRole(targetUserEmail, newRole, `Cambio de prueba a ${newRole}`, true);
@@ -123,6 +129,31 @@ const AdminRoleChangeTest = () => {
         <p className="text-xs text-blue-700">
           💡 <strong>Nota:</strong> El usuario recibirá una notificación grande e inmediata
           si está conectado en el sistema. Luego será redirigido automáticamente a su nuevo panel.
+        </p>
+      </div>
+
+      {/* Botón de prueba temporal para verificar el modal */}
+      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+        <p className="text-sm font-medium text-red-800 mb-2">🧪 Prueba de Modal (Temporal)</p>
+        <button
+          onClick={() => {
+            console.log('🧪 PRUEBA: Disparando evento de prueba manual');
+            window.dispatchEvent(new CustomEvent('role-changed', {
+              detail: {
+                userEmail: user.email,
+                oldRole: 'visitor',
+                newRole: 'volunteer',
+                timestamp: new Date().toISOString(),
+                source: 'test_button'
+              }
+            }));
+          }}
+          className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+        >
+          Probar Modal en TI MISMO
+        </button>
+        <p className="text-xs text-red-600 mt-1">
+          Esto disparará el modal en tu propia sesión para verificar que funciona.
         </p>
       </div>
     </div>

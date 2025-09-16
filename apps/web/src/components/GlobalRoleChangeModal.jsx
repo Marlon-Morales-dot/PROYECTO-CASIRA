@@ -13,6 +13,8 @@ const GlobalRoleChangeModal = () => {
     console.log('📱 GlobalRoleChangeModal: Estado del modal:', { showModal, roleChange });
 
     const handleRoleChange = (event) => {
+      console.log('🔔 GlobalRoleChangeModal: ¡EVENTO RECIBIDO!', event);
+      console.log('📦 GlobalRoleChangeModal: Detalles del evento:', event.detail);
       const { userEmail, oldRole, newRole } = event.detail;
 
       console.log('🔔 GlobalRoleChangeModal: Evento role-changed recibido:', { userEmail, oldRole, newRole });
