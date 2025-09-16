@@ -3,6 +3,8 @@ import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, B
 import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
 import adminService from '../lib/services/admin.service.js';
 import LogoutButton from './LogoutButton.jsx';
+import AdminVolunteerRequests from './AdminVolunteerRequests.jsx';
+import DataMigrationPanel from './DataMigrationPanel.jsx';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -736,9 +738,10 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const tabs = [
     { id: 'activities', label: 'Actividades', icon: Calendar },
-    { id: 'registrations', label: 'Solicitudes', icon: Bell, badge: Array.isArray(notifications) ? notifications.filter(n => n.status === 'pending').length : 0 },
+    { id: 'registrations', label: 'Solicitudes', icon: Bell, badge: Array.isArray(registrations) ? registrations.filter(r => r.status === 'pending').length : 0 },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
+    { id: 'migration', label: 'Migración', icon: Activity },
     { id: 'settings', label: 'Configuración', icon: Settings }
   ];
 
@@ -1183,8 +1186,14 @@ const AdminDashboard = ({ user, onLogout }) => {
 
             {activeTab === 'registrations' && (
               <div>
+                <AdminVolunteerRequests adminUser={user} />
+              </div>
+            )}
+
+            {activeTab === 'old-registrations' && (
+              <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Gestión de Solicitudes y Registros</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Gestión de Solicitudes y Registros (Legacy)</h3>
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <AlertCircle className="h-4 w-4" />
                     <span>{Array.isArray(notifications) ? notifications.filter(n => n.status === 'pending').length : 0} pendientes</span>
@@ -1757,6 +1766,12 @@ const AdminDashboard = ({ user, onLogout }) => {
                     </table>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'migration' && (
+              <div>
+                <DataMigrationPanel />
               </div>
             )}
 

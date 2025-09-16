@@ -202,8 +202,41 @@ export const commentsAPI = {
       console.error('❌ CASIRA: Error fetching comments:', error);
       throw error;
     }
-    
+
     return data || [];
+  },
+
+  deleteComment: async (commentId, userId) => {
+    console.log('🗑️ CASIRA: Deleting comment', commentId);
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('author_id', userId);
+
+    if (error) {
+      console.error('❌ CASIRA: Error deleting comment:', error);
+      throw error;
+    }
+
+    return true;
+  },
+
+  getCommentCount: async (postId) => {
+    console.log('📊 CASIRA: Getting comment count for post', postId);
+
+    const { count, error } = await supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (error) {
+      console.error('❌ CASIRA: Error getting comment count:', error);
+      return 0;
+    }
+
+    return count || 0;
   }
 };
 
@@ -242,7 +275,7 @@ export const postsAPI = {
 
   createPost: async (postData) => {
     console.log('📝 CASIRA: Creating new post');
-    
+
     const { data, error } = await supabase
       .from('posts')
       .insert([postData])
@@ -258,13 +291,82 @@ export const postsAPI = {
         )
       `)
       .single();
-      
+
     if (error) {
       console.error('❌ CASIRA: Error creating post:', error);
       throw error;
     }
-    
+
     return data;
+  },
+
+  toggleLike: async (postId, userId) => {
+    console.log('👍 CASIRA: Toggling like for post', postId);
+
+    // Check if user already liked this post
+    const { data: existingLike, error: checkError } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('❌ CASIRA: Error checking existing like:', checkError);
+      throw checkError;
+    }
+
+    if (existingLike) {
+      // Remove like
+      const { error: deleteError } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('id', existingLike.id);
+
+      if (deleteError) {
+        console.error('❌ CASIRA: Error removing like:', deleteError);
+        throw deleteError;
+      }
+
+      return { liked: false };
+    } else {
+      // Add like
+      const { error: insertError } = await supabase
+        .from('post_likes')
+        .insert([{ post_id: postId, user_id: userId }]);
+
+      if (insertError) {
+        console.error('❌ CASIRA: Error adding like:', insertError);
+        throw insertError;
+      }
+
+      return { liked: true };
+    }
+  },
+
+  getPostLikes: async (postId) => {
+    console.log('📊 CASIRA: Getting likes for post', postId);
+
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select(`
+        id,
+        user:users!post_likes_user_id_fkey(
+          id,
+          first_name,
+          last_name,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('post_id', postId);
+
+    if (error) {
+      console.error('❌ CASIRA: Error getting post likes:', error);
+      throw error;
+    }
+
+    return data || [];
   }
 };
 

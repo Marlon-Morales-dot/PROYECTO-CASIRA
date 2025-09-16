@@ -373,89 +373,148 @@ const SocialFeed = ({ user }) => {
         <div className="border-t bg-gray-50">
           {/* Input para nuevo comentario */}
           {user && (
-            <div className="p-4 border-b">
+            <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
               <div className="flex items-start space-x-3">
                 {user.avatar_url ? (
-                  <img 
-                    src={user.avatar_url} 
+                  <img
+                    src={user.avatar_url}
                     alt={user.full_name}
-                    className="w-8 h-8 rounded-full object-cover"
+                    className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <User className="w-4 h-4 text-blue-600" />
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                    <User className="w-5 h-5 text-white" />
                   </div>
                 )}
-                <div className="flex-1 flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Escribe un comentario..."
-                    value={newComment[post.id] || ''}
-                    onChange={(e) => setNewComment(prev => ({ 
-                      ...prev, 
-                      [post.id]: e.target.value 
-                    }))}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAddComment(post.id);
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => handleAddComment(post.id)}
-                    disabled={!newComment[post.id]?.trim()}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
+                <div className="flex-1 space-y-2">
+                  <div className="relative">
+                    <textarea
+                      placeholder="Escribe un comentario..."
+                      value={newComment[post.id] || ''}
+                      onChange={(e) => setNewComment(prev => ({
+                        ...prev,
+                        [post.id]: e.target.value
+                      }))}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleAddComment(post.id);
+                        }
+                      }}
+                      rows="2"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all placeholder-gray-500"
+                    />
+                    {newComment[post.id]?.length > 0 && (
+                      <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                        {newComment[post.id].length}/500
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3" />
+                        Presiona Enter para enviar
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {newComment[post.id]?.trim() && (
+                        <button
+                          onClick={() => setNewComment(prev => ({ ...prev, [post.id]: '' }))}
+                          className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm rounded-lg hover:bg-white/50 transition-all"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleAddComment(post.id)}
+                        disabled={!newComment[post.id]?.trim()}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center gap-2 shadow-md"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>Comentar</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Lista de comentarios */}
-          <div className="max-h-64 overflow-y-auto">
-            {comments[post.id]?.map((comment) => (
-              <div key={comment.id} className="p-4 border-b last:border-b-0">
-                <div className="flex items-start space-x-3">
-                  {comment.author?.avatar_url ? (
-                    <img 
-                      src={comment.author.avatar_url} 
-                      alt={comment.author.full_name}
-                      className="w-6 h-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                      <span className="text-gray-600 text-xs font-medium">
-                        {(comment.author?.first_name?.[0] || '?').toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-medium text-sm text-gray-900">
-                        {comment.author?.full_name || 
-                         `${comment.author?.first_name || ''} ${comment.author?.last_name || ''}`.trim() || 
-                         'Usuario desconocido'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.created_at).toLocaleDateString('es-ES')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-1">{comment.content}</p>
-                    <div className="flex items-center space-x-3 text-xs text-gray-500">
-                      <button className="hover:text-blue-600 flex items-center space-x-1">
-                        <ThumbsUp className="w-3 h-3" />
-                        <span>{comment.likes_count || 0}</span>
-                      </button>
-                      <button className="hover:text-blue-600">Responder</button>
+          <div className="max-h-80 overflow-y-auto">
+            {comments[post.id]?.length === 0 ? (
+              <div className="p-8 text-center">
+                <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No hay comentarios aún</p>
+                <p className="text-gray-400 text-xs mt-1">¡Sé el primero en comentar!</p>
+              </div>
+            ) : (
+              comments[post.id]?.map((comment) => (
+                <div key={comment.id} className="p-4 hover:bg-gray-50 transition-colors group">
+                  <div className="flex items-start space-x-3">
+                    {comment.author?.avatar_url ? (
+                      <img
+                        src={comment.author.avatar_url}
+                        alt={comment.author.full_name}
+                        className="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center shadow-sm">
+                        <span className="text-white text-xs font-semibold">
+                          {(comment.author?.first_name?.[0] || '?').toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-100 rounded-2xl px-4 py-3 group-hover:bg-gray-200 transition-colors">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-semibold text-sm text-gray-900 truncate">
+                            {comment.author?.full_name ||
+                             `${comment.author?.first_name || ''} ${comment.author?.last_name || ''}`.trim() ||
+                             'Usuario desconocido'}
+                          </span>
+                          <span className="text-xs text-gray-500 flex-shrink-0">
+                            {(() => {
+                              const now = new Date();
+                              const commentDate = new Date(comment.created_at);
+                              const diffInMinutes = Math.floor((now - commentDate) / (1000 * 60));
+
+                              if (diffInMinutes < 1) return 'Ahora';
+                              if (diffInMinutes < 60) return `${diffInMinutes}m`;
+                              if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+                              return commentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                            })()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                      </div>
+                      <div className="flex items-center space-x-4 mt-2 px-2">
+                        <button className="flex items-center space-x-1 text-xs text-gray-500 hover:text-blue-600 transition-colors group">
+                          <ThumbsUp className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                          <span>{comment.likes_count || 0}</span>
+                        </button>
+                        <button className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
+                          Responder
+                        </button>
+                        <span className="text-xs text-gray-400">
+                          {(() => {
+                            const now = new Date();
+                            const commentDate = new Date(comment.created_at);
+                            const diffInHours = Math.floor((now - commentDate) / (1000 * 60 * 60));
+
+                            if (diffInHours < 24) {
+                              return commentDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            }
+                            return commentDate.toLocaleDateString('es-ES');
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -497,13 +556,19 @@ const SocialFeed = ({ user }) => {
                 onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <textarea
-                placeholder="¿Qué quieres compartir?"
-                value={newPost.content}
-                onChange={(e) => setNewPost(prev => ({ ...prev, content: e.target.value }))}
-                rows="4"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
+              <div className="relative">
+                <textarea
+                  placeholder="¿Qué quieres compartir?"
+                  value={newPost.content}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, content: e.target.value }))}
+                  rows="4"
+                  maxLength="1000"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all placeholder-gray-500"
+                />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                  {newPost.content.length}/1000
+                </div>
+              </div>
               
               {/* Preview de imágenes */}
               {newPost.images.length > 0 && (
@@ -540,10 +605,10 @@ const SocialFeed = ({ user }) => {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all border border-gray-200 hover:border-blue-300"
                   >
                     <Camera className="w-4 h-4" />
-                    <span>Foto</span>
+                    <span className="font-medium">Añadir foto</span>
                   </button>
                   <select
                     value={newPost.visibility}

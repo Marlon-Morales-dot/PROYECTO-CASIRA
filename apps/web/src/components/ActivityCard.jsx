@@ -1,22 +1,34 @@
 import React, { useState } from 'react';
-import { 
+import {
   Heart, MessageCircle, MapPin, Calendar, Clock, Users, Share2,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, CheckCircle, AlertCircle, XCircle
 } from 'lucide-react';
+import { useActivityRegistrations } from '../lib/hooks/useActivityRegistrations.js';
 
-const ActivityCard = ({ 
-  activity, 
-  isLiked, 
-  likesCount, 
-  comments, 
-  onLike, 
-  onComment, 
-  onJoin, 
-  user 
+const ActivityCard = ({
+  activity,
+  isLiked,
+  likesCount,
+  comments,
+  onLike,
+  onComment,
+  onJoin,
+  user
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [showFullDescription, setShowFullDescription] = useState(false);
+
+  // Hook para manejar suscripciones en tiempo real
+  const {
+    volunteerCount,
+    isUserRegistered,
+    isUserPending,
+    getUserRegistrationStatus,
+    canRegister,
+    registerForActivity,
+    isRegistering
+  } = useActivityRegistrations(activity?.id);
 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
@@ -25,6 +37,50 @@ const ActivityCard = ({
       setNewComment('');
     }
   };
+
+  const handleJoinActivity = async () => {
+    if (!user) {
+      alert('Debes iniciar sesión para unirte a una actividad');
+      return;
+    }
+
+    try {
+      await registerForActivity(user, 'Solicito unirme a esta actividad');
+
+      if (onJoin) {
+        onJoin(activity);
+      }
+    } catch (error) {
+      console.error('Error joining activity:', error);
+      alert(error.message || 'Error al solicitar unirse a la actividad');
+    }
+  };
+
+  // Función para obtener el estado visual del botón de unirse
+  const getJoinButtonState = () => {
+    if (!user) {
+      return { text: 'Iniciar Sesión', disabled: false, variant: 'primary' };
+    }
+
+    const userId = user.supabase_id || user.id;
+    const status = getUserRegistrationStatus(userId);
+
+    switch (status) {
+      case 'approved':
+        return { text: 'Ya Inscrito', disabled: true, variant: 'success', icon: CheckCircle };
+      case 'pending':
+        return { text: 'Solicitud Pendiente', disabled: true, variant: 'warning', icon: AlertCircle };
+      case 'rejected':
+        return { text: 'Solicitud Rechazada', disabled: true, variant: 'danger', icon: XCircle };
+      default:
+        if (!canRegister(userId)) {
+          return { text: 'Sin Cupos', disabled: true, variant: 'disabled' };
+        }
+        return { text: 'Unirme', disabled: false, variant: 'primary' };
+    }
+  };
+
+  const joinButtonState = getJoinButtonState();
 
   const description = activity.description || activity.content || '';
   const truncatedDescription = description.length > 120 
@@ -103,10 +159,17 @@ const ActivityCard = ({
             </div>
           )}
           
-          {activity.volunteers_needed && (
+          {(activity.volunteers_needed || activity.max_volunteers) && (
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>Necesita {activity.volunteers_needed} voluntarios</span>
+              <span>
+                {volunteerCount || 0} de {activity.max_volunteers || activity.volunteers_needed || 'ilimitados'} voluntarios
+              </span>
+              {activity.max_volunteers && volunteerCount >= activity.max_volunteers && (
+                <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                  Completo
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -157,10 +220,22 @@ const ActivityCard = ({
           
           {/* Join Button */}
           <button
-            onClick={() => onJoin(activity)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 transition-all btn-touch focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            onClick={joinButtonState.disabled ? undefined : handleJoinActivity}
+            disabled={joinButtonState.disabled || isRegistering}
+            className={`px-6 py-2 rounded-full font-semibold transition-all btn-touch focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center space-x-2 ${
+              joinButtonState.variant === 'success'
+                ? 'bg-green-100 text-green-800 border border-green-200'
+                : joinButtonState.variant === 'warning'
+                ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                : joinButtonState.variant === 'danger'
+                ? 'bg-red-100 text-red-800 border border-red-200'
+                : joinButtonState.variant === 'disabled'
+                ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-blue-500'
+            } ${(joinButtonState.disabled || isRegistering) ? 'cursor-not-allowed opacity-75' : ''}`}
           >
-            Unirme
+            {joinButtonState.icon && <joinButtonState.icon className="h-4 w-4" />}
+            <span>{isRegistering ? 'Enviando...' : joinButtonState.text}</span>
           </button>
         </div>
         

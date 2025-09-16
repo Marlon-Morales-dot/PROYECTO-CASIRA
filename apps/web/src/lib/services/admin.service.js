@@ -201,9 +201,9 @@ class AdminService {
     }
   }
 
-  async updateUserRole(userId, newRole) {
+  async updateUserRole(userId, newRole, adminMessage = null, forceImmediate = false) {
     try {
-      console.log(`🔄 AdminService: Updating user role in Supabase FIRST ${userId} to ${newRole}`);
+      console.log(`🔄 AdminService: Updating user role ${userId} to ${newRole} (forceImmediate: ${forceImmediate})`);
 
       // STEP 1: Find user by ID or email - use the same approach as supabase-api.js
       let targetUserId = userId;
@@ -248,6 +248,57 @@ class AdminService {
           throw new Error(`Usuario con ID ${targetUserId} no encontrado en Supabase`);
         }
       }
+
+      // STEP 1.5: Si no es cambio forzado, crear notificación pendiente primero
+      if (!forceImmediate && oldRole !== newRole) {
+        console.log(`📬 AdminService: Creando notificación pendiente para confirmación del usuario`);
+
+        try {
+          // Obtener información del admin actual
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) {
+            console.warn('⚠️ No hay usuario autenticado, continuando con cambio directo');
+          } else {
+            // Buscar admin en tabla users
+            const { data: adminData } = await supabase
+              .from('users')
+              .select('id, email, role, full_name')
+              .eq('email', currentUser.email)
+              .single();
+
+            if (adminData && adminData.role === 'admin') {
+              console.log(`👑 Admin encontrado: ${adminData.full_name || adminData.email}`);
+
+              // Crear cambio pendiente en lugar de cambio directo
+              const pendingChangeService = await import('./pending-role-change.service.js');
+              const pendingChange = await pendingChangeService.default.createPendingRoleChange(
+                targetUserId,
+                adminData.id,
+                oldRole,
+                newRole,
+                adminMessage || `Cambio de rol de ${oldRole} a ${newRole}`
+              );
+
+              console.log('✅ AdminService: Cambio pendiente creado, esperando confirmación del usuario');
+
+              return {
+                success: true,
+                pending: true,
+                pendingChangeId: pendingChange.id,
+                message: 'Cambio de rol enviado al usuario para confirmación',
+                targetUserEmail: targetUserEmail,
+                oldRole: oldRole,
+                newRole: newRole
+              };
+            }
+          }
+        } catch (pendingError) {
+          console.warn('⚠️ Error creando cambio pendiente, procediendo con cambio directo:', pendingError);
+        }
+      }
+
+      // STEP 2: Continuar con cambio directo (legacy o cuando forceImmediate = true)
+      console.log(`⚡ AdminService: Procediendo con cambio directo de rol`);
 
       // Check if role is actually changing
       if (oldRole === newRole) {
