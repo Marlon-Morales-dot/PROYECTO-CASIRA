@@ -287,15 +287,21 @@ class AdminService {
 
         // TAMBIÉN disparar evento inmediatamente para modal en tiempo real
         console.log(`🚀 AdminService: Disparando evento role-changed para modal inmediato`);
-        window.dispatchEvent(new CustomEvent('role-changed', {
-          detail: {
-            userEmail: targetUserEmail,
-            oldRole: oldRole,
-            newRole: newRole,
-            timestamp: new Date().toISOString()
-          }
-        }));
-        console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
+        console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
+        console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
+
+        // Esperar un momento para asegurar que todo esté listo
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('role-changed', {
+            detail: {
+              userEmail: targetUserEmail,
+              oldRole: oldRole,
+              newRole: newRole,
+              timestamp: new Date().toISOString()
+            }
+          }));
+          console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
+        }, 100);
       }
 
       // Sync local data as CACHE ONLY (Supabase is the source of truth)

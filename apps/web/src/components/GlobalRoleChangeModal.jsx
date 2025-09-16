@@ -9,12 +9,20 @@ const GlobalRoleChangeModal = () => {
 
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners de eventos');
+    console.log('👤 GlobalRoleChangeModal: Usuario actual registrado:', user?.email);
+    console.log('📱 GlobalRoleChangeModal: Estado del modal:', { showModal, roleChange });
 
     const handleRoleChange = (event) => {
       const { userEmail, oldRole, newRole } = event.detail;
 
       console.log('🔔 GlobalRoleChangeModal: Evento role-changed recibido:', { userEmail, oldRole, newRole });
       console.log('🔔 GlobalRoleChangeModal: Usuario actual:', user?.email);
+      console.log('🔔 GlobalRoleChangeModal: Comparación emails:', {
+        eventEmail: `"${userEmail}"`,
+        currentEmail: `"${user?.email}"`,
+        match: user?.email === userEmail
+      });
+      console.log('🔔 GlobalRoleChangeModal: Estado modal actual:', showModal);
 
       // Solo mostrar modal si es el usuario actual Y si no ya hay un modal abierto
       if (user && user.email === userEmail && !showModal) {
@@ -26,28 +34,51 @@ const GlobalRoleChangeModal = () => {
           'visitor': 'Visitante'
         };
 
-        setRoleChange({
+        const newRoleChange = {
           oldRole,
           newRole,
           userEmail,
           title: '¡Tu rol ha sido actualizado!',
           message: `Ahora eres ${roleNames[newRole]}. Serás redirigido a tu nueva área de trabajo.`
-        });
+        };
 
+        console.log('🎯 GlobalRoleChangeModal: Configurando datos del modal:', newRoleChange);
+
+        setRoleChange(newRoleChange);
         setShowModal(true);
 
         console.log('🎯 GlobalRoleChangeModal: Modal configurado para mostrar');
       } else if (showModal) {
         console.log('⚠️ GlobalRoleChangeModal: Modal ya está abierto, ignorando evento duplicado');
+      } else if (!user) {
+        console.log('❌ GlobalRoleChangeModal: No hay usuario logueado');
+      } else if (user.email !== userEmail) {
+        console.log('❌ GlobalRoleChangeModal: Email no coincide');
       } else {
-        console.log('❌ GlobalRoleChangeModal: No es el usuario actual, ignorando evento');
+        console.log('❌ GlobalRoleChangeModal: Condición no cumplida para mostrar modal');
       }
     };
 
     // Solo escuchar role-changed que viene de AdminService
     window.addEventListener('role-changed', handleRoleChange);
 
-    // EVENTO DE PRUEBA ELIMINADO - causaba bucle infinito
+    // Función global para pruebas manuales
+    window.testRoleChangeModal = () => {
+      if (user) {
+        console.log('🧪 PRUEBA MANUAL: Disparando evento de prueba');
+        window.dispatchEvent(new CustomEvent('role-changed', {
+          detail: {
+            userEmail: user.email,
+            oldRole: 'visitor',
+            newRole: 'volunteer'
+          }
+        }));
+      } else {
+        console.log('❌ No hay usuario para probar');
+      }
+    };
+
+    console.log('🧪 Para probar manualmente: ejecuta window.testRoleChangeModal() en la consola');
 
     return () => {
       console.log('🔧 GlobalRoleChangeModal: Removiendo listeners de eventos');
