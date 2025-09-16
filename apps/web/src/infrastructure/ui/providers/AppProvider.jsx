@@ -322,24 +322,29 @@ export function AuthProvider({ children }) {
         console.log(`🔍 AuthProvider: ¿Está en ruta correcta? ${isOnCorrectPath}`);
         console.log(`🔍 AuthProvider: Rutas esperadas para ${newRole}:`, expectedForRole);
 
-        // Forzar re-render y redirección según el nuevo rol
-        console.log(`🚀 AuthProvider: Procesando cambio de rol ${oldRole} → ${newRole}`);
+        // Disparar evento para mostrar modal de cambio de rol
+        console.log(`🚀 AuthProvider: Disparando notificación de cambio de rol ${oldRole} → ${newRole}`);
 
-        // Usar setTimeout para permitir que el estado se actualice primero
-        setTimeout(() => {
-          // Si estamos en cualquier dashboard, forzar recarga para aplicar el nuevo rol
-          if (currentPath.includes('/dashboard') || currentPath.includes('/admin') || currentPath.includes('/volunteer') || currentPath.includes('/visitor')) {
-            console.log(`🔄 AuthProvider: Forzando recarga para aplicar nuevo rol ${newRole}`);
+        // Disparar evento personalizado para mostrar el modal
+        const roleNames = {
+          'admin': 'Administrador',
+          'volunteer': 'Voluntario',
+          'visitor': 'Visitante'
+        };
 
-            // Navegar a la ruta correcta según el nuevo rol
-            console.log(`🌐 AuthProvider: Navegando a ${newRoute} para rol ${newRole}`);
-            window.location.href = newRoute;
-          } else {
-            // Si no estamos en un dashboard, navegar normalmente
-            console.log(`🚀 AuthProvider: Navegando desde ${currentPath} a ${newRoute}`);
-            window.location.href = newRoute;
+        window.dispatchEvent(new CustomEvent('casira-role-notification', {
+          detail: {
+            userEmail,
+            oldRole,
+            newRole,
+            title: `¡Tu rol ha sido actualizado!`,
+            message: `Ahora eres ${roleNames[newRole]}. Serás redirigido a tu nueva área de trabajo.`
           }
-        }, 200);
+        }));
+
+        console.log(`✅ AuthProvider: Evento de cambio de rol disparado para ${userEmail}`);
+
+        // NO hacer redirección automática - dejar que el modal lo maneje
       }
     };
 

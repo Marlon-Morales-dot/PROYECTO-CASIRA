@@ -1,14 +1,17 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../infrastructure/ui/providers/AppProvider.jsx';
+import { useRoleChangeNotification } from '../hooks/useRoleChangeNotification.js';
 import SocialDashboard from './SocialDashboard.jsx';
 import AdminDashboard from './AdminDashboard.jsx';
 import VolunteerDashboard from './VolunteerDashboard.jsx';
 import VisitorDashboard from './VisitorDashboard.jsx';
+import RoleChangeModal from './RoleChangeModal.jsx';
 
 const DashboardWrapper = () => {
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { showModal, roleChange, handleAccept, handleClose } = useRoleChangeNotification();
 
   useEffect(() => {
     // Si no está cargando y no hay usuario, redirigir al login
@@ -41,17 +44,50 @@ const DashboardWrapper = () => {
   // Determinar dashboard según el rol del usuario
   if (user.role === 'admin' || (user.isAdmin && user.isAdmin())) {
     console.log('🎯 DashboardWrapper: Mostrando AdminDashboard');
-    return <AdminDashboard user={user} onLogout={logout} />;
+    return (
+      <>
+        <AdminDashboard user={user} onLogout={logout} />
+        <RoleChangeModal
+          isOpen={showModal}
+          onAccept={handleAccept}
+          onClose={handleClose}
+          roleChange={roleChange}
+        />
+      </>
+    );
   }
 
   if (user.role === 'volunteer' || (user.isVolunteer && user.isVolunteer())) {
     console.log('🎯 DashboardWrapper: Mostrando VolunteerDashboard');
-    return <VolunteerDashboard user={user} onLogout={logout} />;
+    return (
+      <>
+        <VolunteerDashboard user={user} onLogout={logout} />
+        <RoleChangeModal
+          isOpen={showModal}
+          onAccept={handleAccept}
+          onClose={handleClose}
+          roleChange={roleChange}
+        />
+      </>
+    );
   }
 
   // Para usuarios visitantes/sociales
   console.log('🎯 DashboardWrapper: Mostrando SocialDashboard (visitante)');
-  return <SocialDashboard user={user} onLogout={logout} />;
+
+  return (
+    <>
+      <SocialDashboard user={user} onLogout={logout} />
+
+      {/* Modal de cambio de rol */}
+      <RoleChangeModal
+        isOpen={showModal}
+        onAccept={handleAccept}
+        onClose={handleClose}
+        roleChange={roleChange}
+      />
+    </>
+  );
 };
 
 export default DashboardWrapper;
