@@ -29,16 +29,28 @@ const DashboardWrapper = () => {
     );
   }
 
-  // Redirigir según el rol del usuario
-  if (user.isAdmin && user.isAdmin()) {
+  // Log del usuario actual para debugging
+  console.log('🔍 DashboardWrapper: Usuario actual:', {
+    email: user.email,
+    role: user.role,
+    isAdmin: user.isAdmin ? user.isAdmin() : 'N/A',
+    isVolunteer: user.isVolunteer ? user.isVolunteer() : 'N/A',
+    isVisitor: user.isVisitor ? user.isVisitor() : 'N/A'
+  });
+
+  // Determinar dashboard según el rol del usuario
+  if (user.role === 'admin' || (user.isAdmin && user.isAdmin())) {
+    console.log('🎯 DashboardWrapper: Mostrando AdminDashboard');
     return <AdminDashboard user={user} onLogout={logout} />;
   }
 
-  if (user.isVolunteer && user.isVolunteer()) {
+  if (user.role === 'volunteer' || (user.isVolunteer && user.isVolunteer())) {
+    console.log('🎯 DashboardWrapper: Mostrando VolunteerDashboard');
     return <VolunteerDashboard user={user} onLogout={logout} />;
   }
 
-  // Para usuarios sociales/visitantes
+  // Para usuarios visitantes/sociales
+  console.log('🎯 DashboardWrapper: Mostrando SocialDashboard (visitante)');
   return <SocialDashboard user={user} onLogout={logout} />;
 };
 

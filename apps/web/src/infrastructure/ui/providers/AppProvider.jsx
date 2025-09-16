@@ -322,22 +322,24 @@ export function AuthProvider({ children }) {
         console.log(`🔍 AuthProvider: ¿Está en ruta correcta? ${isOnCorrectPath}`);
         console.log(`🔍 AuthProvider: Rutas esperadas para ${newRole}:`, expectedForRole);
 
-        // Solo redirigir si no está en la ruta correcta
-        if (!isOnCorrectPath) {
-          console.log(`🚀 AuthProvider: Redirigiendo a ${newRoute} para rol ${newRole}`);
+        // Forzar re-render y redirección según el nuevo rol
+        console.log(`🚀 AuthProvider: Procesando cambio de rol ${oldRole} → ${newRole}`);
 
-          // Usar setTimeout para evitar conflictos con el renderizado
-          setTimeout(() => {
-            if (window.location.pathname === currentPath) {
-              console.log(`🌐 AuthProvider: Ejecutando redirección a ${newRoute}`);
-              window.location.href = newRoute;
-            } else {
-              console.log(`🔄 AuthProvider: Ruta ya cambió, cancelando redirección`);
-            }
-          }, 100);
-        } else {
-          console.log(`✅ AuthProvider: Usuario ya está en ruta correcta para rol ${newRole}`);
-        }
+        // Usar setTimeout para permitir que el estado se actualice primero
+        setTimeout(() => {
+          // Si estamos en cualquier dashboard, forzar recarga para aplicar el nuevo rol
+          if (currentPath.includes('/dashboard') || currentPath.includes('/admin') || currentPath.includes('/volunteer') || currentPath.includes('/visitor')) {
+            console.log(`🔄 AuthProvider: Forzando recarga para aplicar nuevo rol ${newRole}`);
+
+            // Navegar a la ruta correcta según el nuevo rol
+            console.log(`🌐 AuthProvider: Navegando a ${newRoute} para rol ${newRole}`);
+            window.location.href = newRoute;
+          } else {
+            // Si no estamos en un dashboard, navegar normalmente
+            console.log(`🚀 AuthProvider: Navegando desde ${currentPath} a ${newRoute}`);
+            window.location.href = newRoute;
+          }
+        }, 200);
       }
     };
 
