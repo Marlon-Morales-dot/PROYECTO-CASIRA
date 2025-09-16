@@ -336,23 +336,34 @@ class AdminService {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-        // TAMBIÉN disparar evento inmediatamente para modal en tiempo real
-        console.log(`🚀 AdminService: Disparando evento role-changed para modal inmediato`);
-        console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
-        console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
+        // ENVIAR NOTIFICACIÓN EN TIEMPO REAL VIA SUPABASE REALTIME
+        console.log(`🚀 AdminService: Enviando notificación en tiempo real vía Supabase Realtime`);
 
-        // Esperar un momento para asegurar que todo esté listo
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('role-changed', {
-            detail: {
-              userEmail: targetUserEmail,
-              oldRole: oldRole,
-              newRole: newRole,
-              timestamp: new Date().toISOString()
-            }
-          }));
-          console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
-        }, 100);
+        try {
+          // Importar servicio de tiempo real
+          const realtimeService = await import('./realtime-role-change.service.js');
+
+          // Enviar broadcast inmediato al usuario afectado
+          const broadcastSent = await realtimeService.default.sendImmediateRoleChangeNotification(
+            targetUserEmail,
+            targetUserId,
+            oldRole,
+            newRole
+          );
+
+          if (broadcastSent) {
+            console.log(`✅ AdminService: Notificación en tiempo real enviada exitosamente`);
+          } else {
+            console.warn(`⚠️ AdminService: No se pudo enviar notificación en tiempo real, usando fallback`);
+            // Fallback al método anterior
+            this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
+          }
+
+        } catch (realtimeError) {
+          console.warn(`⚠️ AdminService: Error con servicio en tiempo real, usando fallback:`, realtimeError);
+          // Fallback al método anterior
+          this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
+        }
       }
 
       // Sync local data as CACHE ONLY (Supabase is the source of truth)
@@ -1193,6 +1204,34 @@ class AdminService {
       console.log(`🗑️ AdminService: Removed sync request ${syncId}`);
     } catch (error) {
       console.warn('⚠️ AdminService: Error removing sync request:', error);
+    }
+  }
+
+  /**
+   * Método fallback para disparar evento legacy de cambio de rol
+   */
+  _dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole) {
+    try {
+      console.log(`🔄 AdminService: Disparando evento legacy role-changed para modal inmediato`);
+      console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
+      console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
+
+      // Esperar un momento para asegurar que todo esté listo
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('role-changed', {
+          detail: {
+            userEmail: targetUserEmail,
+            oldRole: oldRole,
+            newRole: newRole,
+            timestamp: new Date().toISOString(),
+            source: 'legacy_fallback'
+          }
+        }));
+        console.log(`✅ AdminService: Evento legacy role-changed disparado para ${targetUserEmail}`);
+      }, 100);
+
+    } catch (error) {
+      console.error('❌ AdminService: Error disparando evento legacy:', error);
     }
   }
 

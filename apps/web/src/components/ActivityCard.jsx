@@ -88,17 +88,17 @@ const ActivityCard = ({
     : description;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden card-mobile">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden card-mobile activity-card-mobile">
       {/* Image */}
-      <div className="relative h-48 sm:h-56">
-        <img 
-          src={activity.image_url || '/placeholder-activity.jpg'} 
+      <div className="relative h-48 sm:h-56 activity-image-mobile">
+        <img
+          src={activity.image_url || '/placeholder-activity.jpg'}
           alt={activity.title}
           className="w-full h-full object-cover"
           loading="lazy"
         />
-        <div className="absolute top-3 right-3">
-          <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold">
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+          <span className="bg-blue-500/90 backdrop-blur-sm text-white px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-semibold">
             Disponible
           </span>
         </div>
@@ -132,37 +132,37 @@ const ActivityCard = ({
         </div>
         
         {/* Meta Information */}
-        <div className="space-y-2 mb-4 text-sm text-gray-500">
+        <div className="space-y-2 mb-4 text-sm text-gray-500 activity-meta-mobile">
           {activity.location && (
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">{activity.location}</span>
+              <span className="truncate text-xs sm:text-sm">{activity.location}</span>
             </div>
           )}
-          
+
           {activity.date && (
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{new Date(activity.date).toLocaleDateString('es-ES', {
-                weekday: 'long',
+              <span className="text-xs sm:text-sm">{new Date(activity.date).toLocaleDateString('es-ES', {
+                weekday: 'short',
                 year: 'numeric',
-                month: 'long',
+                month: 'short',
                 day: 'numeric'
               })}</span>
             </div>
           )}
-          
+
           {activity.time && (
             <div className="flex items-center">
               <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{activity.time}</span>
+              <span className="text-xs sm:text-sm">{activity.time}</span>
             </div>
           )}
-          
+
           {(activity.volunteers_needed || activity.max_volunteers) && (
-            <div className="flex items-center">
+            <div className="flex items-center flex-wrap">
               <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>
+              <span className="text-xs sm:text-sm">
                 {volunteerCount || 0} de {activity.max_volunteers || activity.volunteers_needed || 'ilimitados'} voluntarios
               </span>
               {activity.max_volunteers && volunteerCount >= activity.max_volunteers && (
@@ -175,32 +175,32 @@ const ActivityCard = ({
         </div>
         
         {/* Action Buttons */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
+        <div className="activity-actions-mobile mb-4">
+          <div className="mobile-button-group">
             {/* Like Button */}
             <button
               onClick={() => onLike(activity.id)}
               className={`flex items-center space-x-2 px-3 py-2 rounded-full transition-all btn-touch ${
-                isLiked 
-                  ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+                isLiked
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Heart 
-                className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} 
+              <Heart
+                className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
               />
-              <span className="text-sm font-medium">{likesCount || 0}</span>
+              <span className="text-xs sm:text-sm font-medium">{likesCount || 0}</span>
             </button>
-            
+
             {/* Comments Button */}
             <button
               onClick={() => setShowComments(!showComments)}
               className="flex items-center space-x-2 px-3 py-2 rounded-full bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all btn-touch"
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">{comments?.length || 0}</span>
+              <span className="text-xs sm:text-sm font-medium">{comments?.length || 0}</span>
             </button>
-            
+
             {/* Share Button */}
             <button
               onClick={() => {
@@ -217,12 +217,12 @@ const ActivityCard = ({
               <Share2 className="h-4 w-4" />
             </button>
           </div>
-          
+
           {/* Join Button */}
           <button
             onClick={joinButtonState.disabled ? undefined : handleJoinActivity}
             disabled={joinButtonState.disabled || isRegistering}
-            className={`px-6 py-2 rounded-full font-semibold transition-all btn-touch focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center space-x-2 ${
+            className={`activity-join-button-mobile px-4 sm:px-6 py-2 rounded-full font-semibold transition-all btn-touch focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center space-x-2 ${
               joinButtonState.variant === 'success'
                 ? 'bg-green-100 text-green-800 border border-green-200'
                 : joinButtonState.variant === 'warning'
@@ -235,7 +235,7 @@ const ActivityCard = ({
             } ${(joinButtonState.disabled || isRegistering) ? 'cursor-not-allowed opacity-75' : ''}`}
           >
             {joinButtonState.icon && <joinButtonState.icon className="h-4 w-4" />}
-            <span>{isRegistering ? 'Enviando...' : joinButtonState.text}</span>
+            <span className="text-xs sm:text-sm">{isRegistering ? 'Enviando...' : joinButtonState.text}</span>
           </button>
         </div>
         
@@ -272,32 +272,32 @@ const ActivityCard = ({
             )}
             
             {/* Comments List */}
-            <div className="space-y-3 max-h-64 overflow-y-auto">
+            <div className="space-y-3 comments-mobile">
               {comments?.length > 0 ? (
                 comments.map((comment, index) => (
-                  <div key={comment.id || index} className="flex space-x-3">
+                  <div key={comment.id || index} className="flex space-x-2 sm:space-x-3">
                     <img
                       src={comment.user?.avatar_url || '/default-avatar.jpg'}
                       alt={comment.user?.first_name || 'Usuario'}
-                      className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="bg-gray-50 rounded-2xl px-3 py-2">
                         <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900 truncate">
+                          <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                             {comment.user?.first_name || 'Usuario'} {comment.user?.last_name || ''}
                           </span>
                           <span className="text-xs text-gray-500 flex-shrink-0">
                             {comment.created_at && new Date(comment.created_at).toLocaleDateString('es-ES')}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700">{comment.content}</p>
+                        <p className="text-xs sm:text-sm text-gray-700">{comment.content}</p>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-gray-500 text-center py-2">
+                <p className="text-xs sm:text-sm text-gray-500 text-center py-2">
                   No hay comentarios aún. ¡Sé el primero en comentar!
                 </p>
               )}

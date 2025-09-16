@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, UserCheck, Eye, CheckCircle } from 'lucide-react';
+import './RoleChangeModal.css';
 
 const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -56,41 +57,46 @@ const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
     <div className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
       isVisible ? 'opacity-100' : 'opacity-0'
     }`}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
+      {/* Backdrop con desenfoque */}
+      <div className="absolute inset-0 role-modal-backdrop"></div>
 
-      {/* Modal */}
-      <div className={`relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ${
-        isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-      }`}>
-        {/* Header con gradiente */}
-        <div className={`${roleColorClass} rounded-t-2xl p-6 text-white relative overflow-hidden`}>
-          {/* Decoración de fondo */}
+      {/* Modal - Más grande y llamativo */}
+      <div className={`relative bg-white rounded-3xl role-modal-container max-w-lg w-full mx-4 transform transition-all duration-500 ${
+        isVisible ? 'scale-100 translate-y-0 role-modal-enter' : 'scale-95 translate-y-4 role-modal-exit'
+      } animate-pulse-gentle`}>
+        {/* Header con gradiente - Más grande y llamativo */}
+        <div className={`${roleColorClass} rounded-t-3xl p-8 text-white relative overflow-hidden`}>
+          {/* Decoración de fondo animada */}
           <div className="absolute top-0 right-0 opacity-10">
-            <div className="w-32 h-32 rounded-full border-4 border-white transform translate-x-8 -translate-y-8"></div>
+            <div className="w-40 h-40 rounded-full border-4 border-white transform translate-x-8 -translate-y-8 animate-spin-slow"></div>
+          </div>
+          <div className="absolute bottom-0 left-0 opacity-5">
+            <div className="w-24 h-24 rounded-full border-2 border-white transform -translate-x-4 translate-y-4 animate-bounce-slow"></div>
           </div>
 
           <div className="relative z-10 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              <IconComponent className="w-8 h-8 text-white" />
+            {/* Icono más grande con animación */}
+            <div className="w-24 h-24 mx-auto mb-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center animate-bounce">
+              <IconComponent className="w-12 h-12 text-white" />
             </div>
 
-            <h2 className="text-2xl font-bold mb-2">
-              {roleEmojis[roleChange.newRole]} ¡Rol Actualizado!
-            </h2>
+            {/* Título más grande y llamativo */}
+            <h1 className="text-4xl font-bold mb-4 text-glow">
+              {roleEmojis[roleChange.newRole]} ¡TU ROL HA SIDO ACTUALIZADO!
+            </h1>
 
-            <p className="text-lg opacity-90">
-              Ahora eres <strong>{roleNames[roleChange.newRole]}</strong>
+            <p className="text-xl opacity-90 font-semibold">
+              Ahora eres <strong className="text-2xl">{roleNames[roleChange.newRole]}</strong>
             </p>
           </div>
         </div>
 
-        {/* Contenido */}
-        <div className="p-6">
-          <div className="text-center mb-6">
-            <div className="mb-4">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-gray-600 leading-relaxed">
+        {/* Contenido - Más espacioso */}
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <div className="mb-6">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-bounce" />
+              <p className="text-lg text-gray-700 leading-relaxed font-medium">
                 {roleMessages[roleChange.newRole]}
               </p>
             </div>
@@ -121,30 +127,46 @@ const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
             </div>
           </div>
 
-          {/* Botones */}
-          <div className="flex space-x-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
+          {/* Botones más grandes y llamativos */}
+          <div className="flex space-x-4">
+            {!roleChange?.redirecting && (
+              <button
+                onClick={onClose}
+                className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl text-gray-700 font-bold text-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 transform hover:scale-105"
+              >
+                Cancelar
+              </button>
+            )}
 
             <button
               onClick={handleAccept}
-              className={`flex-1 px-4 py-3 ${roleColorClass} text-white font-medium rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center space-x-2`}
+              disabled={roleChange?.redirecting}
+              className={`${roleChange?.redirecting ? 'w-full' : 'flex-1'} px-6 py-4 ${roleColorClass} text-white font-bold text-lg rounded-xl role-modal-button role-modal-primary-button transition-all duration-300 flex items-center justify-center space-x-3 ${
+                roleChange?.redirecting ? 'animate-pulse' : 'animate-pulse'
+              } ${roleChange?.redirecting ? 'opacity-90 cursor-not-allowed' : ''}`}
             >
-              <CheckCircle className="w-4 h-4" />
-              <span>Continuar</span>
+              {roleChange?.redirecting ? (
+                <>
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>{roleChange.redirectMessage || 'Redirigiendo...'}</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-6 h-6" />
+                  <span>¡ACEPTAR Y CONTINUAR!</span>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Información adicional */}
-        <div className="px-6 pb-4">
-          <p className="text-xs text-gray-500 text-center">
-            Un administrador ha actualizado tu rol. Serás redirigido a tu nueva área de trabajo.
-          </p>
+        {/* Información adicional - Más visible */}
+        <div className="px-8 pb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800 text-center font-medium">
+              📢 Un administrador ha actualizado tu rol. Al aceptar, serás redirigido automáticamente a tu nueva área de trabajo.
+            </p>
+          </div>
         </div>
       </div>
     </div>

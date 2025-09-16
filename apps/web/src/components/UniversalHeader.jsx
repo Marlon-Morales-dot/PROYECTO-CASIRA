@@ -104,6 +104,11 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   CASIRA
                 </h1>
+                {user && (
+                  <p className="text-xs text-gray-500 truncate max-w-[80px]">
+                    {user.first_name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -189,7 +194,14 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
                         <span>{roleInfo.name}</span>
                       </div>
                     </div>
-                    <User className="h-4 w-4 text-gray-600 sm:hidden" />
+                    <div className="sm:hidden text-left">
+                      <div className="text-xs font-medium text-gray-900 truncate max-w-[60px]">
+                        {user.first_name}
+                      </div>
+                      <div className={`text-xs text-${roleInfo.color}-600 flex items-center space-x-1`}>
+                        <span>{roleInfo.icon}</span>
+                      </div>
+                    </div>
                   </button>
                   
                   {/* User Dropdown */}
@@ -350,12 +362,12 @@ const UniversalHeader = ({ user, onLogout, showNotifications = true }) => {
         {/* Mobile Search Bar */}
         {showMobileSearch && (
           <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="max-w-7xl mx-auto px-3 py-3">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar actividades, personas..."
-                  className="w-full px-4 py-3 pl-10 bg-gray-100 border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  placeholder="Buscar actividades..."
+                  className="w-full px-4 py-3 pl-10 pr-10 bg-gray-100 border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   autoFocus
                 />
                 <Search className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />

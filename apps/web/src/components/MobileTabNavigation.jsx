@@ -33,27 +33,27 @@ const MobileTabNavigation = ({ activeTab, setActiveTab, tabs }) => {
       </div>
 
       {/* Mobile Navigation - Bottom Tab Bar */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-        <div className="grid grid-cols-4 gap-1">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
+        <div className={`grid ${tabs.length <= 3 ? 'grid-cols-3' : tabs.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} gap-0.5`}>
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center py-3 px-2 text-xs font-medium btn-touch transition-colors ${
+              className={`flex flex-col items-center justify-center py-2 px-1 text-xs font-medium btn-touch transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-500 hover:text-gray-700 active:bg-gray-50'
+                  ? 'text-blue-600 bg-blue-50 border-t-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700 active:bg-gray-50 border-t-2 border-transparent'
               }`}
             >
               <div className="relative">
                 {tab.icon && <tab.icon className="h-5 w-5 mb-1" />}
                 {tab.badge && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px] font-bold">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px] font-bold animate-pulse">
                     {tab.badge > 9 ? '9+' : tab.badge}
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-[60px]">{tab.shortLabel || tab.label}</span>
+              <span className="truncate max-w-[55px] leading-tight">{tab.shortLabel || tab.label}</span>
             </button>
           ))}
         </div>

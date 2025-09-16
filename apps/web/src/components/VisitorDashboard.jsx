@@ -254,7 +254,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
       />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-8 pb-20 sm:pb-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-8 mobile-tab-container">
         {/* Feed Comunitario Tab */}
         {activeTab === 'feed' && (
           <div className="space-mobile">
@@ -264,7 +264,7 @@ const VisitorDashboard = ({ user, onLogout }) => {
             </div>
 
             {/* Feed Items */}
-            <div className="space-y-4 sm:space-y-6">
+            <div className="dashboard-activity-grid">
               {[...posts, ...activities]
                 .sort((a, b) => new Date(b.created_at || b.start_date) - new Date(a.created_at || a.start_date))
                 .map((item, index) => (
@@ -318,12 +318,10 @@ const VisitorDashboard = ({ user, onLogout }) => {
                 <p className="text-gray-600">Pronto habrá nuevas oportunidades para participar</p>
               </div>
             ) : (
-              <div className="space-y-4 sm:space-y-6">
+              <div className="dashboard-activity-grid">
                 {activities.map((activity, index) => (
-                  <div key={activity.id} 
-                       className={`transform transition-all duration-300 ${
-                         index % 2 === 0 ? 'animate-fade-in' : 'animate-fade-in'
-                       }`}
+                  <div key={activity.id}
+                       className={`transform transition-all duration-300 animate-fade-in`}
                        style={{ animationDelay: `${index * 0.1}s` }}>
                     <ActivityCard
                       activity={activity}

@@ -98,13 +98,37 @@ const GlobalRoleChangeModal = () => {
     const newRoute = roleRoutes[roleChange?.newRole] || '/dashboard';
     console.log(`🚀 GlobalRoleChangeModal: Navegando a ${newRoute}`);
 
-    setShowModal(false);
-    setRoleChange(null);
+    // Mostrar indicador de redirección
+    const roleNames = {
+      'admin': 'Panel de Administración',
+      'volunteer': 'Panel de Voluntario',
+      'visitor': 'Panel de Visitante'
+    };
 
-    // Navegar después de un breve delay
+    // Actualizar el modal para mostrar estado de redirección
+    setRoleChange(prev => ({
+      ...prev,
+      redirecting: true,
+      redirectMessage: `Redirigiendo al ${roleNames[roleChange?.newRole] || 'panel correspondiente'}...`
+    }));
+
+    // Forzar actualización inmediata del usuario en el contexto
+    window.dispatchEvent(new CustomEvent('force-user-refresh'));
+
+    // Redirección inmediata con fallback
     setTimeout(() => {
-      window.location.href = newRoute;
-    }, 300);
+      setShowModal(false);
+      setRoleChange(null);
+
+      // Intentar navegación con React Router primero
+      try {
+        window.history.pushState(null, null, newRoute);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } catch (error) {
+        // Fallback a location.href
+        window.location.href = newRoute;
+      }
+    }, 1500); // Dar tiempo para que se vea el mensaje de redirección
   };
 
   const handleClose = () => {

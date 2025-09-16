@@ -25,6 +25,7 @@ import ProfessionalLogin from './components/ProfessionalLogin.jsx';
 import DashboardWrapper from './components/DashboardWrapper.jsx';
 import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
 import PendingRoleChangeModal from './components/PendingRoleChangeModal.jsx';
+import RoleChangeTestButton from './components/RoleChangeTestButton.jsx';
 
 // Importar estilos originales
 import './App.css';
@@ -57,6 +58,7 @@ function App() {
         <AuthRedirectHandler />
         <GlobalRoleChangeModal />
         <PendingRoleChangeModal />
+        <RoleChangeTestButton />
         <Routes>
           {/* Rutas públicas */}
           <Route path="/" element={<LandingPage />} />

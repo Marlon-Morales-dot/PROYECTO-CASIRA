@@ -275,3 +275,144 @@ body {
 .admin-transition {
   @apply transition-all duration-200 ease-in-out;
 }
+
+/* Activity Cards Mobile Optimizations */
+@media (max-width: 640px) {
+  .activity-card-mobile {
+    @apply mx-3 rounded-2xl shadow-md;
+  }
+
+  .activity-image-mobile {
+    @apply h-40 rounded-t-2xl;
+  }
+
+  .activity-actions-mobile {
+    @apply flex-col space-y-3 space-x-0;
+  }
+
+  .activity-actions-mobile > div {
+    @apply flex items-center justify-center space-x-4;
+  }
+
+  .activity-join-button-mobile {
+    @apply w-full py-3 text-base font-semibold;
+  }
+
+  /* Search improvements for mobile */
+  .mobile-search-button {
+    @apply p-3 bg-blue-600 text-white rounded-full shadow-lg;
+  }
+
+  /* Name display improvements */
+  .user-name-mobile {
+    @apply text-xs font-medium truncate max-w-[70px];
+  }
+
+  /* Dashboard activity grid for mobile */
+  .dashboard-activity-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+
+  /* Activity meta info mobile */
+  .activity-meta-mobile {
+    @apply flex flex-col space-y-2;
+  }
+
+  /* Comments section mobile */
+  .comments-mobile {
+    @apply max-h-48 overflow-y-auto;
+  }
+
+  /* Better button spacing */
+  .mobile-button-group {
+    @apply flex flex-wrap gap-2 justify-center;
+  }
+}
+
+/* Tablet and up improvements */
+@media (min-width: 641px) {
+  .activity-actions-mobile {
+    @apply flex-row space-y-0 space-x-4;
+  }
+
+  .activity-join-button-mobile {
+    @apply w-auto py-2 text-sm;
+  }
+
+  .dashboard-activity-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+  }
+}
+
+/* Mobile Tab Navigation Improvements */
+@media (max-width: 640px) {
+  .mobile-tab-container {
+    @apply pb-20; /* Safe area for bottom navigation */
+  }
+
+  .bottom-nav-safe-area {
+    @apply pb-6; /* Extra padding for devices with home indicator */
+  }
+
+  /* Improved mobile header */
+  .mobile-header-compact {
+    @apply py-2 px-3;
+  }
+
+  .mobile-header-title {
+    @apply text-base font-semibold truncate max-w-[150px];
+  }
+
+  /* Better modal handling on mobile */
+  .mobile-modal {
+    @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4;
+  }
+
+  .mobile-modal-content {
+    @apply w-full max-h-[90vh] rounded-t-2xl sm:rounded-2xl overflow-hidden;
+  }
+
+  /* Responsive form elements */
+  .mobile-form-group {
+    @apply space-y-3;
+  }
+
+  .mobile-input {
+    @apply w-full p-4 text-base border border-gray-300 rounded-xl;
+  }
+
+  /* Touch-friendly dropdown menus */
+  .mobile-dropdown {
+    @apply fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto;
+  }
+
+  .mobile-dropdown-item {
+    @apply p-4 border-b border-gray-100 text-base active:bg-gray-50;
+  }
+}
+
+/* Safe area improvements for iOS */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-tab-container {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav-safe-area {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 640px) and (orientation: landscape) {
+  .mobile-landscape-adjust {
+    @apply h-screen overflow-y-auto;
+  }
+
+  .activity-image-mobile {
+    @apply h-32;
+  }
+
+  .mobile-header-compact {
+    @apply py-1;
+  }
+}

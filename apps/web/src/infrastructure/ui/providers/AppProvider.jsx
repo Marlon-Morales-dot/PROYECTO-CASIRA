@@ -178,6 +178,31 @@ export function AuthProvider({ children }) {
   const [authState, authDispatch] = useReducer(authReducer, initialAuthState);
   const [loginUseCase, setLoginUseCase] = useState(null);
 
+  // Función para inicializar el servicio de tiempo real
+  const initializeRealtimeService = async (user) => {
+    try {
+      console.log('🔄 AuthProvider: Inicializando servicio de tiempo real para:', user?.email);
+
+      if (!user || !user.email) {
+        console.warn('⚠️ AuthProvider: No se puede inicializar servicio sin usuario válido');
+        return;
+      }
+
+      // Importar y inicializar servicio de tiempo real
+      const realtimeService = await import('../../../lib/services/realtime-role-change.service.js');
+      await realtimeService.default.initialize(user);
+
+      // También verificar cambios pendientes al login
+      const pendingService = await import('../../../lib/services/pending-role-change.service.js');
+      await pendingService.default.checkPendingChangesOnLogin(user.id);
+
+      console.log('✅ AuthProvider: Servicio de tiempo real inicializado exitosamente');
+
+    } catch (error) {
+      console.warn('⚠️ AuthProvider: Error inicializando servicio de tiempo real:', error);
+    }
+  };
+
   // Inicializar caso de uso de login
   useEffect(() => {
     const initLoginUseCase = async () => {
@@ -221,6 +246,9 @@ export function AuthProvider({ children }) {
               user: userData,
               method: 'google'
             });
+
+            // Inicializar servicio de tiempo real
+            await initializeRealtimeService(userData);
           } else {
             // Verificar tokens CASIRA normales
             const result = await loginUseCase.verifyExistingToken(savedToken);
@@ -239,6 +267,9 @@ export function AuthProvider({ children }) {
                 user: result.user,
                 method: 'session_restore'
               });
+
+              // Inicializar servicio de tiempo real
+              await initializeRealtimeService(result.user);
             } else {
               // Token inválido, limpiar
               localStorage.removeItem('casira-current-user');
@@ -389,6 +420,9 @@ export function AuthProvider({ children }) {
           method: 'casira'
         });
 
+        // Inicializar servicio de tiempo real
+        await initializeRealtimeService(result.user);
+
         return result;
       } else {
         authDispatch({
@@ -445,6 +479,9 @@ export function AuthProvider({ children }) {
           method: 'google'
         });
 
+        // Inicializar servicio de tiempo real
+        await initializeRealtimeService(result.user);
+
         return result;
       } else {
         const errorMsg = 'Error de autenticación con Google';
@@ -469,6 +506,15 @@ export function AuthProvider({ children }) {
    */
   const logout = async () => {
     try {
+      // Limpiar servicio de tiempo real
+      try {
+        const realtimeService = await import('../../../lib/services/realtime-role-change.service.js');
+        await realtimeService.default.cleanup();
+        console.log('✅ AuthProvider: Servicio de tiempo real limpiado en logout');
+      } catch (error) {
+        console.warn('⚠️ AuthProvider: Error limpiando servicio de tiempo real:', error);
+      }
+
       // Limpiar almacenamiento
       localStorage.removeItem('casira-current-user');
       localStorage.removeItem('casira-token');
