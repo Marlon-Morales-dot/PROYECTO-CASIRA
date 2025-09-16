@@ -11,6 +11,10 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AppProvider from './infrastructure/ui/providers/AppProvider.jsx';
 import LandingPage from './infrastructure/ui/pages/LandingPage.jsx';
 
+// Importar diagnósticos y auto-fix para debugging
+import './lib/diagnostics.js';
+import './lib/auto-fix.js';
+
 // Importar componentes existentes (mantienen diseño exacto)
 import AdminDashboard from './components/AdminDashboard.jsx';
 import VolunteerDashboard from './components/VolunteerDashboard.jsx';
@@ -21,7 +25,6 @@ import ProfessionalLogin from './components/ProfessionalLogin.jsx';
 import DashboardWrapper from './components/DashboardWrapper.jsx';
 import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
 import PendingRoleChangeModal from './components/PendingRoleChangeModal.jsx';
-import DemoPage from './pages/DemoPage.jsx';
 
 // Importar estilos originales
 import './App.css';
@@ -62,7 +65,6 @@ function App() {
           <Route path="/social" element={<PublicSocialView />} />
           <Route path="/activities" element={<PublicSocialView />} />
           <Route path="/visitor" element={<VisitorDashboard />} />
-          <Route path="/demo" element={<DemoPage />} />
 
           {/* Rutas de dashboard (mantienen componentes originales) */}
           <Route path="/dashboard" element={<DashboardWrapper />} />

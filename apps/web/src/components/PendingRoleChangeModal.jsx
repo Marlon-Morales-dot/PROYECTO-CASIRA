@@ -12,9 +12,13 @@ const PendingRoleChangeModal = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log('❌ PendingRoleChangeModal: No hay usuario');
+      return;
+    }
 
     console.log('🔧 PendingRoleChangeModal: Configurando listeners para usuario:', user.email);
+    console.log('🔧 PendingRoleChangeModal: Usuario completo:', user);
 
     // Listener para cambios pendientes encontrados al login
     const handlePendingChangesFound = (event) => {
@@ -51,24 +55,50 @@ const PendingRoleChangeModal = () => {
     // Verificar cambios pendientes al montar el componente
     loadPendingChanges();
 
+    // FUNCIÓN DE PRUEBA - TEMPORAL
+    window.testPendingModal = () => {
+      console.log('🧪 PRUEBA: Forzando modal de prueba');
+      setPendingChanges([{
+        id: 'test-123',
+        old_role: 'visitor',
+        new_role: 'volunteer',
+        message: 'Esto es una prueba',
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        admin: {
+          full_name: 'Admin de Prueba',
+          email: 'admin@test.com'
+        }
+      }]);
+      setIsOpen(true);
+    };
+
     return () => {
       window.removeEventListener('pending-role-changes-found', handlePendingChangesFound);
       window.removeEventListener('pending-role-change-created', handlePendingChangeCreated);
       window.removeEventListener('role-change-accepted', handleChangeProcessed);
       window.removeEventListener('role-change-rejected', handleChangeProcessed);
+      delete window.testPendingModal;
     };
   }, [user]);
 
   const loadPendingChanges = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('❌ PendingRoleChangeModal: No hay user.id para cargar cambios');
+      return;
+    }
 
     try {
+      console.log('🔄 PendingRoleChangeModal: Cargando cambios pendientes para:', user.id);
       setLoading(true);
       const changes = await pendingRoleChangeService.getPendingRoleChanges(user.id);
+      console.log('📋 PendingRoleChangeModal: Cambios encontrados:', changes);
       setPendingChanges(changes);
 
       if (changes.length > 0 && !isOpen) {
+        console.log('✅ PendingRoleChangeModal: Abriendo modal con', changes.length, 'cambios');
         setIsOpen(true);
+      } else {
+        console.log('ℹ️ PendingRoleChangeModal: No hay cambios pendientes o modal ya está abierto');
       }
     } catch (error) {
       console.error('❌ Error cargando cambios pendientes:', error);
@@ -167,7 +197,20 @@ const PendingRoleChangeModal = () => {
     }
   };
 
-  if (!isOpen || pendingChanges.length === 0) return null;
+  // Log para debug
+  console.log('🔍 PendingRoleChangeModal render:', {
+    isOpen,
+    pendingChangesCount: pendingChanges.length,
+    user: user?.email,
+    willShow: isOpen && pendingChanges.length > 0
+  });
+
+  if (!isOpen || pendingChanges.length === 0) {
+    console.log('❌ PendingRoleChangeModal: No se muestra modal. isOpen:', isOpen, 'pendingChanges:', pendingChanges.length);
+    return null;
+  }
+
+  console.log('✅ PendingRoleChangeModal: MOSTRANDO MODAL');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">

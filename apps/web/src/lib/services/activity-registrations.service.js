@@ -157,29 +157,89 @@ class ActivityRegistrationsService {
         .select('*', { count: 'exact', head: true })
         .eq('activity_id', activityId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ COUNT: Error counting participants:', error);
+        throw error;
+      }
+
+      const volunteerCount = count || 0;
+      console.log(`📊 COUNT: Found ${volunteerCount} participants for activity ${activityId}`);
 
       // Actualizar el contador en la actividad
-      const { error: updateError } = await supabase
+      const { data: updatedActivity, error: updateError } = await supabase
         .from('activities')
         .update({
-          current_volunteers: count || 0,
+          current_volunteers: volunteerCount,
           updated_at: new Date().toISOString()
         })
-        .eq('id', activityId);
+        .eq('id', activityId)
+        .select()
+        .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ COUNT: Error updating activity:', updateError);
+        throw updateError;
+      }
 
-      console.log(`✅ COUNT: Updated volunteer count to ${count} for activity ${activityId}`);
+      console.log(`✅ COUNT: Updated volunteer count to ${volunteerCount} for activity ${activityId}`);
 
       // Emitir evento para listeners
-      this.emitVolunteerCountUpdate(activityId, count || 0);
+      this.emitVolunteerCountUpdate(activityId, volunteerCount);
 
-      return count || 0;
+      // También actualizar localStorage si es necesario
+      try {
+        await this.updateLocalActivityCount(activityId, volunteerCount);
+      } catch (localError) {
+        console.warn('⚠️ Could not update local activity count:', localError);
+      }
+
+      return volunteerCount;
 
     } catch (error) {
       console.error('❌ COUNT: Error updating volunteer count:', error);
-      throw error;
+
+      // Intentar recuperación con datos locales
+      try {
+        console.log('🔄 COUNT: Attempting local fallback...');
+        const localCount = await this.getLocalVolunteerCount(activityId);
+        console.log(`📊 COUNT: Local fallback count: ${localCount}`);
+        return localCount;
+      } catch (fallbackError) {
+        console.error('❌ COUNT: Local fallback also failed:', fallbackError);
+        throw error; // Throw original error
+      }
+    }
+  }
+
+  async updateLocalActivityCount(activityId, count) {
+    try {
+      const storageManager = require('../storage-manager.js').default;
+      const data = storageManager.loadData();
+
+      if (data.activities) {
+        const activityIndex = data.activities.findIndex(a => a.id === activityId);
+        if (activityIndex !== -1) {
+          data.activities[activityIndex].current_volunteers = count;
+          data.activities[activityIndex].participants = data.activities[activityIndex].participants || [];
+          storageManager.saveData(data);
+          console.log('✅ Local activity count updated');
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not update local activity count:', error);
+    }
+  }
+
+  async getLocalVolunteerCount(activityId) {
+    try {
+      const storageManager = require('../storage-manager.js').default;
+      const data = storageManager.loadData();
+
+      const activity = data.activities?.find(a => a.id === activityId);
+      return activity?.participants?.length || activity?.current_volunteers || 0;
+    } catch (error) {
+      console.warn('⚠️ Could not get local volunteer count:', error);
+      return 0;
     }
   }
 
@@ -481,7 +541,9 @@ class ActivityRegistrationsService {
 
   async notifyUserRequestApproved(request) {
     try {
-      await supabase
+      console.log('📬 NOTIFY: Sending approval notification to user:', request.user_id);
+
+      const { error } = await supabase
         .from('notifications')
         .insert({
           user_id: request.user_id,
@@ -490,17 +552,41 @@ class ActivityRegistrationsService {
           message: `Tu solicitud para "${request.activity.title}" ha sido aprobada. ¡Bienvenido al equipo!`,
           data: JSON.stringify({
             activity_id: request.activity_id,
-            activity_title: request.activity.title
-          })
+            activity_title: request.activity.title,
+            request_id: request.id
+          }),
+          read: false,
+          created_at: new Date().toISOString()
         });
+
+      if (error) throw error;
+
+      console.log('✅ NOTIFY: Approval notification sent successfully');
+
+      // También intentar notificar por otros medios si están disponibles
+      try {
+        // Actualizar localStorage si el usuario está activo
+        this.updateLocalNotifications(request.user_id, {
+          type: 'success',
+          title: 'Solicitud Aprobada',
+          message: `Tu solicitud para "${request.activity.title}" ha sido aprobada.`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (localError) {
+        console.warn('⚠️ Could not update local notifications:', localError);
+      }
+
     } catch (error) {
-      console.warn('⚠️ Error sending approval notification:', error);
+      console.error('❌ NOTIFY: Error sending approval notification:', error);
+      throw error; // Re-throw para que el calling code sepa que falló
     }
   }
 
   async notifyUserRequestRejected(request) {
     try {
-      await supabase
+      console.log('📬 NOTIFY: Sending rejection notification to user:', request.user_id);
+
+      const { error } = await supabase
         .from('notifications')
         .insert({
           user_id: request.user_id,
@@ -510,11 +596,61 @@ class ActivityRegistrationsService {
           data: JSON.stringify({
             activity_id: request.activity_id,
             activity_title: request.activity.title,
-            notes: request.review_notes
-          })
+            notes: request.review_notes,
+            request_id: request.id
+          }),
+          read: false,
+          created_at: new Date().toISOString()
         });
+
+      if (error) throw error;
+
+      console.log('✅ NOTIFY: Rejection notification sent successfully');
+
+      // También intentar notificar por otros medios
+      try {
+        this.updateLocalNotifications(request.user_id, {
+          type: 'warning',
+          title: 'Solicitud Rechazada',
+          message: `Tu solicitud para "${request.activity.title}" no fue aprobada.`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (localError) {
+        console.warn('⚠️ Could not update local notifications:', localError);
+      }
+
     } catch (error) {
-      console.warn('⚠️ Error sending rejection notification:', error);
+      console.error('❌ NOTIFY: Error sending rejection notification:', error);
+      throw error;
+    }
+  }
+
+  updateLocalNotifications(userId, notification) {
+    try {
+      // Intentar actualizar notificaciones en localStorage para usuarios activos
+      const storageManager = require('../storage-manager.js').default;
+      const data = storageManager.loadData();
+
+      if (!data.notifications) {
+        data.notifications = [];
+      }
+
+      data.notifications.push({
+        id: Date.now(),
+        user_id: userId,
+        ...notification
+      });
+
+      // Mantener solo las últimas 50 notificaciones
+      if (data.notifications.length > 50) {
+        data.notifications = data.notifications.slice(-50);
+      }
+
+      storageManager.saveData(data);
+      console.log('✅ Local notifications updated');
+
+    } catch (error) {
+      console.warn('⚠️ Could not update local notifications:', error);
     }
   }
 

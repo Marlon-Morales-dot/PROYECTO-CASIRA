@@ -139,7 +139,7 @@ class ImageManager {
 
       // Upload to Supabase
       const { data, error } = await supabase.storage
-        .from('project-images')
+        .from('images')
         .upload(filePath, compressedFile, {
           cacheControl: '3600',
           upsert: false
@@ -152,7 +152,7 @@ class ImageManager {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('project-images')
+        .from('images')
         .getPublicUrl(filePath);
 
       const result = {
@@ -408,7 +408,7 @@ class ImageManager {
       // If it's a Supabase URL, delete from Supabase
       if (imageUrl.includes('supabase.co') && imagePath) {
         const { error } = await supabase.storage
-          .from('project-images')
+          .from('images')
           .remove([imagePath]);
           
         if (error) {

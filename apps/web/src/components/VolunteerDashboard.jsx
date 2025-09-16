@@ -3,10 +3,12 @@ import {
   User, Camera, MessageCircle, Heart, Calendar, MapPin, Clock, Users, 
   Settings, LogOut, Plus, Edit3, Save, X, Upload, Star, Award 
 } from 'lucide-react';
-import { 
-  usersAPI, volunteersAPI, activitiesAPI, categoriesAPI, 
-  commentsAPI, photosAPI, dataStore 
+import {
+  usersAPI, volunteersAPI, activitiesAPI, categoriesAPI,
+  commentsAPI, photosAPI, dataStore
 } from '../lib/api.js';
+import ImageUpload from './ImageUpload.jsx';
+import { postsAPI as supabasePosts, commentsAPI as supabaseComments } from '../lib/supabase-singleton.js';
 
 const VolunteerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('activities');
@@ -21,6 +23,7 @@ const VolunteerDashboard = ({ user, onLogout }) => {
   const [photos, setPhotos] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -109,82 +112,148 @@ const VolunteerDashboard = ({ user, onLogout }) => {
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
-    
+
     try {
-      await commentsAPI.addComment(selectedActivity.id, user.id, newComment);
+      console.log('💬 VOLUNTARIO: Adding comment to activity', selectedActivity.id);
+
+      // Use Supabase API for real-time comments
+      const comment = await supabaseComments.addComment(selectedActivity.id, user.id, newComment.trim());
+
+      // Update local state immediately (optimistic update)
+      setComments(prevComments => [...prevComments, comment]);
       setNewComment('');
-      
-      // Reload comments
-      const updatedComments = await commentsAPI.getActivityComments(selectedActivity.id);
-      setComments(updatedComments);
+
+      console.log('✅ VOLUNTARIO: Comment added successfully');
     } catch (error) {
-      alert('Error al agregar comentario');
-      console.error(error);
+      console.error('❌ VOLUNTARIO: Error adding comment:', error);
+      alert('Error al agregar comentario: ' + error.message);
     }
   };
 
   const handlePhotoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona un archivo de imagen');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('El archivo es muy grande. Máximo 5MB');
-      return;
-    }
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
 
     try {
-      // Convert to base64 for mock storage
-      const reader = new FileReader();
-      reader.onload = async (e) => {
+      console.log('📷 VOLUNTARIO: Processing', files.length, 'image(s)');
+      const newPhotos = [];
+
+      for (const file of files) {
         try {
-          const caption = prompt('Agrega una descripción a tu foto:') || '';
-          await photosAPI.uploadPhoto(selectedActivity.id, user.id, {
-            url: e.target.result,
-            caption: caption
-          });
-          
-          // Reload photos
-          const updatedPhotos = await photosAPI.getActivityPhotos(selectedActivity.id);
-          setPhotos(updatedPhotos);
-          setIsUploading(false);
+          // Use the improved image manager
+          const imageResult = await import('../lib/image-manager.js').then(module =>
+            module.handleImage(file, user.id, selectedActivity.id, 'activities')
+          );
+
+          // Create photo object for local storage
+          const photoObj = {
+            id: Date.now() + Math.random(),
+            url: imageResult.url,
+            caption: file.name,
+            user: user,
+            likes: 0,
+            liked: false,
+            activity_id: selectedActivity.id,
+            created_at: new Date().toISOString()
+          };
+
+          newPhotos.push(photoObj);
+          console.log('✅ VOLUNTARIO: Image processed successfully:', file.name);
         } catch (error) {
-          alert('Error al subir la foto');
-          console.error(error);
-          setIsUploading(false);
+          console.error('❌ VOLUNTARIO: Error processing image:', file.name, error);
         }
-      };
-      reader.readAsDataURL(file);
+      }
+
+      if (newPhotos.length > 0) {
+        // Update local state with new photos
+        setPhotos(prevPhotos => [...prevPhotos, ...newPhotos]);
+        setUploadedImages(prevImages => [...prevImages, ...newPhotos]);
+
+        console.log(`✅ VOLUNTARIO: ${newPhotos.length} foto(s) subida(s) exitosamente`);
+      }
     } catch (error) {
-      alert('Error al procesar la imagen');
+      console.error('❌ VOLUNTARIO: Error uploading photos:', error);
+      alert('Error al subir las fotos: ' + error.message);
+    } finally {
       setIsUploading(false);
+      // Clear the input
+      event.target.value = '';
     }
+  };
+
+  const handleImageUploadFromComponent = (images) => {
+    console.log('📷 VOLUNTARIO: Images uploaded from ImageUpload component:', images);
+
+    const photoObjects = images.map(img => ({
+      id: img.id || Date.now() + Math.random(),
+      url: img.url,
+      caption: img.originalName || 'Foto subida',
+      user: user,
+      likes: 0,
+      liked: false,
+      activity_id: selectedActivity.id,
+      created_at: new Date().toISOString()
+    }));
+
+    setPhotos(prevPhotos => [...prevPhotos, ...photoObjects]);
+    setUploadedImages(images);
   };
 
   const handleLikeComment = async (commentId) => {
     try {
-      await commentsAPI.likeComment(commentId);
-      const updatedComments = await commentsAPI.getActivityComments(selectedActivity.id);
-      setComments(updatedComments);
+      console.log('👍 VOLUNTARIO: Toggling like for comment', commentId);
+
+      // Optimistic update
+      setComments(prevComments =>
+        prevComments.map(comment =>
+          comment.id === commentId
+            ? { ...comment, liked: !comment.liked, likes: (comment.likes || 0) + (comment.liked ? -1 : 1) }
+            : comment
+        )
+      );
+
+      console.log('✅ VOLUNTARIO: Comment like toggled');
     } catch (error) {
-      console.error('Error liking comment:', error);
+      console.error('❌ VOLUNTARIO: Error liking comment:', error);
+
+      // Revert optimistic update on error
+      setComments(prevComments =>
+        prevComments.map(comment =>
+          comment.id === commentId
+            ? { ...comment, liked: !comment.liked, likes: (comment.likes || 0) + (comment.liked ? 1 : -1) }
+            : comment
+        )
+      );
     }
   };
 
   const handleLikePhoto = async (photoId) => {
     try {
-      await photosAPI.likePhoto(photoId);
-      const updatedPhotos = await photosAPI.getActivityPhotos(selectedActivity.id);
-      setPhotos(updatedPhotos);
+      console.log('❤️ VOLUNTARIO: Toggling like for photo', photoId);
+
+      // Optimistic update
+      setPhotos(prevPhotos =>
+        prevPhotos.map(photo =>
+          photo.id === photoId
+            ? { ...photo, liked: !photo.liked, likes: (photo.likes || 0) + (photo.liked ? -1 : 1) }
+            : photo
+        )
+      );
+
+      console.log('✅ VOLUNTARIO: Photo like toggled');
     } catch (error) {
-      console.error('Error liking photo:', error);
+      console.error('❌ VOLUNTARIO: Error liking photo:', error);
+
+      // Revert optimistic update on error
+      setPhotos(prevPhotos =>
+        prevPhotos.map(photo =>
+          photo.id === photoId
+            ? { ...photo, liked: !photo.liked, likes: (photo.likes || 0) + (photo.liked ? 1 : -1) }
+            : photo
+        )
+      );
     }
   };
 
@@ -661,111 +730,200 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Comentarios ({comments.length})</h3>
                       
                       {/* Add Comment */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Escribe un comentario..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                          rows={3}
-                        />
-                        <div className="flex justify-end mt-3">
-                          <button
-                            onClick={handleAddComment}
-                            disabled={!newComment.trim()}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Comentar
-                          </button>
+                      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                        <div className="flex items-start space-x-3">
+                          <img
+                            src={user.avatar_url || '/grupo-canadienses.jpg'}
+                            alt={user.first_name}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md"
+                          />
+                          <div className="flex-1 space-y-3">
+                            <div className="relative">
+                              <textarea
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Comparte tu experiencia sobre esta actividad..."
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all placeholder-gray-500 text-sm"
+                                rows={3}
+                                maxLength={500}
+                              />
+                              {newComment.length > 0 && (
+                                <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                                  {newComment.length}/500
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <MessageCircle className="w-3 h-3" />
+                                <span>Comparte tu experiencia con otros voluntarios</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {newComment.trim() && (
+                                  <button
+                                    onClick={() => setNewComment('')}
+                                    className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm rounded-lg hover:bg-white/50 transition-all"
+                                  >
+                                    Limpiar
+                                  </button>
+                                )}
+                                <button
+                                  onClick={handleAddComment}
+                                  disabled={!newComment.trim()}
+                                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center gap-2 shadow-md"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  <span>Comentar</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       {/* Comments List */}
                       <div className="space-y-4">
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="flex space-x-3">
-                            <img
-                              src={comment.user?.avatar_url || '/grupo-canadienses.jpg'}
-                              alt={comment.user?.first_name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                            <div className="flex-1">
-                              <div className="bg-gray-100 rounded-lg p-3">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-semibold text-sm text-gray-900">
-                                    {comment.user?.first_name} {comment.user?.last_name}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {new Date(comment.created_at).toLocaleDateString('es-ES')}
-                                  </span>
+                        {comments.length === 0 ? (
+                          <div className="text-center py-8">
+                            <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 font-medium">No hay comentarios aún</p>
+                            <p className="text-gray-400 text-sm mt-1">¡Sé el primero en compartir tu experiencia!</p>
+                          </div>
+                        ) : (
+                          comments.map((comment) => (
+                            <div key={comment.id} className="hover:bg-gray-50 transition-colors p-3 rounded-xl group">
+                              <div className="flex space-x-3">
+                                <img
+                                  src={comment.user?.avatar_url || '/grupo-canadienses.jpg'}
+                                  alt={comment.user?.first_name}
+                                  className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="bg-gray-100 group-hover:bg-gray-200 rounded-2xl px-4 py-3 transition-colors">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <span className="font-semibold text-sm text-gray-900 truncate">
+                                        {comment.user?.first_name} {comment.user?.last_name}
+                                      </span>
+                                      <span className="text-xs text-gray-500 flex-shrink-0">
+                                        {(() => {
+                                          const now = new Date();
+                                          const commentDate = new Date(comment.created_at);
+                                          const diffInMinutes = Math.floor((now - commentDate) / (1000 * 60));
+
+                                          if (diffInMinutes < 1) return 'Ahora';
+                                          if (diffInMinutes < 60) return `${diffInMinutes}m`;
+                                          if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+                                          return commentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                        })()}
+                                      </span>
+                                    </div>
+                                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">{comment.content}</p>
+                                  </div>
+                                  <div className="flex items-center space-x-4 mt-2 px-2">
+                                    <button
+                                      onClick={() => handleLikeComment(comment.id)}
+                                      className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors group"
+                                    >
+                                      <Heart className={`h-4 w-4 group-hover:scale-110 transition-transform ${
+                                        comment.liked ? 'fill-current text-red-500' : ''
+                                      }`} />
+                                      <span>{comment.likes || 0}</span>
+                                    </button>
+                                    <span className="text-xs text-gray-400">
+                                      {new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
                                 </div>
-                                <p className="text-gray-700">{comment.content}</p>
-                              </div>
-                              <div className="flex items-center space-x-4 mt-2">
-                                <button
-                                  onClick={() => handleLikeComment(comment.id)}
-                                  className="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors"
-                                >
-                                  <Heart className="h-4 w-4" />
-                                  <span className="text-sm">{comment.likes || 0}</span>
-                                </button>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </div>
 
                     {/* Photos Section */}
                     <div>
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">Fotos ({photos.length})</h3>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePhotoUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            disabled={isUploading}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                          <Camera className="w-5 h-5 text-blue-600" />
+                          Fotos de la Actividad ({photos.length})
+                        </h3>
+
+                        {/* Improved Image Upload Component */}
+                        <div className="mb-6">
+                          <ImageUpload
+                            onImageUploaded={handleImageUploadFromComponent}
+                            userId={user.id}
+                            postId={selectedActivity.id}
+                            folder="activities"
+                            maxImages={10}
+                            showUrlInput={true}
+                            showFileUpload={true}
+                            existingImages={uploadedImages}
+                            compact={true}
+                            className="border border-gray-200 rounded-xl p-4 bg-gray-50"
                           />
-                          <button 
-                            disabled={isUploading}
-                            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                          >
-                            <Upload className="h-4 w-4" />
-                            <span>{isUploading ? 'Subiendo...' : 'Subir Foto'}</span>
-                          </button>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {photos.map((photo) => (
-                          <div key={photo.id} className="relative group">
-                            <img
-                              src={photo.url}
-                              alt={photo.caption}
-                              className="w-full h-32 object-cover rounded-lg"
+                      {photos.length === 0 ? (
+                        <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl">
+                          <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 font-medium mb-2">No hay fotos de esta actividad</p>
+                          <p className="text-gray-400 text-sm mb-4">Comparte momentos especiales de tu participación</p>
+                          <div className="relative inline-block">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePhotoUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              disabled={isUploading}
+                              multiple
                             />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                              <button
-                                onClick={() => handleLikePhoto(photo.id)}
-                                className="flex items-center space-x-1 text-white"
-                              >
-                                <Heart className="h-4 w-4" />
-                                <span>{photo.likes || 0}</span>
-                              </button>
-                            </div>
-                            {photo.caption && (
-                              <div className="absolute bottom-2 left-2 right-2 bg-black/75 text-white text-xs p-2 rounded">
-                                {photo.caption}
-                              </div>
-                            )}
-                            <div className="absolute top-2 right-2 text-xs text-white bg-black/50 px-2 py-1 rounded">
-                              por {photo.user?.first_name}
-                            </div>
+                            <button
+                              disabled={isUploading}
+                              className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                            >
+                              Subir Primera Foto
+                            </button>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {photos.map((photo) => (
+                            <div key={photo.id} className="relative group">
+                              <img
+                                src={photo.url}
+                                alt={photo.caption}
+                                className="w-full h-40 object-cover rounded-xl shadow-md group-hover:shadow-lg transition-all"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-end p-3">
+                                <div className="w-full">
+                                  {photo.caption && (
+                                    <p className="text-white text-sm font-medium mb-2 line-clamp-2">
+                                      {photo.caption}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white text-xs opacity-90">
+                                      por {photo.user?.first_name}
+                                    </span>
+                                    <button
+                                      onClick={() => handleLikePhoto(photo.id)}
+                                      className={`flex items-center space-x-1 px-2 py-1 rounded-lg transition-all hover:scale-110 ${
+                                        photo.liked ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+                                      }`}
+                                    >
+                                      <Heart className={`h-4 w-4 ${photo.liked ? 'fill-current' : ''}`} />
+                                      <span className="text-sm">{photo.likes || 0}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 

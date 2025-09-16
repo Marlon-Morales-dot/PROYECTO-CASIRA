@@ -14,16 +14,39 @@ const AdminVolunteerRequests = ({ adminUser }) => {
   const { requests, isLoading, error, refresh } = usePendingRequests();
 
   const handleApprove = async (requestId, notes = '') => {
-    if (!adminUser?.supabase_id) {
-      alert('Error: Usuario administrador no válido');
+    // Resolver ID del administrador
+    let adminId = adminUser?.supabase_id || adminUser?.id;
+
+    if (!adminId) {
+      console.log('🔍 ADMIN: Resolving admin user ID...', adminUser);
+
+      // Si es usuario de Google, buscar en Supabase
+      if (adminUser?.email) {
+        try {
+          const { supabaseAPI } = await import('../lib/supabase-api.js');
+          const supabaseUser = await supabaseAPI.users.getUserByEmail(adminUser.email);
+          if (supabaseUser) {
+            adminId = supabaseUser.id;
+            console.log('✅ ADMIN: Found admin in Supabase:', adminId);
+          }
+        } catch (error) {
+          console.warn('⚠️ ADMIN: Could not find admin in Supabase:', error);
+        }
+      }
+    }
+
+    if (!adminId) {
+      alert('Error: No se pudo identificar el usuario administrador. Contacta al soporte técnico.');
       return;
     }
 
     setIsProcessing(prev => new Set(prev).add(requestId));
     try {
+      console.log('✅ ADMIN: Approving request with admin ID:', adminId);
+
       await activityRegistrationsService.approveRegistration(
         requestId,
-        adminUser.supabase_id,
+        adminId,
         notes
       );
 
@@ -43,16 +66,39 @@ const AdminVolunteerRequests = ({ adminUser }) => {
   };
 
   const handleReject = async (requestId, notes = '') => {
-    if (!adminUser?.supabase_id) {
-      alert('Error: Usuario administrador no válido');
+    // Resolver ID del administrador
+    let adminId = adminUser?.supabase_id || adminUser?.id;
+
+    if (!adminId) {
+      console.log('🔍 ADMIN: Resolving admin user ID...', adminUser);
+
+      // Si es usuario de Google, buscar en Supabase
+      if (adminUser?.email) {
+        try {
+          const { supabaseAPI } = await import('../lib/supabase-api.js');
+          const supabaseUser = await supabaseAPI.users.getUserByEmail(adminUser.email);
+          if (supabaseUser) {
+            adminId = supabaseUser.id;
+            console.log('✅ ADMIN: Found admin in Supabase:', adminId);
+          }
+        } catch (error) {
+          console.warn('⚠️ ADMIN: Could not find admin in Supabase:', error);
+        }
+      }
+    }
+
+    if (!adminId) {
+      alert('Error: No se pudo identificar el usuario administrador. Contacta al soporte técnico.');
       return;
     }
 
     setIsProcessing(prev => new Set(prev).add(requestId));
     try {
+      console.log('❌ ADMIN: Rejecting request with admin ID:', adminId);
+
       await activityRegistrationsService.rejectRegistration(
         requestId,
-        adminUser.supabase_id,
+        adminId,
         notes
       );
 
