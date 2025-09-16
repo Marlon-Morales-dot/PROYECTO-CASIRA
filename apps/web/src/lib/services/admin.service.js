@@ -123,8 +123,11 @@ class AdminService {
         console.warn('⚠️ AdminService: Error leyendo actualizaciones de CASIRA data:', error);
       }
 
-      // Prioridad: Supabase > Local > Google, pero con actualizaciones locales aplicadas
-      [...(supabaseUsers || []), ...localUsers, ...googleUsers].forEach(user => {
+      // PRIORIDAD ABSOLUTA: SUPABASE es la fuente de verdad, localStorage es solo cache
+      console.log(`☁️ AdminService: Supabase is the PRIMARY SOURCE - localStorage is cache only`);
+
+      // 1. SUPABASE USERS FIRST (Primary source of truth)
+      (supabaseUsers || []).forEach(user => {
         const email = user.email;
         const id = user.id;
 
@@ -132,37 +135,25 @@ class AdminService {
           seenEmails.add(email);
           seenIds.add(id);
 
-          // Verificar si hay una actualización local para este usuario
-          const localUpdate = localUpdatesMap.get(email) || localUpdatesMap.get(id);
-
           const finalUser = {
             ...user,
-            // Aplicar actualización local si existe
-            ...(localUpdate ? {
-              role: localUpdate.role,
-              updated_at: localUpdate.updated_at,
-              source: user.source || 'local_updated'
-            } : {}),
+            source: 'supabase',
             // Asegurar campos requeridos
-            id: user.id || user.email.replace('@', '_at_').replace('.', '_'),
+            id: user.id,
             full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
             first_name: user.first_name || user.email.split('@')[0],
             last_name: user.last_name || '',
-            role: localUpdate?.role || user.role || 'visitor',
+            role: user.role || 'visitor', // ALWAYS use Supabase role
             status: user.status || 'active'
           };
 
           allUsers.push(finalUser);
-
-          if (localUpdate) {
-            console.log(`🔄 AdminService: Aplicando actualización local para ${email}:`, {
-              oldRole: user.role,
-              newRole: localUpdate.role,
-              updated_at: localUpdate.updated_at
-            });
-          }
+          console.log(`✅ AdminService: Added Supabase user: ${email} (role: ${finalUser.role})`);
         }
       });
+
+      // 2. Local and Google users ONLY if not already in Supabase
+      [...localUsers, ...googleUsers].forEach(user => {
 
       // Ordenar por fecha de creación (más recientes primero)
       allUsers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -256,56 +247,46 @@ class AdminService {
         }
       }
 
-      // STEP 2: Try Supabase first, but fallback to localStorage if needed
-      console.log(`🔄 AdminService: Attempting Supabase update first...`);
+      // STEP 2: MANDATORY Supabase update - NO FALLBACKS
+      console.log(`🔄 AdminService: EXECUTING MANDATORY Supabase update...`);
+      console.log(`☁️ AdminService: Supabase MUST be the source of truth - no localStorage fallbacks`);
 
-      try {
-        const { supabaseUsersAPI } = await import('../supabase-api.js');
-        const updatedUser = await supabaseUsersAPI.updateUserRole(targetUserId, newRole);
+      const { supabaseUsersAPI } = await import('../supabase-api.js');
+      const updatedUser = await supabaseUsersAPI.updateUserRole(targetUserId, newRole);
 
-        if (updatedUser) {
-          console.log(`✅ AdminService: User role updated successfully via supabase-api`);
-          console.log(`📝 AdminService: Updated user:`, updatedUser);
-
-          // Create notification for role change only if role actually changed
-          if (oldRole !== newRole) {
-            await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
-          }
-
-          // Sync local data
-          await this._syncLocalData(targetUserEmail, newRole);
-
-          return updatedUser;
-        }
-      } catch (supabaseError) {
-        console.warn(`⚠️ AdminService: Supabase update failed, using localStorage fallback:`, supabaseError);
-
-        // FALLBACK: Update in localStorage first and set sync flag
-        console.log(`🔄 AdminService: Using localStorage-first approach due to Supabase RLS restrictions`);
-
-        // Update all local sources immediately
-        await this._syncLocalData(targetUserEmail, newRole);
-
-        // Create a mock user object with updated role
-        const updatedUser = {
-          id: targetUserId,
-          email: targetUserEmail,
-          role: newRole,
-          updated_at: new Date().toISOString(),
-          needs_supabase_sync: true // Flag for later sync
-        };
-
-        // Create notification for role change
-        if (oldRole !== newRole) {
-          await this._createRoleChangeNotification(targetUserId, targetUserEmail, oldRole, newRole);
-        }
-
-        // Schedule background sync attempt
-        this._scheduleSupabaseSync(targetUserId, targetUserEmail, newRole);
-
-        console.log(`✅ AdminService: Role updated locally, will sync to Supabase in background`);
-        return updatedUser;
+      if (!updatedUser) {
+        throw new Error('Supabase update failed - no fallback allowed. Database must be updated.');
       }
+
+      console.log(`✅ AdminService: User role updated successfully in SUPABASE DATABASE`);
+      console.log(`📝 AdminService: Updated user from database:`, updatedUser);
+
+      // Create notification for role change only if role actually changed
+      if (oldRole !== newRole) {
+        console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
+        await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+      }
+
+      // Sync local data as CACHE ONLY (Supabase is the source of truth)
+      console.log(`🔄 AdminService: Updating localStorage cache to match Supabase data`);
+      await this._syncLocalData(targetUserEmail, newRole);
+
+      // Verify the change was persisted in Supabase
+      console.log(`🔍 AdminService: Verifying role change persisted in Supabase...`);
+      const { data: verifyUser } = await supabase
+        .from('users')
+        .select('id, email, role')
+        .eq('id', targetUserId)
+        .single();
+
+      if (verifyUser && verifyUser.role === newRole) {
+        console.log(`✅ AdminService: CONFIRMED - Role change persisted in Supabase database`);
+      } else {
+        console.error(`❌ AdminService: CRITICAL - Role change NOT persisted in database!`);
+        throw new Error(`Role change verification failed in Supabase database`);
+      }
+
+      return updatedUser;
 
     } catch (error) {
       console.error('❌ AdminService: Critical error in updateUserRole:', error);
@@ -382,9 +363,8 @@ class AdminService {
       
       const { data, error } = await supabase
         .from('users')
-        .update({ 
-          status: 'blocked',
-          updated_at: new Date().toISOString()
+        .update({
+          status: 'blocked'
         })
         .eq('id', userId)
         .select()
@@ -409,9 +389,8 @@ class AdminService {
       
       const { data, error } = await supabase
         .from('users')
-        .update({ 
-          status: 'active',
-          updated_at: new Date().toISOString()
+        .update({
+          status: 'active'
         })
         .eq('id', userId)
         .select()
@@ -568,7 +547,7 @@ class AdminService {
         
         const { data, error } = await supabase
           .from('volunteer_requests')
-          .update({ 
+          .update({
             status: 'approved',
             reviewed_at: new Date().toISOString()
           })
@@ -654,7 +633,7 @@ class AdminService {
         
         const { data, error } = await supabase
           .from('volunteer_requests')
-          .update({ 
+          .update({
             status: 'rejected',
             reviewed_at: new Date().toISOString()
           })
@@ -705,7 +684,7 @@ class AdminService {
       // Try to query notifications table safely
       const { data, error, count } = await supabase
         .from('notifications')
-        .select('id, read_at', { count: 'exact' });
+        .select('id, read', { count: 'exact' });
 
       if (error) {
         console.warn('⚠️ AdminService: Notifications table not available:', error);
@@ -725,9 +704,8 @@ class AdminService {
       
       const { data, error } = await supabase
         .from('notifications')
-        .update({ 
-          read_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        .update({
+          read: true
         })
         .eq('id', notificationId)
         .select()
@@ -785,7 +763,7 @@ class AdminService {
         },
         notifications: {
           total: notificationsResult.status === 'fulfilled' ? (notificationsResult.value.count || 0) : 0,
-          unread: notificationsResult.status === 'fulfilled' ? (notificationsResult.value.data?.filter(n => !n.read_at).length || 0) : 0
+          unread: notificationsResult.status === 'fulfilled' ? (notificationsResult.value.data?.filter(n => !n.read).length || 0) : 0
         }
       };
 

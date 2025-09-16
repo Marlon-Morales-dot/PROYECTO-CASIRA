@@ -91,7 +91,10 @@ const authReducer = (state, action) => {
       };
       
     case 'UPDATE_USER':
-      return { ...state, user: { ...state.user, ...action.payload } };
+      // Si payload es un objeto usuario completo, usarlo directamente
+      // Si no, hacer merge con el usuario existente
+      const newUser = action.payload.id ? action.payload : { ...state.user, ...action.payload };
+      return { ...state, user: newUser };
       
     case 'CLEAR_AUTH_ERROR':
       return { ...state, error: null };
@@ -265,39 +268,52 @@ export function AuthProvider({ children }) {
       if (authState.user && authState.user.email === userEmail) {
         console.log(`✅ AuthProvider: Aplicando cambio de rol para ${userEmail}: ${oldRole} → ${newRole}`);
 
+        // Crear objeto usuario completamente actualizado
+        const updatedUser = {
+          ...authState.user,
+          role: newRole,
+          // Actualizar métodos de rol también
+          isAdmin: () => newRole === 'admin',
+          isVolunteer: () => newRole === 'volunteer',
+          isVisitor: () => newRole === 'visitor'
+        };
+
+        console.log('🔄 AuthProvider: Usuario actualizado:', updatedUser);
+
         // Actualizar el usuario en el estado de autenticación inmediatamente
         authDispatch({
           type: 'UPDATE_USER',
-          payload: { role: newRole }
+          payload: updatedUser
         });
 
-        // Actualizar localStorage
+        // Actualizar localStorage con el objeto completo
         const savedUser = localStorage.getItem('casira-current-user');
         if (savedUser) {
           const userData = JSON.parse(savedUser);
           userData.role = newRole;
           localStorage.setItem('casira-current-user', JSON.stringify(userData));
           console.log('✅ AuthProvider: localStorage actualizado con nuevo rol:', newRole);
+          console.log('✅ AuthProvider: Usuario en localStorage:', userData);
         }
 
         // Determinar la ruta correcta según el nuevo rol
         const roleRoutes = {
           'admin': '/admin/dashboard',
           'volunteer': '/volunteer/dashboard',
-          'visitor': '/visitor/dashboard'
+          'visitor': '/dashboard'
         };
 
         const newRoute = roleRoutes[newRole] || '/dashboard';
-
-        // Redirigir inmediatamente al dashboard correcto
         const currentPath = window.location.pathname;
+
         console.log(`🔍 AuthProvider: Ruta actual: ${currentPath}, Nueva ruta: ${newRoute}`);
+        console.log(`🔍 AuthProvider: Nuevo rol aplicado: ${newRole}`);
 
         // Definir las rutas esperadas para cada rol
         const expectedPaths = {
-          'admin': ['/admin', '/admin/dashboard'],
-          'volunteer': ['/volunteer', '/volunteer/dashboard'],
-          'visitor': ['/visitor', '/visitor/dashboard', '/dashboard']
+          'admin': ['/admin'],
+          'volunteer': ['/volunteer'],
+          'visitor': ['/dashboard', '/visitor']
         };
 
         const expectedForRole = expectedPaths[newRole] || ['/dashboard'];
@@ -306,19 +322,21 @@ export function AuthProvider({ children }) {
         console.log(`🔍 AuthProvider: ¿Está en ruta correcta? ${isOnCorrectPath}`);
         console.log(`🔍 AuthProvider: Rutas esperadas para ${newRole}:`, expectedForRole);
 
+        // Solo redirigir si no está en la ruta correcta
         if (!isOnCorrectPath) {
           console.log(`🚀 AuthProvider: Redirigiendo a ${newRoute} para rol ${newRole}`);
+
+          // Usar setTimeout para evitar conflictos con el renderizado
           setTimeout(() => {
-            console.log(`🌐 AuthProvider: Ejecutando redirección a ${newRoute}`);
-            window.location.href = newRoute;
-          }, 1000); // Reducido a 1 segundo para respuesta más rápida
+            if (window.location.pathname === currentPath) {
+              console.log(`🌐 AuthProvider: Ejecutando redirección a ${newRoute}`);
+              window.location.href = newRoute;
+            } else {
+              console.log(`🔄 AuthProvider: Ruta ya cambió, cancelando redirección`);
+            }
+          }, 100);
         } else {
-          console.log(`✅ AuthProvider: Ya en ruta correcta (${currentPath}), solo actualizando estado`);
-          // Si ya estamos en la ruta correcta, forzar un reload para asegurar que se aplique el nuevo rol
-          setTimeout(() => {
-            console.log('🔄 AuthProvider: Recargando página para aplicar nuevo rol...');
-            window.location.reload();
-          }, 500);
+          console.log(`✅ AuthProvider: Usuario ya está en ruta correcta para rol ${newRole}`);
         }
       }
     };
@@ -379,10 +397,17 @@ export function AuthProvider({ children }) {
           isVisitor: () => false
         };
         
+        const tokenData = {
+          userId: demoUser.id,
+          email: demoUser.email,
+          role: demoUser.role,
+          timestamp: Date.now()
+        };
+
         const result = {
           success: true,
           user: demoUser,
-          token: 'demo-token-' + Date.now(),
+          token: `casira-jwt-${btoa(JSON.stringify(tokenData))}`,
           message: '¡Bienvenido Administrador!'
         };
         

@@ -198,8 +198,24 @@ export class UnifiedAuthRepository extends AuthRepository {
       }
 
       // Buscar usuario en base de datos
-      const user = await this.findUserById(userId);
-      
+      let user = await this.findUserById(userId);
+
+      // Si no se encuentra el usuario y es un token demo, crear usuario temporal
+      if (!user && userId === 'demo-admin-id') {
+        user = {
+          id: 'demo-admin-id',
+          email: 'admin@casira.org',
+          firstName: 'Administrador',
+          lastName: 'CASIRA',
+          fullName: 'Administrador CASIRA',
+          role: 'admin',
+          isActive: true,
+          isAdmin: () => true,
+          isVolunteer: () => false,
+          isVisitor: () => false
+        };
+      }
+
       if (!user || !user.isActive) {
         throw new Error('Usuario no encontrado o inactivo');
       }
