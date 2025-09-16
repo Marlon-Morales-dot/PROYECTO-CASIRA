@@ -367,30 +367,32 @@ class AdminService {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-        // ENVIAR NOTIFICACIÓN VIA BROADCAST A TODOS LOS USUARIOS CONECTADOS
-        console.log(`🚀 AdminService: Enviando notificación broadcast de cambio de rol`);
+        // ENVIAR NOTIFICACIÓN CON MÚLTIPLES MÉTODOS PARA GARANTIZAR ENTREGA
+        console.log(`🚀 AdminService: Enviando notificación de cambio de rol`);
         console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
         console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
 
+        // Obtener email del administrador actual
+        let adminEmail = 'Administrador';
         try {
-          // Obtener email del administrador actual
-          let adminEmail = 'Administrador';
-          try {
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
-            if (currentUser) {
-              adminEmail = currentUser.email;
-            } else {
-              const savedUser = localStorage.getItem('casira-current-user');
-              if (savedUser) {
-                const userData = JSON.parse(savedUser);
-                adminEmail = userData.email;
-              }
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            adminEmail = currentUser.email;
+          } else {
+            const savedUser = localStorage.getItem('casira-current-user');
+            if (savedUser) {
+              const userData = JSON.parse(savedUser);
+              adminEmail = userData.email;
             }
-          } catch (error) {
-            console.warn('⚠️ No se pudo obtener email del admin:', error);
           }
+        } catch (error) {
+          console.warn('⚠️ No se pudo obtener email del admin:', error);
+        }
 
-          // Enviar broadcast usando el nuevo servicio
+        let notificationSent = false;
+
+        // MÉTODO 1: Intentar broadcast con Supabase Realtime
+        try {
           const broadcastService = await import('./broadcast-role-change.service.js');
           const broadcastSent = await broadcastService.default.sendRoleChangeNotification(
             targetUserEmail,
@@ -400,18 +402,38 @@ class AdminService {
           );
 
           if (broadcastSent) {
-            console.log(`✅ AdminService: Notificación broadcast enviada a todos los usuarios`);
-          } else {
-            console.warn(`⚠️ AdminService: No se pudo enviar broadcast, usando fallback local`);
-            // Fallback: disparar evento local (solo funciona en la misma ventana)
-            this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
+            console.log(`✅ AdminService: Método 1 (Broadcast) - EXITOSO`);
+            notificationSent = true;
           }
-
         } catch (broadcastError) {
-          console.warn(`⚠️ AdminService: Error con servicio broadcast:`, broadcastError);
-          // Fallback: disparar evento local
+          console.warn(`⚠️ AdminService: Método 1 (Broadcast) - FALLÓ:`, broadcastError);
+        }
+
+        // MÉTODO 2: Sistema simple con localStorage (SIEMPRE ejecutar como backup)
+        try {
+          const simpleService = await import('./simple-role-notification.service.js');
+          const simpleSent = simpleService.default.createRoleChangeNotification(
+            targetUserEmail,
+            oldRole,
+            newRole,
+            adminEmail
+          );
+
+          if (simpleSent) {
+            console.log(`✅ AdminService: Método 2 (Simple) - EXITOSO`);
+            notificationSent = true;
+          }
+        } catch (simpleError) {
+          console.warn(`⚠️ AdminService: Método 2 (Simple) - FALLÓ:`, simpleError);
+        }
+
+        // MÉTODO 3: Fallback evento local (última opción)
+        if (!notificationSent) {
+          console.log(`🔄 AdminService: Usando Método 3 (Local Event) como último recurso`);
           this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
         }
+
+        console.log(`🎯 AdminService: Notificación enviada. Al menos un método debería haber funcionado.`);
       }
 
       // Sync local data as CACHE ONLY (Supabase is the source of truth)

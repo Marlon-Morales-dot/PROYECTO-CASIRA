@@ -158,6 +158,17 @@ const AdminRoleChangeTest = () => {
               console.log('🧪 PRUEBA BROADCAST: Enviando broadcast global');
               try {
                 const broadcastService = await import('../lib/services/broadcast-role-change.service.js');
+
+                // Verificar estado del servicio
+                const status = broadcastService.default.getStatus();
+                console.log('📊 Estado del servicio broadcast:', status);
+
+                if (!status.hasChannel) {
+                  console.log('🔄 Inicializando servicio broadcast...');
+                  await broadcastService.default.initialize(user);
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+                }
+
                 await broadcastService.default.sendRoleChangeNotification(
                   user.email,
                   'admin',
@@ -173,9 +184,29 @@ const AdminRoleChangeTest = () => {
           >
             Prueba Broadcast
           </button>
+          <button
+            onClick={async () => {
+              console.log('🧪 PRUEBA SIMPLE: Creando notificación con sistema simple');
+              try {
+                const simpleService = await import('../lib/services/simple-role-notification.service.js');
+                const success = simpleService.default.createRoleChangeNotification(
+                  user.email,
+                  'admin',
+                  'volunteer',
+                  'Test Admin'
+                );
+                console.log(success ? '✅ Notificación simple creada' : '❌ Error creando notificación simple');
+              } catch (error) {
+                console.error('❌ Error en prueba simple:', error);
+              }
+            }}
+            className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+          >
+            Prueba Simple
+          </button>
         </div>
         <p className="text-xs text-red-600 mt-1">
-          Local = solo tu ventana. Broadcast = todas las ventanas/usuarios conectados.
+          Local = solo tu ventana. Broadcast = Supabase. Simple = localStorage + polling.
         </p>
       </div>
     </div>

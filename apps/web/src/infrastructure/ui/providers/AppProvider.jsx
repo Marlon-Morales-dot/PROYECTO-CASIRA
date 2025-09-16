@@ -188,13 +188,32 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Importar y inicializar servicio de broadcast global
-      const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
-      await broadcastService.default.initialize(user);
+      // Inicializar sistema de notificaciones (con múltiples backups)
+      try {
+        // Intentar sistema de broadcast primero
+        const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
+        await broadcastService.default.initialize(user);
+        console.log('✅ AuthProvider: Servicio de broadcast inicializado');
+      } catch (broadcastError) {
+        console.warn('⚠️ AuthProvider: Error con broadcast service:', broadcastError);
+      }
+
+      // Siempre inicializar sistema simple como backup
+      try {
+        const simpleService = await import('../../../lib/services/simple-role-notification.service.js');
+        simpleService.default.initialize(user);
+        console.log('✅ AuthProvider: Servicio simple inicializado como backup');
+      } catch (simpleError) {
+        console.warn('⚠️ AuthProvider: Error con simple service:', simpleError);
+      }
 
       // También verificar cambios pendientes al login
-      const pendingService = await import('../../../lib/services/pending-role-change.service.js');
-      await pendingService.default.checkPendingChangesOnLogin(user.id);
+      try {
+        const pendingService = await import('../../../lib/services/pending-role-change.service.js');
+        await pendingService.default.checkPendingChangesOnLogin(user.id);
+      } catch (pendingError) {
+        console.warn('⚠️ AuthProvider: Error verificando cambios pendientes:', pendingError);
+      }
 
       console.log('✅ AuthProvider: Servicio de tiempo real inicializado exitosamente');
 
@@ -506,13 +525,21 @@ export function AuthProvider({ children }) {
    */
   const logout = async () => {
     try {
-      // Limpiar servicio de broadcast
+      // Limpiar servicios de notificación
       try {
         const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
         await broadcastService.default.cleanup();
-        console.log('✅ AuthProvider: Servicio de broadcast limpiado en logout');
+        console.log('✅ AuthProvider: Servicio de broadcast limpiado');
       } catch (error) {
-        console.warn('⚠️ AuthProvider: Error limpiando servicio de broadcast:', error);
+        console.warn('⚠️ AuthProvider: Error limpiando broadcast service:', error);
+      }
+
+      try {
+        const simpleService = await import('../../../lib/services/simple-role-notification.service.js');
+        simpleService.default.cleanup();
+        console.log('✅ AuthProvider: Servicio simple limpiado');
+      } catch (error) {
+        console.warn('⚠️ AuthProvider: Error limpiando simple service:', error);
       }
 
       // Limpiar almacenamiento
