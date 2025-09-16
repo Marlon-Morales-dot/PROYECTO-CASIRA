@@ -16,70 +16,44 @@ const GlobalRoleChangeModal = () => {
       console.log('🔔 GlobalRoleChangeModal: Evento role-changed recibido:', { userEmail, oldRole, newRole });
       console.log('🔔 GlobalRoleChangeModal: Usuario actual:', user?.email);
 
-      // Solo mostrar modal si es el usuario actual
-      if (user && user.email === userEmail) {
+      // Solo mostrar modal si es el usuario actual Y si no ya hay un modal abierto
+      if (user && user.email === userEmail && !showModal) {
         console.log('✅ GlobalRoleChangeModal: ¡ES EL USUARIO ACTUAL! Mostrando modal');
+
+        const roleNames = {
+          'admin': 'Administrador',
+          'volunteer': 'Voluntario',
+          'visitor': 'Visitante'
+        };
 
         setRoleChange({
           oldRole,
           newRole,
           userEmail,
           title: '¡Tu rol ha sido actualizado!',
-          message: `Tu rol ha cambiado de ${oldRole} a ${newRole}`
+          message: `Ahora eres ${roleNames[newRole]}. Serás redirigido a tu nueva área de trabajo.`
         });
 
         setShowModal(true);
 
         console.log('🎯 GlobalRoleChangeModal: Modal configurado para mostrar');
+      } else if (showModal) {
+        console.log('⚠️ GlobalRoleChangeModal: Modal ya está abierto, ignorando evento duplicado');
       } else {
         console.log('❌ GlobalRoleChangeModal: No es el usuario actual, ignorando evento');
       }
     };
 
-    const handleRoleNotification = (event) => {
-      const { userEmail, oldRole, newRole, title, message } = event.detail;
-
-      console.log('🔔 GlobalRoleChangeModal: Evento casira-role-notification recibido:', { userEmail, oldRole, newRole });
-
-      if (user && user.email === userEmail) {
-        console.log('✅ GlobalRoleChangeModal: Mostrando modal desde casira-role-notification');
-
-        setRoleChange({
-          oldRole,
-          newRole,
-          userEmail,
-          title,
-          message
-        });
-
-        setShowModal(true);
-      }
-    };
-
-    // Agregar listeners para ambos tipos de eventos
+    // Solo escuchar role-changed que viene de AdminService
     window.addEventListener('role-changed', handleRoleChange);
-    window.addEventListener('casira-role-notification', handleRoleNotification);
 
-    // Test: disparar evento después de 2 segundos para prueba
-    if (user) {
-      setTimeout(() => {
-        console.log('🧪 GlobalRoleChangeModal: Disparando evento de prueba');
-        window.dispatchEvent(new CustomEvent('role-changed', {
-          detail: {
-            userEmail: user.email,
-            oldRole: 'visitor',
-            newRole: 'volunteer'
-          }
-        }));
-      }, 2000);
-    }
+    // EVENTO DE PRUEBA ELIMINADO - causaba bucle infinito
 
     return () => {
       console.log('🔧 GlobalRoleChangeModal: Removiendo listeners de eventos');
       window.removeEventListener('role-changed', handleRoleChange);
-      window.removeEventListener('casira-role-notification', handleRoleNotification);
     };
-  }, [user]);
+  }, [user, showModal]);
 
   const handleAccept = () => {
     console.log('✅ GlobalRoleChangeModal: Usuario aceptó el cambio de rol');

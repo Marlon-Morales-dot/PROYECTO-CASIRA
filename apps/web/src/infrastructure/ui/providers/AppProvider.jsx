@@ -256,7 +256,7 @@ export function AuthProvider({ children }) {
     }
   }, [loginUseCase]);
 
-  // Listener para cambios de rol en tiempo real
+  // Listener para cambios de rol en tiempo real - SOLO ACTUALIZAR USUARIO, NO MODAL
   useEffect(() => {
     const handleRoleChange = (event) => {
       const { userEmail, oldRole, newRole } = event.detail;
@@ -293,89 +293,17 @@ export function AuthProvider({ children }) {
           userData.role = newRole;
           localStorage.setItem('casira-current-user', JSON.stringify(userData));
           console.log('✅ AuthProvider: localStorage actualizado con nuevo rol:', newRole);
-          console.log('✅ AuthProvider: Usuario en localStorage:', userData);
         }
 
-        // Determinar la ruta correcta según el nuevo rol
-        const roleRoutes = {
-          'admin': '/admin/dashboard',
-          'volunteer': '/volunteer/dashboard',
-          'visitor': '/dashboard'
-        };
-
-        const newRoute = roleRoutes[newRole] || '/dashboard';
-        const currentPath = window.location.pathname;
-
-        console.log(`🔍 AuthProvider: Ruta actual: ${currentPath}, Nueva ruta: ${newRoute}`);
-        console.log(`🔍 AuthProvider: Nuevo rol aplicado: ${newRole}`);
-
-        // Definir las rutas esperadas para cada rol
-        const expectedPaths = {
-          'admin': ['/admin'],
-          'volunteer': ['/volunteer'],
-          'visitor': ['/dashboard', '/visitor']
-        };
-
-        const expectedForRole = expectedPaths[newRole] || ['/dashboard'];
-        const isOnCorrectPath = expectedForRole.some(path => currentPath.startsWith(path));
-
-        console.log(`🔍 AuthProvider: ¿Está en ruta correcta? ${isOnCorrectPath}`);
-        console.log(`🔍 AuthProvider: Rutas esperadas para ${newRole}:`, expectedForRole);
-
-        // Disparar evento para mostrar modal de cambio de rol
-        console.log(`🚀 AuthProvider: Disparando notificación de cambio de rol ${oldRole} → ${newRole}`);
-
-        // Disparar evento personalizado para mostrar el modal
-        const roleNames = {
-          'admin': 'Administrador',
-          'volunteer': 'Voluntario',
-          'visitor': 'Visitante'
-        };
-
-        window.dispatchEvent(new CustomEvent('casira-role-notification', {
-          detail: {
-            userEmail,
-            oldRole,
-            newRole,
-            title: `¡Tu rol ha sido actualizado!`,
-            message: `Ahora eres ${roleNames[newRole]}. Serás redirigido a tu nueva área de trabajo.`
-          }
-        }));
-
-        console.log(`✅ AuthProvider: Evento de cambio de rol disparado para ${userEmail}`);
-
-        // NO hacer redirección automática - dejar que el modal lo maneje
+        console.log(`✅ AuthProvider: Usuario y localStorage actualizados. Modal será manejado por GlobalRoleChangeModal`);
       }
     };
 
-    // Listener para notificaciones específicas
-    const handleRoleNotification = (event) => {
-      const { title, message, userEmail, newRole } = event.detail;
-
-      if (authState.user && authState.user.email === userEmail) {
-        console.log('🔔 AuthProvider: Mostrando notificación de cambio de rol');
-
-        // Crear y mostrar notificación visual
-        if (window.showNotification) {
-          window.showNotification({
-            type: 'success',
-            title: title,
-            message: message,
-            duration: 6000
-          });
-        } else {
-          // Fallback a alert si no hay sistema de notificaciones
-          alert(`${title}\n\n${message}`);
-        }
-      }
-    };
-
+    // Solo escuchar role-changed para actualizar usuario, no para modal
     window.addEventListener('role-changed', handleRoleChange);
-    window.addEventListener('casira-role-notification', handleRoleNotification);
 
     return () => {
       window.removeEventListener('role-changed', handleRoleChange);
-      window.removeEventListener('casira-role-notification', handleRoleNotification);
     };
   }, [authState.user]);
 
