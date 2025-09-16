@@ -205,6 +205,37 @@ class AdminService {
     try {
       console.log(`🔄 AdminService: Updating user role ${userId} to ${newRole} (forceImmediate: ${forceImmediate})`);
 
+      // STEP 0: VERIFICAR QUE QUIEN HACE EL CAMBIO SEA ADMINISTRADOR
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { data: adminData, error: adminError } = await supabase
+          .from('users')
+          .select('id, email, role')
+          .eq('email', currentUser.email)
+          .single();
+
+        if (adminError || !adminData || adminData.role !== 'admin') {
+          console.error('❌ AdminService: Usuario no es administrador o no autorizado');
+          throw new Error('Solo los administradores pueden cambiar roles de usuario');
+        }
+
+        console.log(`✅ AdminService: Cambio autorizado por administrador: ${adminData.email}`);
+      } else {
+        // Fallback: verificar localStorage para usuarios de demo
+        const savedUser = localStorage.getItem('casira-current-user');
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          if (userData.role !== 'admin') {
+            console.error('❌ AdminService: Usuario no es administrador (localStorage)');
+            throw new Error('Solo los administradores pueden cambiar roles de usuario');
+          }
+          console.log(`✅ AdminService: Cambio autorizado por administrador local: ${userData.email}`);
+        } else {
+          console.error('❌ AdminService: No se pudo verificar usuario administrador');
+          throw new Error('Usuario no autenticado o sin permisos de administrador');
+        }
+      }
+
       // STEP 1: Find user by ID or email - use the same approach as supabase-api.js
       let targetUserId = userId;
       let targetUserEmail = null;

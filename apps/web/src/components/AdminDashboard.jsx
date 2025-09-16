@@ -5,6 +5,7 @@ import adminService from '../lib/services/admin.service.js';
 import LogoutButton from './LogoutButton.jsx';
 import AdminVolunteerRequests from './AdminVolunteerRequests.jsx';
 import DataMigrationPanel from './DataMigrationPanel.jsx';
+import AdminRoleChangeTest from './AdminRoleChangeTest.jsx';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -1505,6 +1506,9 @@ const AdminDashboard = ({ user, onLogout }) => {
                     </button>
                   </div>
                 </div>
+
+                {/* Componente de prueba de cambio de rol */}
+                <AdminRoleChangeTest />
 
                 {/* Users Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
