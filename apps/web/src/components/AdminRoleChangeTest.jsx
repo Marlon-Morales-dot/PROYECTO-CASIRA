@@ -135,25 +135,47 @@ const AdminRoleChangeTest = () => {
       {/* Botón de prueba temporal para verificar el modal */}
       <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
         <p className="text-sm font-medium text-red-800 mb-2">🧪 Prueba de Modal (Temporal)</p>
-        <button
-          onClick={() => {
-            console.log('🧪 PRUEBA: Disparando evento de prueba manual');
-            window.dispatchEvent(new CustomEvent('role-changed', {
-              detail: {
-                userEmail: user.email,
-                oldRole: 'visitor',
-                newRole: 'volunteer',
-                timestamp: new Date().toISOString(),
-                source: 'test_button'
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              console.log('🧪 PRUEBA LOCAL: Disparando evento local');
+              window.dispatchEvent(new CustomEvent('role-changed', {
+                detail: {
+                  userEmail: user.email,
+                  oldRole: 'admin',
+                  newRole: 'volunteer',
+                  timestamp: new Date().toISOString(),
+                  source: 'test_button_local'
+                }
+              }));
+            }}
+            className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+          >
+            Prueba Local
+          </button>
+          <button
+            onClick={async () => {
+              console.log('🧪 PRUEBA BROADCAST: Enviando broadcast global');
+              try {
+                const broadcastService = await import('../lib/services/broadcast-role-change.service.js');
+                await broadcastService.default.sendRoleChangeNotification(
+                  user.email,
+                  'admin',
+                  'volunteer',
+                  'Test Admin'
+                );
+                console.log('✅ Broadcast de prueba enviado');
+              } catch (error) {
+                console.error('❌ Error en broadcast de prueba:', error);
               }
-            }));
-          }}
-          className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-        >
-          Probar Modal en TI MISMO
-        </button>
+            }}
+            className="px-3 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
+          >
+            Prueba Broadcast
+          </button>
+        </div>
         <p className="text-xs text-red-600 mt-1">
-          Esto disparará el modal en tu propia sesión para verificar que funciona.
+          Local = solo tu ventana. Broadcast = todas las ventanas/usuarios conectados.
         </p>
       </div>
     </div>

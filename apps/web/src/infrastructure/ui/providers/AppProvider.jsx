@@ -188,9 +188,9 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Importar y inicializar servicio de tiempo real
-      const realtimeService = await import('../../../lib/services/realtime-role-change.service.js');
-      await realtimeService.default.initialize(user);
+      // Importar y inicializar servicio de broadcast global
+      const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
+      await broadcastService.default.initialize(user);
 
       // También verificar cambios pendientes al login
       const pendingService = await import('../../../lib/services/pending-role-change.service.js');
@@ -506,13 +506,13 @@ export function AuthProvider({ children }) {
    */
   const logout = async () => {
     try {
-      // Limpiar servicio de tiempo real
+      // Limpiar servicio de broadcast
       try {
-        const realtimeService = await import('../../../lib/services/realtime-role-change.service.js');
-        await realtimeService.default.cleanup();
-        console.log('✅ AuthProvider: Servicio de tiempo real limpiado en logout');
+        const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
+        await broadcastService.default.cleanup();
+        console.log('✅ AuthProvider: Servicio de broadcast limpiado en logout');
       } catch (error) {
-        console.warn('⚠️ AuthProvider: Error limpiando servicio de tiempo real:', error);
+        console.warn('⚠️ AuthProvider: Error limpiando servicio de broadcast:', error);
       }
 
       // Limpiar almacenamiento

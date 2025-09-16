@@ -367,37 +367,50 @@ class AdminService {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-        // DISPARAR EVENTO INMEDIATO PARA NOTIFICACIÓN EN TIEMPO REAL
-        console.log(`🚀 AdminService: Disparando evento inmediato de cambio de rol`);
+        // ENVIAR NOTIFICACIÓN VIA BROADCAST A TODOS LOS USUARIOS CONECTADOS
+        console.log(`🚀 AdminService: Enviando notificación broadcast de cambio de rol`);
         console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
         console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
 
-        // Disparar evento inmediatamente sin delay
-        window.dispatchEvent(new CustomEvent('role-changed', {
-          detail: {
-            userEmail: targetUserEmail,
-            userId: targetUserId,
-            oldRole: oldRole,
-            newRole: newRole,
-            timestamp: new Date().toISOString(),
-            source: 'admin_service'
-          }
-        }));
-
-        console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
-
-        // También intentar enviar vía Supabase Realtime como backup
         try {
-          const realtimeService = await import('./realtime-role-change.service.js');
-          await realtimeService.default.sendImmediateRoleChangeNotification(
+          // Obtener email del administrador actual
+          let adminEmail = 'Administrador';
+          try {
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (currentUser) {
+              adminEmail = currentUser.email;
+            } else {
+              const savedUser = localStorage.getItem('casira-current-user');
+              if (savedUser) {
+                const userData = JSON.parse(savedUser);
+                adminEmail = userData.email;
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ No se pudo obtener email del admin:', error);
+          }
+
+          // Enviar broadcast usando el nuevo servicio
+          const broadcastService = await import('./broadcast-role-change.service.js');
+          const broadcastSent = await broadcastService.default.sendRoleChangeNotification(
             targetUserEmail,
-            targetUserId,
             oldRole,
-            newRole
+            newRole,
+            adminEmail
           );
-          console.log(`✅ AdminService: Backup realtime notification sent`);
-        } catch (realtimeError) {
-          console.warn(`⚠️ AdminService: Backup realtime notification failed:`, realtimeError);
+
+          if (broadcastSent) {
+            console.log(`✅ AdminService: Notificación broadcast enviada a todos los usuarios`);
+          } else {
+            console.warn(`⚠️ AdminService: No se pudo enviar broadcast, usando fallback local`);
+            // Fallback: disparar evento local (solo funciona en la misma ventana)
+            this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
+          }
+
+        } catch (broadcastError) {
+          console.warn(`⚠️ AdminService: Error con servicio broadcast:`, broadcastError);
+          // Fallback: disparar evento local
+          this._dispatchLegacyRoleChangeEvent(targetUserEmail, oldRole, newRole);
         }
       }
 
