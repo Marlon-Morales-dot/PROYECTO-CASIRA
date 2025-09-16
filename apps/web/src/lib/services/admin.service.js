@@ -284,6 +284,18 @@ class AdminService {
       if (oldRole !== newRole) {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
+
+        // TAMBIÉN disparar evento inmediatamente para modal en tiempo real
+        console.log(`🚀 AdminService: Disparando evento role-changed para modal inmediato`);
+        window.dispatchEvent(new CustomEvent('role-changed', {
+          detail: {
+            userEmail: targetUserEmail,
+            oldRole: oldRole,
+            newRole: newRole,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        console.log(`✅ AdminService: Evento role-changed disparado para ${targetUserEmail}`);
       }
 
       // Sync local data as CACHE ONLY (Supabase is the source of truth)

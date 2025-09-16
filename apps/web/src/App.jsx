@@ -19,6 +19,7 @@ import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
 import ProfessionalLogin from './components/ProfessionalLogin.jsx';
 import DashboardWrapper from './components/DashboardWrapper.jsx';
+import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
 
 // Importar estilos originales
 import './App.css';
@@ -49,6 +50,7 @@ function App() {
     <AppProvider>
       <Router>
         <AuthRedirectHandler />
+        <GlobalRoleChangeModal />
         <Routes>
           {/* Rutas públicas */}
           <Route path="/" element={<LandingPage />} />
