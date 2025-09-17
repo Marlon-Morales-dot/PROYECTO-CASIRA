@@ -5,12 +5,12 @@ import RoleChangeModal from './RoleChangeModal.jsx';
 const GlobalRoleChangeModal = () => {
   const [showModal, setShowModal] = useState(false);
   const [roleChange, setRoleChange] = useState(null);
+  const [renderKey, setRenderKey] = useState(0);
   const { user } = useAuth();
 
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners de eventos');
     console.log('👤 GlobalRoleChangeModal: Usuario actual registrado:', user?.email);
-    console.log('📱 GlobalRoleChangeModal: Estado del modal:', { showModal, roleChange });
 
     const handleRoleChange = (event) => {
       console.log('🔔 GlobalRoleChangeModal: ¡EVENTO RECIBIDO!', event);
@@ -24,10 +24,9 @@ const GlobalRoleChangeModal = () => {
         currentEmail: `"${user?.email}"`,
         match: user?.email === userEmail
       });
-      console.log('🔔 GlobalRoleChangeModal: Estado modal actual:', showModal);
 
-      // Solo mostrar modal si es el usuario actual Y si no ya hay un modal abierto
-      if (user && user.email === userEmail && !showModal) {
+      // Solo mostrar modal si es el usuario actual
+      if (user && user.email === userEmail) {
         console.log('✅ GlobalRoleChangeModal: ¡ES EL USUARIO ACTUAL! Mostrando modal');
 
         const roleNames = {
@@ -46,12 +45,25 @@ const GlobalRoleChangeModal = () => {
 
         console.log('🎯 GlobalRoleChangeModal: Configurando datos del modal:', newRoleChange);
 
+        // FORZAR re-render usando función de estado y key dinámico
         setRoleChange(newRoleChange);
         setShowModal(true);
+        setRenderKey(prev => prev + 1);
+
+        // Forzar re-render adicional y actualización del DOM
+        setTimeout(() => {
+          console.log('🔄 GlobalRoleChangeModal: Forzando segundo render del modal');
+          setShowModal(true);
+          setRenderKey(prev => prev + 1);
+        }, 100);
+
+        // Forzar tercer render para asegurar visibilidad
+        setTimeout(() => {
+          console.log('🔄 GlobalRoleChangeModal: Forzando tercer render del modal');
+          setShowModal(true);
+        }, 300);
 
         console.log('🎯 GlobalRoleChangeModal: Modal configurado para mostrar');
-      } else if (showModal) {
-        console.log('⚠️ GlobalRoleChangeModal: Modal ya está abierto, ignorando evento duplicado');
       } else if (!user) {
         console.log('❌ GlobalRoleChangeModal: No hay usuario logueado');
       } else if (user.email !== userEmail) {
@@ -86,7 +98,7 @@ const GlobalRoleChangeModal = () => {
       console.log('🔧 GlobalRoleChangeModal: Removiendo listeners de eventos');
       window.removeEventListener('role-changed', handleRoleChange);
     };
-  }, [user, showModal]);
+  }, [user]); // Removí showModal de las dependencias
 
   const handleAccept = () => {
     console.log('✅ GlobalRoleChangeModal: Usuario aceptó el cambio de rol');
@@ -139,10 +151,18 @@ const GlobalRoleChangeModal = () => {
     setRoleChange(null);
   };
 
-  console.log('🔍 GlobalRoleChangeModal: Estado actual:', { showModal, roleChange, user: user?.email });
+  console.log('🔍 GlobalRoleChangeModal: Estado actual:', {
+    showModal,
+    roleChange,
+    user: user?.email,
+    renderKey,
+    hasUser: !!user,
+    modalShouldShow: showModal && roleChange
+  });
 
   return (
     <RoleChangeModal
+      key={`modal-${renderKey}-${showModal}`}
       isOpen={showModal}
       onAccept={handleAccept}
       onClose={handleClose}

@@ -6,12 +6,24 @@ const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    console.log('🎭 RoleChangeModal: Props recibidas:', { isOpen, roleChange });
     if (isOpen) {
+      console.log('✅ RoleChangeModal: Modal ABIERTO - configurando visible');
       setIsVisible(true);
+    } else {
+      console.log('❌ RoleChangeModal: Modal CERRADO');
+      setIsVisible(false);
     }
-  }, [isOpen]);
+  }, [isOpen, roleChange]);
 
-  if (!isOpen || !roleChange) return null;
+  console.log('🎭 RoleChangeModal: Estado de renderizado:', { isOpen, roleChange: !!roleChange, isVisible });
+
+  if (!isOpen || !roleChange) {
+    console.log('🚫 RoleChangeModal: NO renderizando - isOpen:', isOpen, 'roleChange:', !!roleChange);
+    return null;
+  }
+
+  console.log('✅ RoleChangeModal: SÍ renderizando modal completo');
 
   const roleIcons = {
     'admin': Crown,
@@ -54,9 +66,9 @@ const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
   };
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-300 ${
       isVisible ? 'opacity-100' : 'opacity-0'
-    }`}>
+    }`} style={{ zIndex: 9999 }}>
       {/* Backdrop con desenfoque */}
       <div className="absolute inset-0 role-modal-backdrop"></div>
 
