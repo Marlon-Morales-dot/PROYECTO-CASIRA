@@ -6,24 +6,21 @@ const RoleChangeModal = ({ isOpen, onAccept, onClose, roleChange }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    console.log('🎭 RoleChangeModal: Props recibidas:', { isOpen, roleChange });
+    console.log('🎭 RoleChangeModal: isOpen:', isOpen, 'roleChange:', !!roleChange);
     if (isOpen) {
-      console.log('✅ RoleChangeModal: Modal ABIERTO - configurando visible');
+      console.log('✅ RoleChangeModal: Mostrando modal');
       setIsVisible(true);
     } else {
-      console.log('❌ RoleChangeModal: Modal CERRADO');
       setIsVisible(false);
     }
   }, [isOpen, roleChange]);
 
-  console.log('🎭 RoleChangeModal: Estado de renderizado:', { isOpen, roleChange: !!roleChange, isVisible });
-
   if (!isOpen || !roleChange) {
-    console.log('🚫 RoleChangeModal: NO renderizando - isOpen:', isOpen, 'roleChange:', !!roleChange);
+    console.log('🚫 RoleChangeModal: No renderizando - isOpen:', isOpen, 'roleChange:', !!roleChange);
     return null;
   }
 
-  console.log('✅ RoleChangeModal: SÍ renderizando modal completo');
+  console.log('✅ RoleChangeModal: Renderizando modal completo');
 
   const roleIcons = {
     'admin': Crown,

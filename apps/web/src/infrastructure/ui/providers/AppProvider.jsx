@@ -207,6 +207,15 @@ export function AuthProvider({ children }) {
         console.warn('⚠️ AuthProvider: Error con simple service:', simpleError);
       }
 
+      // Inicializar sistema cross-tab (entre pestañas) como backup adicional
+      try {
+        const crossTabService = await import('../../../lib/services/cross-tab-notification.service.js');
+        crossTabService.default.initialize(user);
+        console.log('✅ AuthProvider: Servicio cross-tab inicializado como backup adicional');
+      } catch (crossTabError) {
+        console.warn('⚠️ AuthProvider: Error con cross-tab service:', crossTabError);
+      }
+
       // También verificar cambios pendientes al login
       try {
         const pendingService = await import('../../../lib/services/pending-role-change.service.js');

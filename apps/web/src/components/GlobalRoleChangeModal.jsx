@@ -9,25 +9,21 @@ const GlobalRoleChangeModal = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    console.log('🔧 GlobalRoleChangeModal: Configurando listeners de eventos');
-    console.log('👤 GlobalRoleChangeModal: Usuario actual registrado:', user?.email);
+    console.log('🔧 GlobalRoleChangeModal: Configurando listeners para usuario:', user?.email);
 
     const handleRoleChange = (event) => {
-      console.log('🔔 GlobalRoleChangeModal: ¡EVENTO RECIBIDO!', event);
-      console.log('📦 GlobalRoleChangeModal: Detalles del evento:', event.detail);
+      console.log('🔔 GlobalRoleChangeModal: EVENTO RECIBIDO:', event.detail);
+
       const { userEmail, oldRole, newRole } = event.detail;
 
-      console.log('🔔 GlobalRoleChangeModal: Evento role-changed recibido:', { userEmail, oldRole, newRole });
-      console.log('🔔 GlobalRoleChangeModal: Usuario actual:', user?.email);
-      console.log('🔔 GlobalRoleChangeModal: Comparación emails:', {
-        eventEmail: `"${userEmail}"`,
-        currentEmail: `"${user?.email}"`,
-        match: user?.email === userEmail
-      });
+      // DEPURACIÓN DETALLADA
+      console.log('📧 Email del evento:', userEmail);
+      console.log('👤 Email del usuario actual:', user?.email);
+      console.log('🎯 ¿Son iguales?', user?.email === userEmail);
 
-      // Solo mostrar modal si es el usuario actual
+      // Solo procesar si es para el usuario actual
       if (user && user.email === userEmail) {
-        console.log('✅ GlobalRoleChangeModal: ¡ES EL USUARIO ACTUAL! Mostrando modal');
+        console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal...');
 
         const roleNames = {
           'admin': 'Administrador',
@@ -35,70 +31,33 @@ const GlobalRoleChangeModal = () => {
           'visitor': 'Visitante'
         };
 
-        const newRoleChange = {
+        setRoleChange({
           oldRole,
           newRole,
           userEmail,
           title: '¡Tu rol ha sido actualizado!',
           message: `Ahora eres ${roleNames[newRole]}. Serás redirigido a tu nueva área de trabajo.`
-        };
+        });
 
-        console.log('🎯 GlobalRoleChangeModal: Configurando datos del modal:', newRoleChange);
-
-        // FORZAR re-render usando función de estado y key dinámico
-        setRoleChange(newRoleChange);
         setShowModal(true);
         setRenderKey(prev => prev + 1);
 
-        // Forzar re-render adicional y actualización del DOM
-        setTimeout(() => {
-          console.log('🔄 GlobalRoleChangeModal: Forzando segundo render del modal');
-          setShowModal(true);
-          setRenderKey(prev => prev + 1);
-        }, 100);
-
-        // Forzar tercer render para asegurar visibilidad
-        setTimeout(() => {
-          console.log('🔄 GlobalRoleChangeModal: Forzando tercer render del modal');
-          setShowModal(true);
-        }, 300);
-
-        console.log('🎯 GlobalRoleChangeModal: Modal configurado para mostrar');
-      } else if (!user) {
-        console.log('❌ GlobalRoleChangeModal: No hay usuario logueado');
-      } else if (user.email !== userEmail) {
-        console.log('❌ GlobalRoleChangeModal: Email no coincide');
+        console.log('✅ Modal configurado y mostrado');
       } else {
-        console.log('❌ GlobalRoleChangeModal: Condición no cumplida para mostrar modal');
+        console.log('❌ Evento no es para mí:', {
+          userEmail,
+          currentUser: user?.email,
+          hasUser: !!user
+        });
       }
     };
 
-    // Solo escuchar role-changed que viene de AdminService
     window.addEventListener('role-changed', handleRoleChange);
 
-    // Función global para pruebas manuales
-    window.testRoleChangeModal = () => {
-      if (user) {
-        console.log('🧪 PRUEBA MANUAL: Disparando evento de prueba');
-        window.dispatchEvent(new CustomEvent('role-changed', {
-          detail: {
-            userEmail: user.email,
-            oldRole: 'visitor',
-            newRole: 'volunteer'
-          }
-        }));
-      } else {
-        console.log('❌ No hay usuario para probar');
-      }
-    };
-
-    console.log('🧪 Para probar manualmente: ejecuta window.testRoleChangeModal() en la consola');
-
     return () => {
-      console.log('🔧 GlobalRoleChangeModal: Removiendo listeners de eventos');
       window.removeEventListener('role-changed', handleRoleChange);
     };
-  }, [user]); // Removí showModal de las dependencias
+  }, [user]);
 
   const handleAccept = () => {
     console.log('✅ GlobalRoleChangeModal: Usuario aceptó el cambio de rol');
