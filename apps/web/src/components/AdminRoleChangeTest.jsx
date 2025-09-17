@@ -333,13 +333,53 @@ const AdminRoleChangeTest = () => {
           </p>
         </div>
 
+        {/* PRUEBA DE BROADCAST REAL */}
+        <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+          <p className="text-sm font-semibold text-red-800 mb-2">4. Envío directo de broadcast (REAL):</p>
+          <button
+            onClick={async () => {
+              console.log('🔥 ENVIANDO BROADCAST DIRECTO A TODOS LOS USUARIOS CONECTADOS');
+              try {
+                const broadcastService = await import('../lib/services/broadcast-role-change.service.js');
+
+                // Enviar broadcast directo a todos los usuarios conectados
+                const success = await broadcastService.default.sendRoleChangeNotification(
+                  'eddyramirez150@gmail.com', // email del usuario target
+                  'visitor',
+                  'admin',
+                  user.email // admin que está haciendo el cambio
+                );
+
+                console.log(`${success ? '✅' : '❌'} Broadcast enviado:`, success);
+
+                if (success) {
+                  alert('✅ Broadcast enviado a todos los usuarios conectados!');
+                } else {
+                  alert('❌ Error enviando broadcast. Verifica la consola.');
+                }
+              } catch (error) {
+                console.error('❌ Error enviando broadcast directo:', error);
+                alert('❌ Error: ' + error.message);
+              }
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 font-medium"
+          >
+            🔥 Enviar Broadcast REAL a Todos
+          </button>
+          <p className="text-xs text-red-700 mt-2">
+            ⚡ Este botón envía un broadcast real usando Supabase. Si hay usuarios conectados
+            con el email 'eddyramirez150@gmail.com', deberían recibir la notificación inmediatamente.
+          </p>
+        </div>
+
         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <p className="text-xs text-blue-700">
             💡 <strong>Cómo probar:</strong>
-            1. Cambia temporalmente tu usuario con los botones de arriba
-            2. Luego envía una notificación de cambio de rol para ese email
-            3. Deberías ver el modal inmediatamente
-            4. Restaura tu usuario original cuando termines
+            1. Usa el "Broadcast REAL" para enviar a usuarios conectados en otras ventanas
+            2. O cambia temporalmente tu usuario con los botones de arriba
+            3. Luego envía una notificación de cambio de rol para ese email
+            4. Deberías ver el modal inmediatamente
+            5. Restaura tu usuario original cuando termines
           </p>
         </div>
       </div>

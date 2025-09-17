@@ -26,12 +26,18 @@ class BroadcastRoleChangeService {
         await this.cleanup();
       }
 
-      // Crear canal global para todas las notificaciones de cambio de rol
-      this.channel = supabase.channel('global-role-changes', {
+      // Crear canal global con configuración robusta
+      const channelName = 'global-role-changes-v2';
+      console.log('🔌 BroadcastRoleChangeService: Creando canal:', channelName);
+
+      this.channel = supabase.channel(channelName, {
         config: {
           broadcast: {
-            self: false,
+            self: true, // Permitir recibir nuestros propios mensajes para debug
             ack: true
+          },
+          presence: {
+            key: user?.email || 'anonymous'
           }
         }
       });
@@ -39,13 +45,29 @@ class BroadcastRoleChangeService {
       // Escuchar mensajes de broadcast
       this.channel
         .on('broadcast', { event: 'role-change-notification' }, (payload) => {
+          console.log('📡 BroadcastRoleChangeService: Broadcast recibido RAW:', payload);
           this._handleRoleChangeNotification(payload);
         })
-        .subscribe((status) => {
+        .on('presence', { event: 'sync' }, () => {
+          console.log('👥 BroadcastRoleChangeService: Usuarios presentes:', this.channel.presenceState());
+        })
+        .subscribe(async (status) => {
           console.log('🔌 BroadcastRoleChangeService: Estado de suscripción:', status);
           if (status === 'SUBSCRIBED') {
             this.isListening = true;
-            console.log('✅ BroadcastRoleChangeService: Escuchando cambios globales');
+            console.log('✅ BroadcastRoleChangeService: Canal ACTIVO y escuchando');
+
+            // Registrar presencia
+            await this.channel.track({
+              user: user?.email,
+              online_at: new Date().toISOString()
+            });
+
+            console.log('👋 BroadcastRoleChangeService: Presencia registrada para:', user?.email);
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ BroadcastRoleChangeService: Error en canal');
+          } else if (status === 'TIMED_OUT') {
+            console.warn('⏰ BroadcastRoleChangeService: Timeout en canal');
           }
         });
 
@@ -96,10 +118,11 @@ class BroadcastRoleChangeService {
    */
   async sendRoleChangeNotification(targetUserEmail, oldRole, newRole, adminEmail) {
     try {
-      console.log('📡 BroadcastRoleChangeService: Enviando broadcast...');
+      console.log('📡 BroadcastRoleChangeService: Enviando broadcast para:', targetUserEmail);
 
-      if (!this.channel) {
-        console.warn('⚠️ BroadcastRoleChangeService: No hay canal activo');
+      if (!this.channel || !this.isListening) {
+        console.warn('⚠️ BroadcastRoleChangeService: Canal no está activo o no está escuchando');
+        console.log('🔍 BroadcastRoleChangeService: Estado:', { hasChannel: !!this.channel, isListening: this.isListening });
         return false;
       }
 
@@ -108,8 +131,11 @@ class BroadcastRoleChangeService {
         oldRole: oldRole,
         newRole: newRole,
         timestamp: new Date().toISOString(),
-        adminEmail: adminEmail || 'Administrador'
+        adminEmail: adminEmail || 'Administrador',
+        id: `role-change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       };
+
+      console.log('📤 BroadcastRoleChangeService: Mensaje a enviar:', message);
 
       const result = await this.channel.send({
         type: 'broadcast',
@@ -118,9 +144,14 @@ class BroadcastRoleChangeService {
       });
 
       console.log('📡 BroadcastRoleChangeService: Resultado del broadcast:', result);
-      console.log('✅ BroadcastRoleChangeService: Mensaje enviado a todos los usuarios conectados');
 
-      return true;
+      if (result === 'ok') {
+        console.log('✅ BroadcastRoleChangeService: Mensaje enviado exitosamente a todos los usuarios conectados');
+        return true;
+      } else {
+        console.warn('⚠️ BroadcastRoleChangeService: Broadcast no confirmado, resultado:', result);
+        return false;
+      }
 
     } catch (error) {
       console.error('❌ BroadcastRoleChangeService: Error enviando broadcast:', error);
