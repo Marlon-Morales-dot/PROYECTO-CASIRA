@@ -738,16 +738,44 @@ export const activitiesAPI = {
 
   // Likes system
   likeActivity: async (activityId, userId) => {
+    if (USE_SUPABASE) {
+      // FIX: Use Supabase for likes to prevent infinite likes
+      try {
+        // Resolve user ID for Supabase if needed
+        let resolvedUserId = userId;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          const currentUser = authAPI.getCurrentUser();
+          if (currentUser && currentUser.supabase_id) {
+            resolvedUserId = currentUser.supabase_id;
+          } else if (currentUser && currentUser.email) {
+            const supabaseUser = await supabaseAPI.users.getUserByEmail(currentUser.email);
+            if (supabaseUser && supabaseUser.id) {
+              resolvedUserId = supabaseUser.id;
+            }
+          }
+        }
+
+        // Use togglePostLike for activities (activities are posts in Supabase)
+        const result = await supabaseAPI.posts.togglePostLike(activityId, resolvedUserId);
+        console.log('✅ CASIRA: Activity like toggled in Supabase:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ CASIRA: Error toggling activity like in Supabase:', error);
+        // Fall back to localStorage
+      }
+    }
+
+    // localStorage implementation (fallback)
     const existingLike = dataStore.likes.find(l => l.activity_id == activityId && l.user_id == userId);
-    
+
     if (existingLike) {
       // Remove like
       dataStore.likes = dataStore.likes.filter(l => l.id !== existingLike.id);
       dataStore.saveToStorage();
       dataStore.notify();
-      return { 
-        liked: false, 
-        totalLikes: dataStore.likes.filter(l => l.activity_id == activityId).length 
+      return {
+        liked: false,
+        totalLikes: dataStore.likes.filter(l => l.activity_id == activityId).length
       };
     } else {
       // Add like
@@ -760,14 +788,27 @@ export const activitiesAPI = {
       dataStore.likes.push(newLike);
       dataStore.saveToStorage();
       dataStore.notify();
-      return { 
-        liked: true, 
-        totalLikes: dataStore.likes.filter(l => l.activity_id == activityId).length 
+      return {
+        liked: true,
+        totalLikes: dataStore.likes.filter(l => l.activity_id == activityId).length
       };
     }
   },
 
   getActivityLikes: async (activityId) => {
+    if (USE_SUPABASE) {
+      try {
+        // Get likes from Supabase (activities are posts in Supabase)
+        const likes = await supabaseAPI.posts.getPostLikes(activityId);
+        console.log('✅ CASIRA: Activity likes retrieved from Supabase:', likes.length);
+        return likes;
+      } catch (error) {
+        console.error('❌ CASIRA: Error getting activity likes from Supabase:', error);
+        // Fall back to localStorage
+      }
+    }
+
+    // localStorage implementation (fallback)
     const activityLikes = dataStore.likes.filter(l => l.activity_id == activityId);
     return activityLikes.map(like => {
       const user = dataStore.getUserById(like.user_id);
@@ -777,6 +818,34 @@ export const activitiesAPI = {
 
   hasUserLiked: async (activityId, userId) => {
     if (!userId) return false;
+
+    if (USE_SUPABASE) {
+      try {
+        // Resolve user ID for Supabase if needed
+        let resolvedUserId = userId;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          const currentUser = authAPI.getCurrentUser();
+          if (currentUser && currentUser.supabase_id) {
+            resolvedUserId = currentUser.supabase_id;
+          } else if (currentUser && currentUser.email) {
+            const supabaseUser = await supabaseAPI.users.getUserByEmail(currentUser.email);
+            if (supabaseUser && supabaseUser.id) {
+              resolvedUserId = supabaseUser.id;
+            }
+          }
+        }
+
+        // Check if user has liked this activity in Supabase
+        const likes = await supabaseAPI.posts.getPostLikes(activityId);
+        const userLike = likes.find(like => like.user_id === resolvedUserId);
+        return !!userLike;
+      } catch (error) {
+        console.error('❌ CASIRA: Error checking user like in Supabase:', error);
+        // Fall back to localStorage
+      }
+    }
+
+    // localStorage implementation (fallback)
     return dataStore.likes.some(l => l.activity_id == activityId && l.user_id == userId);
   }
 };
@@ -922,7 +991,16 @@ export const commentsAPI = {
 
   createComment: async (commentData) => {
     if (USE_SUPABASE) {
-      return await supabaseAPI.comments.createComment(commentData);
+      // FIX: Ensure proper mapping for Supabase
+      const supabaseCommentData = {
+        ...commentData,
+        // Map activity_id to post_id if needed
+        post_id: commentData.post_id || commentData.activity_id,
+      };
+      // Remove activity_id to avoid confusion
+      delete supabaseCommentData.activity_id;
+
+      return await supabaseAPI.comments.createComment(supabaseCommentData);
     }
 
     // localStorage implementation - keep existing logic
@@ -965,6 +1043,19 @@ export const commentsAPI = {
   },
 
   getActivityComments: async (activityId) => {
+    if (USE_SUPABASE) {
+      try {
+        // Get comments from Supabase (activities are posts in Supabase)
+        const comments = await supabaseAPI.comments.getCommentsByPost(activityId);
+        console.log('✅ CASIRA: Activity comments retrieved from Supabase:', comments.length);
+        return comments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      } catch (error) {
+        console.error('❌ CASIRA: Error getting activity comments from Supabase:', error);
+        // Fall back to localStorage
+      }
+    }
+
+    // localStorage implementation (fallback)
     return dataStore.comments
       .filter(c => c.activity_id == activityId)
       .map(comment => {
@@ -1017,8 +1108,10 @@ export const commentsAPI = {
     }
 
     console.log('💬 CASIRA: Creating comment with resolved userId:', resolvedUserId);
+
+    // FIX: Map activityId to post_id for Supabase compatibility
     return await commentsAPI.createComment({
-      activity_id: activityId,
+      post_id: activityId,    // ✅ FIXED: Use post_id instead of activity_id
       author_id: resolvedUserId,
       content: content
     });
@@ -1087,14 +1180,41 @@ export const postsAPI = {
   },
 
   likePost: async (postId, userId) => {
-    const existingLike = dataStore.likes.find(l => 
+    if (USE_SUPABASE) {
+      try {
+        // Resolve user ID for Supabase if needed
+        let resolvedUserId = userId;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          const currentUser = authAPI.getCurrentUser();
+          if (currentUser && currentUser.supabase_id) {
+            resolvedUserId = currentUser.supabase_id;
+          } else if (currentUser && currentUser.email) {
+            const supabaseUser = await supabaseAPI.users.getUserByEmail(currentUser.email);
+            if (supabaseUser && supabaseUser.id) {
+              resolvedUserId = supabaseUser.id;
+            }
+          }
+        }
+
+        // Use Supabase togglePostLike
+        const result = await supabaseAPI.posts.togglePostLike(postId, resolvedUserId);
+        console.log('✅ CASIRA: Post like toggled in Supabase:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ CASIRA: Error toggling post like in Supabase:', error);
+        // Fall back to localStorage
+      }
+    }
+
+    // localStorage implementation (fallback)
+    const existingLike = dataStore.likes.find(l =>
       l.post_id == postId && l.user_id == userId && l.type === 'post'
     );
-    
+
     if (existingLike) {
       // Remove like
       dataStore.likes = dataStore.likes.filter(l => l.id !== existingLike.id);
-      
+
       // Update post likes count
       const postIndex = dataStore.posts.findIndex(p => p.id == postId);
       if (postIndex !== -1) {
@@ -1110,7 +1230,7 @@ export const postsAPI = {
         created_at: new Date().toISOString()
       };
       dataStore.likes.push(newLike);
-      
+
       // Update post likes count
       const postIndex = dataStore.posts.findIndex(p => p.id == postId);
       if (postIndex !== -1) {
@@ -1120,9 +1240,9 @@ export const postsAPI = {
 
     dataStore.saveToStorage();
     dataStore.notify();
-    return { 
-      liked: !existingLike, 
-      totalLikes: dataStore.likes.filter(l => l.post_id == postId && l.type === 'post').length 
+    return {
+      liked: !existingLike,
+      totalLikes: dataStore.likes.filter(l => l.post_id == postId && l.type === 'post').length
     };
   },
 

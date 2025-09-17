@@ -28,6 +28,7 @@ const AdminRoleChangeTest = () => {
 
     try {
       console.log(`🔄 Cambio de rol solicitado: ${targetEmail} → ${newRole}`);
+      console.log(`🔄 Admin actual:`, user);
 
       const result = await adminService.updateUserRole(
         targetEmail.trim(),
@@ -35,6 +36,8 @@ const AdminRoleChangeTest = () => {
         `Cambio administrativo de rol a ${newRole}`,
         true
       );
+
+      console.log(`🔄 Resultado del AdminService:`, result);
 
       setResult({
         success: true,
@@ -165,6 +168,53 @@ const AdminRoleChangeTest = () => {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* DIAGNÓSTICO TEMPORAL - REMOVER DESPUÉS */}
+      <div className="bg-red-100 border border-red-300 rounded-lg p-3 mb-4">
+        <p className="text-sm font-bold text-red-800 mb-2">🔧 Diagnóstico - Probar sistemas:</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              console.log('🧪 PRUEBA DIRECTA: Disparando evento directo');
+              window.dispatchEvent(new CustomEvent('role-changed', {
+                detail: {
+                  userEmail: user.email,
+                  oldRole: 'admin',
+                  newRole: 'volunteer',
+                  timestamp: new Date().toISOString(),
+                  source: 'direct_test'
+                }
+              }));
+            }}
+            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+          >
+            Prueba Directa
+          </button>
+          <button
+            onClick={async () => {
+              console.log('🧪 PRUEBA SIMPLE: Sistema localStorage');
+              try {
+                const simpleService = await import('../lib/services/simple-role-notification.service.js');
+                const status = simpleService.default.getStatus();
+                console.log('📊 Estado Simple Service:', status);
+
+                const success = simpleService.default.createRoleChangeNotification(
+                  user.email,
+                  'admin',
+                  'volunteer',
+                  'Prueba'
+                );
+                console.log('✅ Resultado:', success);
+              } catch (error) {
+                console.error('❌ Error:', error);
+              }
+            }}
+            className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+          >
+            Prueba Sistema Simple
+          </button>
         </div>
       </div>
 
