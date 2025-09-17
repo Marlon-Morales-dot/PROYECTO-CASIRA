@@ -20,7 +20,7 @@ const GlobalRoleChangeModal = () => {
       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
 
       if (!isValidUUID) {
-        console.log('⚠️ Usuario demo detectado, saltando verificación de Supabase:', user.id);
+        // Usuario demo detectado - solo log una vez al inicio, no cada 2 segundos
         return; // Para usuarios demo, confiamos en los eventos directos
       }
 
@@ -89,11 +89,33 @@ const GlobalRoleChangeModal = () => {
       }
     };
 
-    // Verificar notificaciones cada 2 segundos para tiempo real
-    const notificationInterval = setInterval(checkNotificationsForModal, 2000);
+    // Solo verificar notificaciones de Supabase para usuarios reales (con UUID válido)
+    let notificationInterval = null;
+    const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+    const isGoogleUser = user?.provider === 'google' || user?.auth_provider === 'google' || user?.google_id;
 
-    // Verificar inmediatamente
-    checkNotificationsForModal();
+    console.log('🔍 GlobalRoleChangeModal: Análisis de usuario:', {
+      email: user?.email,
+      id: user?.id,
+      provider: user?.provider,
+      auth_provider: user?.auth_provider,
+      google_id: user?.google_id,
+      isValidUUID,
+      isGoogleUser,
+      userType: isValidUUID ? 'supabase' : (isGoogleUser ? 'google' : 'demo')
+    });
+
+    if (isValidUUID) {
+      console.log('✅ Usuario con UUID válido detectado, iniciando verificación de notificaciones Supabase');
+      // Verificar notificaciones cada 2 segundos para tiempo real
+      notificationInterval = setInterval(checkNotificationsForModal, 2000);
+      // Verificar inmediatamente
+      checkNotificationsForModal();
+    } else if (isGoogleUser) {
+      console.log('📱 Usuario de Google detectado, usando solo eventos directos (sin polling Supabase)');
+    } else {
+      console.log('⚠️ Usuario demo detectado, usando solo eventos directos (sin polling Supabase)');
+    }
 
     // MÚLTIPLES LISTENERS PARA GARANTIZAR QUE EL MODAL APAREZCA
     const handleRoleChange = (event) => {
@@ -104,11 +126,18 @@ const GlobalRoleChangeModal = () => {
       // DEPURACIÓN DETALLADA
       console.log('📧 Email del evento:', userEmail);
       console.log('👤 Email del usuario actual:', user?.email);
+      console.log('🔍 Tipo de usuario actual:', {
+        isValidUUID,
+        isGoogleUser,
+        provider: user?.provider,
+        auth_provider: user?.auth_provider
+      });
       console.log('🎯 ¿Son iguales?', user?.email === userEmail);
+      console.log('📱 Estado del modal:', { showModal, roleChange: !!roleChange });
 
       // Solo procesar si es para el usuario actual y no está ya mostrando
       if (user && user.email === userEmail && !showModal) {
-        console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal...');
+        console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal... (Tipo:', isGoogleUser ? 'Google' : 'CASIRA', ')');
 
         const roleNames = {
           'admin': 'Administrador',
@@ -135,7 +164,9 @@ const GlobalRoleChangeModal = () => {
           userEmail,
           currentUser: user?.email,
           hasUser: !!user,
-          showModal
+          showModal,
+          emailsMatch: user?.email === userEmail,
+          reason: !user ? 'sin usuario' : (user.email !== userEmail ? 'email diferente' : 'modal ya mostrando')
         });
       }
     };
@@ -236,8 +267,10 @@ const GlobalRoleChangeModal = () => {
     window.addEventListener('force-role-modal', handleForceModal);
 
     return () => {
-      // Limpiar intervalo de notificaciones
-      clearInterval(notificationInterval);
+      // Limpiar intervalo de notificaciones (solo si existe)
+      if (notificationInterval) {
+        clearInterval(notificationInterval);
+      }
 
       // Limpiar listeners de eventos
       window.removeEventListener('role-changed', handleRoleChange);
