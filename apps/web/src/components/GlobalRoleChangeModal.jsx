@@ -12,107 +12,113 @@ const GlobalRoleChangeModal = () => {
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners para usuario:', user?.email);
 
-    // ESCUCHAR NOTIFICACIONES DE SUPABASE DIRECTAMENTE
-    const checkNotificationsForModal = async () => {
-      if (!user?.id) return;
 
-      // VALIDAR SI ES UUID VÁLIDO (para Supabase) O USUARIO DEMO (localStorage)
-      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
-
-      if (!isValidUUID) {
-        // Usuario demo detectado - solo log una vez al inicio, no cada 2 segundos
-        return; // Para usuarios demo, confiamos en los eventos directos
-      }
-
-      try {
-        // Importar API para obtener notificaciones
-        const { supabaseNotificationsAPI } = await import('../lib/supabase-api.js');
-
-        // Obtener notificaciones recientes de cambio de rol
-        const notifications = await supabaseNotificationsAPI.getUserNotifications(user.id);
-
-        // Buscar notificaciones de cambio de rol muy recientes (últimos 2 minutos) que NO hayamos mostrado ya
-        const recentRoleChanges = notifications.filter(notif => {
-          const isRoleChange = notif.type === 'role_change';
-          const isRecent = new Date() - new Date(notif.created_at) < 120000; // 2 minutos
-          const isUnread = !notif.read;
-          const notShownYet = !shownNotifications.has(notif.id);
-          console.log(`🔍 Checking notification:`, {
-            id: notif.id,
-            type: notif.type,
-            isRoleChange,
-            created: notif.created_at,
-            isRecent,
-            isUnread,
-            notShownYet,
-            title: notif.title
-          });
-          return isRoleChange && isRecent && isUnread && notShownYet;
-        });
-
-        if (recentRoleChanges.length > 0) {
-          const latestChange = recentRoleChanges[0];
-          const data = typeof latestChange.data === 'string'
-            ? JSON.parse(latestChange.data)
-            : latestChange.data;
-
-          console.log('🔔 GlobalRoleChangeModal: Notificación de cambio de rol detectada:', latestChange);
-
-          // Mostrar modal basado en la notificación
-          const roleNames = {
-            'admin': 'Administrador',
-            'volunteer': 'Voluntario',
-            'visitor': 'Visitante'
-          };
-
-          setRoleChange({
-            oldRole: data.old_role || 'visitor',
-            newRole: data.new_role,
-            userEmail: user.email,
-            title: '¡Tu rol ha sido actualizado!',
-            message: `Ahora eres ${roleNames[data.new_role]}. Serás redirigido a tu nueva área de trabajo.`
-          });
-
-          setShowModal(true);
-          setRenderKey(prev => prev + 1);
-
-          // Marcar esta notificación como ya mostrada para evitar bucle infinito
-          setShownNotifications(prev => new Set([...prev, latestChange.id]));
-
-          console.log('✅ GlobalRoleChangeModal: Modal mostrado basado en notificación de Supabase');
-
-          // Marcar notificación como leída
-          await supabaseNotificationsAPI.markAsRead(latestChange.id);
-        }
-      } catch (error) {
-        console.error('❌ Error checking notifications for modal:', error);
-      }
-    };
-
-    // Solo verificar notificaciones de Supabase para usuarios reales (con UUID válido)
+    // Verificar si usuario tiene UUID válido para Supabase o necesita sincronización
     let notificationInterval = null;
     const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
     const isGoogleUser = user?.provider === 'google' || user?.auth_provider === 'google' || user?.google_id;
+    const hasSupabaseId = user?.supabase_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.supabase_id);
 
     console.log('🔍 GlobalRoleChangeModal: Análisis de usuario:', {
       email: user?.email,
       id: user?.id,
+      supabase_id: user?.supabase_id,
       provider: user?.provider,
       auth_provider: user?.auth_provider,
       google_id: user?.google_id,
       isValidUUID,
       isGoogleUser,
-      userType: isValidUUID ? 'supabase' : (isGoogleUser ? 'google' : 'demo')
+      hasSupabaseId,
+      userType: isValidUUID ? 'supabase' : (isGoogleUser ? (hasSupabaseId ? 'google-synced' : 'google-local') : 'demo')
     });
 
-    if (isValidUUID) {
-      console.log('✅ Usuario con UUID válido detectado, iniciando verificación de notificaciones Supabase');
+    // Usuarios que pueden recibir notificaciones de Supabase
+    const canReceiveSupabaseNotifications = isValidUUID || hasSupabaseId;
+    const userIdForSupabase = hasSupabaseId ? user.supabase_id : user.id;
+
+    if (canReceiveSupabaseNotifications) {
+      console.log('✅ Usuario con acceso a Supabase detectado, iniciando verificación de notificaciones');
+      console.log('🆔 Usando ID:', userIdForSupabase, 'para consultas Supabase');
+
+      // Crear función de verificación que use el ID correcto
+      const checkNotificationsWithCorrectId = async () => {
+        if (!userIdForSupabase) return;
+
+        // Validar que el ID sea UUID válido antes de consultar
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userIdForSupabase)) {
+          console.log('⚠️ ID no es UUID válido para Supabase:', userIdForSupabase);
+          return;
+        }
+
+        try {
+          // Usar el ID correcto para la consulta
+          const { supabaseNotificationsAPI } = await import('../lib/supabase-api.js');
+          const notifications = await supabaseNotificationsAPI.getUserNotifications(userIdForSupabase);
+
+          // Resto de la lógica igual...
+          const recentRoleChanges = notifications.filter(notif => {
+            const isRoleChange = notif.type === 'role_change';
+            const isRecent = new Date() - new Date(notif.created_at) < 120000; // 2 minutos
+            const isUnread = !notif.read;
+            const notShownYet = !shownNotifications.has(notif.id);
+            console.log(`🔍 Checking notification:`, {
+              id: notif.id,
+              type: notif.type,
+              isRoleChange,
+              created: notif.created_at,
+              isRecent,
+              isUnread,
+              notShownYet,
+              title: notif.title
+            });
+            return isRoleChange && isRecent && isUnread && notShownYet;
+          });
+
+          if (recentRoleChanges.length > 0) {
+            const latestChange = recentRoleChanges[0];
+            const data = typeof latestChange.data === 'string'
+              ? JSON.parse(latestChange.data)
+              : latestChange.data;
+
+            console.log('🔔 GlobalRoleChangeModal: Notificación de cambio de rol detectada:', latestChange);
+
+            const roleNames = {
+              'admin': 'Administrador',
+              'volunteer': 'Voluntario',
+              'visitor': 'Visitante'
+            };
+
+            setRoleChange({
+              oldRole: data.old_role || 'visitor',
+              newRole: data.new_role,
+              userEmail: user.email,
+              title: '¡Tu rol ha sido actualizado!',
+              message: `Ahora eres ${roleNames[data.new_role]}. Serás redirigido a tu nueva área de trabajo.`
+            });
+
+            setShowModal(true);
+            setRenderKey(prev => prev + 1);
+
+            // Marcar esta notificación como ya mostrada para evitar bucle infinito
+            setShownNotifications(prev => new Set([...prev, latestChange.id]));
+
+            console.log('✅ GlobalRoleChangeModal: Modal mostrado basado en notificación de Supabase');
+
+            // Marcar notificación como leída
+            await supabaseNotificationsAPI.markAsRead(latestChange.id);
+          }
+        } catch (error) {
+          console.error('❌ Error checking notifications for modal:', error);
+        }
+      };
+
       // Verificar notificaciones cada 2 segundos para tiempo real
-      notificationInterval = setInterval(checkNotificationsForModal, 2000);
+      notificationInterval = setInterval(checkNotificationsWithCorrectId, 2000);
       // Verificar inmediatamente
-      checkNotificationsForModal();
+      checkNotificationsWithCorrectId();
     } else if (isGoogleUser) {
-      console.log('📱 Usuario de Google detectado, usando solo eventos directos (sin polling Supabase)');
+      console.log('📱 Usuario de Google local detectado, usando solo eventos directos (sin polling Supabase)');
+      console.log('💡 Sugerencia: Sincronizar usuario de Google en Supabase para notificaciones en tiempo real');
     } else {
       console.log('⚠️ Usuario demo detectado, usando solo eventos directos (sin polling Supabase)');
     }
