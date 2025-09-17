@@ -6,10 +6,94 @@ const GlobalRoleChangeModal = () => {
   const [showModal, setShowModal] = useState(false);
   const [roleChange, setRoleChange] = useState(null);
   const [renderKey, setRenderKey] = useState(0);
+  const [shownNotifications, setShownNotifications] = useState(new Set());
   const { user, updateUser } = useAuth();
 
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners para usuario:', user?.email);
+
+    // ESCUCHAR NOTIFICACIONES DE SUPABASE DIRECTAMENTE
+    const checkNotificationsForModal = async () => {
+      if (!user?.id) return;
+
+      // VALIDAR SI ES UUID VÁLIDO (para Supabase) O USUARIO DEMO (localStorage)
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+
+      if (!isValidUUID) {
+        console.log('⚠️ Usuario demo detectado, saltando verificación de Supabase:', user.id);
+        return; // Para usuarios demo, confiamos en los eventos directos
+      }
+
+      try {
+        // Importar API para obtener notificaciones
+        const { supabaseNotificationsAPI } = await import('../lib/supabase-api.js');
+
+        // Obtener notificaciones recientes de cambio de rol
+        const notifications = await supabaseNotificationsAPI.getUserNotifications(user.id);
+
+        // Buscar notificaciones de cambio de rol muy recientes (últimos 2 minutos) que NO hayamos mostrado ya
+        const recentRoleChanges = notifications.filter(notif => {
+          const isRoleChange = notif.type === 'role_change';
+          const isRecent = new Date() - new Date(notif.created_at) < 120000; // 2 minutos
+          const isUnread = !notif.read;
+          const notShownYet = !shownNotifications.has(notif.id);
+          console.log(`🔍 Checking notification:`, {
+            id: notif.id,
+            type: notif.type,
+            isRoleChange,
+            created: notif.created_at,
+            isRecent,
+            isUnread,
+            notShownYet,
+            title: notif.title
+          });
+          return isRoleChange && isRecent && isUnread && notShownYet;
+        });
+
+        if (recentRoleChanges.length > 0) {
+          const latestChange = recentRoleChanges[0];
+          const data = typeof latestChange.data === 'string'
+            ? JSON.parse(latestChange.data)
+            : latestChange.data;
+
+          console.log('🔔 GlobalRoleChangeModal: Notificación de cambio de rol detectada:', latestChange);
+
+          // Mostrar modal basado en la notificación
+          const roleNames = {
+            'admin': 'Administrador',
+            'volunteer': 'Voluntario',
+            'visitor': 'Visitante'
+          };
+
+          setRoleChange({
+            oldRole: data.old_role || 'visitor',
+            newRole: data.new_role,
+            userEmail: user.email,
+            title: '¡Tu rol ha sido actualizado!',
+            message: `Ahora eres ${roleNames[data.new_role]}. Serás redirigido a tu nueva área de trabajo.`
+          });
+
+          setShowModal(true);
+          setRenderKey(prev => prev + 1);
+
+          // Marcar esta notificación como ya mostrada para evitar bucle infinito
+          setShownNotifications(prev => new Set([...prev, latestChange.id]));
+
+          console.log('✅ GlobalRoleChangeModal: Modal mostrado basado en notificación de Supabase');
+
+          // Marcar notificación como leída
+          await supabaseNotificationsAPI.markAsRead(latestChange.id);
+        }
+      } catch (error) {
+        console.error('❌ Error checking notifications for modal:', error);
+      }
+    };
+
+    // Verificar notificaciones cada 2 segundos para tiempo real
+    const notificationInterval = setInterval(checkNotificationsForModal, 2000);
+
+    // Verificar inmediatamente
+    checkNotificationsForModal();
 
     // MÚLTIPLES LISTENERS PARA GARANTIZAR QUE EL MODAL APAREZCA
     const handleRoleChange = (event) => {
@@ -22,8 +106,8 @@ const GlobalRoleChangeModal = () => {
       console.log('👤 Email del usuario actual:', user?.email);
       console.log('🎯 ¿Son iguales?', user?.email === userEmail);
 
-      // Solo procesar si es para el usuario actual
-      if (user && user.email === userEmail) {
+      // Solo procesar si es para el usuario actual y no está ya mostrando
+      if (user && user.email === userEmail && !showModal) {
         console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal...');
 
         const roleNames = {
@@ -47,10 +131,11 @@ const GlobalRoleChangeModal = () => {
         console.log('✅ Modal configurado y mostrado');
         console.log('🔍 Verificando estado después de setShowModal:', { showModal: true, roleChange });
       } else {
-        console.log('❌ Evento no es para mí:', {
+        console.log('❌ Evento no es para mí o modal ya está mostrando:', {
           userEmail,
           currentUser: user?.email,
-          hasUser: !!user
+          hasUser: !!user,
+          showModal
         });
       }
     };
@@ -59,9 +144,9 @@ const GlobalRoleChangeModal = () => {
     const handleCasiraNotification = (event) => {
       console.log('🔔 GlobalRoleChangeModal: NOTIFICACIÓN CASIRA RECIBIDA:', event.detail);
 
-      const { userEmail, newRole, type } = event.detail;
+      const { userEmail, newRole, oldRole, type } = event.detail;
 
-      if (type === 'role_change' && user && user.email === userEmail) {
+      if (type === 'role_change' && user && user.email === userEmail && !showModal) {
         console.log('✅ ¡NOTIFICACIÓN CASIRA ES PARA MÍ! Mostrando modal...');
 
         const roleNames = {
@@ -71,7 +156,7 @@ const GlobalRoleChangeModal = () => {
         };
 
         setRoleChange({
-          oldRole: 'visitor', // Por defecto
+          oldRole: oldRole || 'visitor',
           newRole,
           userEmail,
           title: '¡Tu rol ha sido actualizado!',
@@ -119,7 +204,7 @@ const GlobalRoleChangeModal = () => {
 
       const { userEmail, newRole, oldRole } = event.detail;
 
-      if (user && user.email === userEmail) {
+      if (user && user.email === userEmail && !showModal) {
         console.log('✅ ¡FORCE MODAL ES PARA MÍ! Mostrando modal...');
 
         const roleNames = {
@@ -151,6 +236,10 @@ const GlobalRoleChangeModal = () => {
     window.addEventListener('force-role-modal', handleForceModal);
 
     return () => {
+      // Limpiar intervalo de notificaciones
+      clearInterval(notificationInterval);
+
+      // Limpiar listeners de eventos
       window.removeEventListener('role-changed', handleRoleChange);
       window.removeEventListener('casira-role-notification', handleCasiraNotification);
       window.removeEventListener('force-role-modal', handleForceModal);
@@ -219,6 +308,8 @@ const GlobalRoleChangeModal = () => {
     setTimeout(() => {
       setShowModal(false);
       setRoleChange(null);
+      // Limpiar notificaciones mostradas para futuras notificaciones
+      setShownNotifications(new Set());
 
       // Forzar recarga completa de la página para asegurar que todo se actualice
       console.log('🔄 GlobalRoleChangeModal: Redirigiendo y refrescando...');
@@ -230,6 +321,8 @@ const GlobalRoleChangeModal = () => {
     console.log('❌ GlobalRoleChangeModal: Usuario canceló el cambio de rol');
     setShowModal(false);
     setRoleChange(null);
+    // Limpiar notificaciones mostradas para futuras notificaciones
+    setShownNotifications(new Set());
   };
 
   console.log('🔍 GlobalRoleChangeModal: Estado actual:', {
