@@ -24,7 +24,6 @@ import PublicSocialView from './components/PublicSocialView.jsx';
 import ProfessionalLogin from './components/ProfessionalLogin.jsx';
 import DashboardWrapper from './components/DashboardWrapper.jsx';
 import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
-import PendingRoleChangeModal from './components/PendingRoleChangeModal.jsx';
 
 // Importar estilos originales
 import './App.css';
@@ -56,7 +55,6 @@ function App() {
       <Router>
         <AuthRedirectHandler />
         <GlobalRoleChangeModal />
-        <PendingRoleChangeModal />
         <Routes>
           {/* Rutas públicas */}
           <Route path="/" element={<LandingPage />} />

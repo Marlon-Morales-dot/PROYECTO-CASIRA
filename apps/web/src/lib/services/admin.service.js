@@ -303,55 +303,8 @@ class AdminService {
         }
       }
 
-      // STEP 1.5: Si no es cambio forzado, crear notificación pendiente primero
-      if (!forceImmediate && oldRole !== newRole) {
-        console.log(`📬 AdminService: Creando notificación pendiente para confirmación del usuario`);
 
-        try {
-          // Obtener información del admin actual
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (!currentUser) {
-            console.warn('⚠️ No hay usuario autenticado, continuando con cambio directo');
-          } else {
-            // Buscar admin en tabla users
-            const { data: adminData } = await supabase
-              .from('users')
-              .select('id, email, role, full_name')
-              .eq('email', currentUser.email)
-              .single();
-
-            if (adminData && adminData.role === 'admin') {
-              console.log(`👑 Admin encontrado: ${adminData.full_name || adminData.email}`);
-
-              // Crear cambio pendiente en lugar de cambio directo
-              const pendingChangeService = await import('./pending-role-change.service.js');
-              const pendingChange = await pendingChangeService.default.createPendingRoleChange(
-                targetUserId,
-                adminData.id,
-                oldRole,
-                newRole,
-                adminMessage || `Cambio de rol de ${oldRole} a ${newRole}`
-              );
-
-              console.log('✅ AdminService: Cambio pendiente creado, esperando confirmación del usuario');
-
-              return {
-                success: true,
-                pending: true,
-                pendingChangeId: pendingChange.id,
-                message: 'Cambio de rol enviado al usuario para confirmación',
-                targetUserEmail: targetUserEmail,
-                oldRole: oldRole,
-                newRole: newRole
-              };
-            }
-          }
-        } catch (pendingError) {
-          console.warn('⚠️ Error creando cambio pendiente, procediendo con cambio directo:', pendingError);
-        }
-      }
-
-      // STEP 2: Continuar con cambio directo (legacy o cuando forceImmediate = true)
+      // STEP 2: Proceder con cambio directo inmediato
       console.log(`⚡ AdminService: Procediendo con cambio directo de rol`);
 
       // Check if role is actually changing
@@ -390,46 +343,52 @@ class AdminService {
         console.log(`🔔 AdminService: Creating notification for role change: ${oldRole} → ${newRole}`);
         await this._createRoleChangeNotification(updatedUser.id, targetUserEmail, oldRole, newRole);
 
-        // ENVIAR NOTIFICACIÓN CON MÚLTIPLES MÉTODOS PARA GARANTIZAR ENTREGA
-        console.log(`🚀 AdminService: Enviando notificación de cambio de rol`);
+        // ENVIAR NOTIFICACIÓN EN TIEMPO REAL CON SERVICIO REALTIME
+        console.log(`🚀 AdminService: Enviando notificación de cambio de rol en tiempo real`);
         console.log(`📧 AdminService: Email del usuario afectado: "${targetUserEmail}"`);
         console.log(`🔄 AdminService: Cambio de rol: "${oldRole}" → "${newRole}"`);
 
-        // Obtener email del administrador actual
-        let adminEmail = 'Administrador';
-        try {
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            adminEmail = currentUser.email;
-          } else {
-            const savedUser = localStorage.getItem('casira-current-user');
-            if (savedUser) {
-              const userData = JSON.parse(savedUser);
-              adminEmail = userData.email;
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ No se pudo obtener email del admin:', error);
-        }
+        // MÉTODO SIMPLE SIN DEPENDENCIAS - SOLO EVENTOS DIRECTOS
+        console.log(`🚀 AdminService: Disparando eventos para modal (SIN realtime problemático)`);
 
-        // ENVIAR NOTIFICACIÓN DIRECTA Y SIMPLE
-        console.log(`🚀 AdminService: Enviando notificación directa para: ${targetUserEmail}`);
-
-        // SIEMPRE disparar evento directo para cualquier ventana que escuche
+        // EVENTO PRINCIPAL
+        console.log(`📢 AdminService: Disparando evento 'role-changed' para ${targetUserEmail}`);
         window.dispatchEvent(new CustomEvent('role-changed', {
           detail: {
             userId: updatedUser.id,
             userEmail: targetUserEmail,
             oldRole: oldRole,
             newRole: newRole,
-            notificationId: `admin-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            source: 'admin_service',
-            adminEmail: adminEmail
+            source: 'admin_service_direct'
           }
         }));
 
-        console.log(`✅ AdminService: Evento disparado para ${targetUserEmail} - cualquier ventana que escuche debería recibirlo`);
+        // EVENTO CASIRA ADICIONAL
+        console.log(`📢 AdminService: Disparando evento 'casira-role-notification' para ${targetUserEmail}`);
+        window.dispatchEvent(new CustomEvent('casira-role-notification', {
+          detail: {
+            type: 'role_change',
+            userEmail: targetUserEmail,
+            newRole: newRole,
+            oldRole: oldRole,
+            autoShow: true,
+            timestamp: new Date().toISOString()
+          }
+        }));
+
+        // EVENTO ADICIONAL ESPECÍFICO PARA MODAL
+        console.log(`📢 AdminService: Disparando evento 'force-role-modal' para ${targetUserEmail}`);
+        window.dispatchEvent(new CustomEvent('force-role-modal', {
+          detail: {
+            userEmail: targetUserEmail,
+            newRole: newRole,
+            oldRole: oldRole,
+            timestamp: new Date().toISOString()
+          }
+        }));
+
+        console.log(`✅ AdminService: Tres eventos disparados para garantizar modal`);
       }
 
       // Sync local data as CACHE ONLY (Supabase is the source of truth)

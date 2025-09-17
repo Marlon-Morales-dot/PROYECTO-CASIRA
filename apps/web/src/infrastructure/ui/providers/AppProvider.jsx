@@ -188,40 +188,13 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Inicializar sistema de notificaciones (con múltiples backups)
+      // USAR SOLO EL SERVICIO REALTIME PRINCIPAL
       try {
-        // Intentar sistema de broadcast primero
-        const broadcastService = await import('../../../lib/services/broadcast-role-change.service.js');
-        await broadcastService.default.initialize(user);
-        console.log('✅ AuthProvider: Servicio de broadcast inicializado');
-      } catch (broadcastError) {
-        console.warn('⚠️ AuthProvider: Error con broadcast service:', broadcastError);
-      }
-
-      // Siempre inicializar sistema simple como backup
-      try {
-        const simpleService = await import('../../../lib/services/simple-role-notification.service.js');
-        simpleService.default.initialize(user);
-        console.log('✅ AuthProvider: Servicio simple inicializado como backup');
-      } catch (simpleError) {
-        console.warn('⚠️ AuthProvider: Error con simple service:', simpleError);
-      }
-
-      // Inicializar sistema cross-tab (entre pestañas) como backup adicional
-      try {
-        const crossTabService = await import('../../../lib/services/cross-tab-notification.service.js');
-        crossTabService.default.initialize(user);
-        console.log('✅ AuthProvider: Servicio cross-tab inicializado como backup adicional');
-      } catch (crossTabError) {
-        console.warn('⚠️ AuthProvider: Error con cross-tab service:', crossTabError);
-      }
-
-      // También verificar cambios pendientes al login
-      try {
-        const pendingService = await import('../../../lib/services/pending-role-change.service.js');
-        await pendingService.default.checkPendingChangesOnLogin(user.id);
-      } catch (pendingError) {
-        console.warn('⚠️ AuthProvider: Error verificando cambios pendientes:', pendingError);
+        const realtimeService = await import('../../../lib/services/realtime-role-change.service.js');
+        await realtimeService.default.initialize(user);
+        console.log('✅ AuthProvider: Servicio realtime inicializado exitosamente');
+      } catch (realtimeError) {
+        console.error('❌ AuthProvider: Error inicializando servicio realtime:', realtimeError);
       }
 
       console.log('✅ AuthProvider: Servicio de tiempo real inicializado exitosamente');
