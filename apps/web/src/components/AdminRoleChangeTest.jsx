@@ -171,42 +171,15 @@ const AdminRoleChangeTest = () => {
         </div>
       </div>
 
-      {/* PRUEBA PARA USUARIOS CONECTADOS */}
-      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-4">
-        <p className="text-sm font-bold text-yellow-800 mb-2">
-          🎯 Prueba rápida - Enviar notificación a usuarios conectados:
+      {/* PRUEBAS DE NOTIFICACIÓN */}
+      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-4">
+        <p className="text-sm font-bold text-yellow-800 mb-3">
+          🧪 Zona de Pruebas - Simular usuarios conectados:
         </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={async () => {
-              console.log('🧪 ENVIANDO NOTIFICACIÓN DIRECTA');
-              try {
-                // Obtener lista de usuarios conocidos
-                const emails = ['eddyramirez150@gmail.com', user.email];
 
-                for (const email of emails) {
-                  if (email && email !== user.email) {
-                    console.log(`📧 Enviando notificación a: ${email}`);
-
-                    const simpleService = await import('../lib/services/simple-role-notification.service.js');
-                    const success = simpleService.default.createRoleChangeNotification(
-                      email,
-                      'admin',
-                      'volunteer',
-                      `Prueba desde ${user.email}`
-                    );
-
-                    console.log(`${success ? '✅' : '❌'} Notificación para ${email}: ${success}`);
-                  }
-                }
-              } catch (error) {
-                console.error('❌ Error:', error);
-              }
-            }}
-            className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
-          >
-            Notificar a Usuarios Conectados
-          </button>
+        {/* Prueba en ti mismo */}
+        <div className="mb-4 p-3 bg-white rounded-lg border">
+          <p className="text-sm font-semibold text-gray-700 mb-2">1. Prueba local (en ti mismo):</p>
           <button
             onClick={() => {
               console.log('🧪 PRUEBA EN TI MISMO');
@@ -220,14 +193,155 @@ const AdminRoleChangeTest = () => {
                 }
               }));
             }}
-            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 font-medium"
           >
-            Probar en Ti Mismo
+            🔄 Probar Modal en Ti Mismo
           </button>
         </div>
-        <p className="text-xs text-yellow-700 mt-2">
-          ⚠️ Estas pruebas envían notificaciones reales. Úsalas solo para verificar que funciona.
-        </p>
+
+        {/* Simular usuarios demo */}
+        <div className="p-3 bg-white rounded-lg border">
+          <p className="text-sm font-semibold text-gray-700 mb-3">2. Simular otros usuarios conectados:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                console.log('🧪 SIMULANDO usuario demo: admin@casira.org');
+                window.dispatchEvent(new CustomEvent('role-changed', {
+                  detail: {
+                    userEmail: 'admin@casira.org',
+                    oldRole: 'visitor',
+                    newRole: 'admin',
+                    timestamp: new Date().toISOString(),
+                    source: 'demo_simulation'
+                  }
+                }));
+              }}
+              className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            >
+              👑 Simular admin@casira.org
+            </button>
+
+            <button
+              onClick={() => {
+                console.log('🧪 SIMULANDO usuario demo: volunteer@casira.org');
+                window.dispatchEvent(new CustomEvent('role-changed', {
+                  detail: {
+                    userEmail: 'volunteer@casira.org',
+                    oldRole: 'visitor',
+                    newRole: 'volunteer',
+                    timestamp: new Date().toISOString(),
+                    source: 'demo_simulation'
+                  }
+                }));
+              }}
+              className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+            >
+              🤝 Simular volunteer@casira.org
+            </button>
+
+            <button
+              onClick={() => {
+                console.log('🧪 SIMULANDO usuario demo: user@example.com');
+                window.dispatchEvent(new CustomEvent('role-changed', {
+                  detail: {
+                    userEmail: 'user@example.com',
+                    oldRole: 'visitor',
+                    newRole: 'volunteer',
+                    timestamp: new Date().toISOString(),
+                    source: 'demo_simulation'
+                  }
+                }));
+              }}
+              className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+            >
+              👤 Simular user@example.com
+            </button>
+
+            <button
+              onClick={() => {
+                console.log('🧪 SIMULANDO usuario demo: eddyramirez150@gmail.com');
+                window.dispatchEvent(new CustomEvent('role-changed', {
+                  detail: {
+                    userEmail: 'eddyramirez150@gmail.com',
+                    oldRole: 'volunteer',
+                    newRole: 'admin',
+                    timestamp: new Date().toISOString(),
+                    source: 'demo_simulation'
+                  }
+                }));
+              }}
+              className="px-3 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
+            >
+              💼 Simular eddyramirez150@gmail.com
+            </button>
+          </div>
+        </div>
+
+        {/* Cambiar temporalmente el usuario para pruebas */}
+        <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+          <p className="text-sm font-semibold text-purple-800 mb-2">3. Cambiar temporalmente tu usuario:</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <button
+              onClick={() => {
+                console.log('🔄 Cambiando temporalmente a: eddyramirez150@gmail.com');
+                const currentUser = JSON.parse(localStorage.getItem('casira-user') || '{}');
+                localStorage.setItem('casira-user-backup', JSON.stringify(currentUser));
+                localStorage.setItem('casira-user', JSON.stringify({
+                  ...currentUser,
+                  email: 'eddyramirez150@gmail.com'
+                }));
+                window.location.reload();
+              }}
+              className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+            >
+              👤 Ser eddyramirez150@gmail.com
+            </button>
+            <button
+              onClick={() => {
+                console.log('🔄 Cambiando temporalmente a: volunteer@casira.org');
+                const currentUser = JSON.parse(localStorage.getItem('casira-user') || '{}');
+                localStorage.setItem('casira-user-backup', JSON.stringify(currentUser));
+                localStorage.setItem('casira-user', JSON.stringify({
+                  ...currentUser,
+                  email: 'volunteer@casira.org'
+                }));
+                window.location.reload();
+              }}
+              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+            >
+              🤝 Ser volunteer@casira.org
+            </button>
+            <button
+              onClick={() => {
+                console.log('🔄 Restaurando usuario original');
+                const backup = localStorage.getItem('casira-user-backup');
+                if (backup) {
+                  localStorage.setItem('casira-user', backup);
+                  localStorage.removeItem('casira-user-backup');
+                  window.location.reload();
+                } else {
+                  alert('No hay backup del usuario original');
+                }
+              }}
+              className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
+            >
+              🔙 Restaurar Usuario Original
+            </button>
+          </div>
+          <p className="text-xs text-purple-700">
+            ⚠️ Esto cambiará temporalmente tu usuario. Usa "Restaurar" para volver a tu usuario original.
+          </p>
+        </div>
+
+        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-xs text-blue-700">
+            💡 <strong>Cómo probar:</strong>
+            1. Cambia temporalmente tu usuario con los botones de arriba
+            2. Luego envía una notificación de cambio de rol para ese email
+            3. Deberías ver el modal inmediatamente
+            4. Restaura tu usuario original cuando termines
+          </p>
+        </div>
       </div>
 
       {/* Información de ayuda - Mejorada para móvil */}
