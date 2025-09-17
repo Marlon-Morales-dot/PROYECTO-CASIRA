@@ -260,7 +260,30 @@ class AdminService {
           console.log(`✅ AdminService: Found user by email, ID: ${targetUserId}, current role: ${oldRole}`);
         } else {
           console.log(`❌ AdminService: User not found by email: ${targetUserEmail}`);
-          throw new Error(`Usuario con email ${targetUserEmail} no encontrado en Supabase`);
+          console.log(`🔄 AdminService: Error details:`, findError);
+
+          // Para usuarios que no están en Supabase, crear una notificación simple directamente
+          console.log(`🔄 AdminService: Usuario no está en Supabase, usando sistema de notificación simple`);
+
+          // ENVIAR NOTIFICACIÓN DIRECTA PARA USUARIOS NO EN SUPABASE
+          try {
+            const simpleService = await import('./simple-role-notification.service.js');
+            const simpleSent = simpleService.default.createRoleChangeNotification(
+              targetUserEmail,
+              'visitor', // rol anterior por defecto
+              newRole,
+              'Administrador'
+            );
+
+            if (simpleSent) {
+              console.log(`✅ AdminService: Notificación enviada directamente para usuario no registrado`);
+              return { success: true, message: `Notificación enviada a ${targetUserEmail}` };
+            }
+          } catch (error) {
+            console.warn('⚠️ Error enviando notificación simple:', error);
+          }
+
+          throw new Error(`Usuario con email ${targetUserEmail} no encontrado en el sistema`);
         }
       } else {
         // Verify that the ID exists in Supabase

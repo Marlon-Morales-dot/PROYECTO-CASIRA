@@ -171,51 +171,63 @@ const AdminRoleChangeTest = () => {
         </div>
       </div>
 
-      {/* DIAGNÓSTICO TEMPORAL - REMOVER DESPUÉS */}
-      <div className="bg-red-100 border border-red-300 rounded-lg p-3 mb-4">
-        <p className="text-sm font-bold text-red-800 mb-2">🔧 Diagnóstico - Probar sistemas:</p>
+      {/* PRUEBA PARA USUARIOS CONECTADOS */}
+      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mb-4">
+        <p className="text-sm font-bold text-yellow-800 mb-2">
+          🎯 Prueba rápida - Enviar notificación a usuarios conectados:
+        </p>
         <div className="flex flex-wrap gap-2">
           <button
+            onClick={async () => {
+              console.log('🧪 ENVIANDO NOTIFICACIÓN DIRECTA');
+              try {
+                // Obtener lista de usuarios conocidos
+                const emails = ['eddyramirez150@gmail.com', user.email];
+
+                for (const email of emails) {
+                  if (email && email !== user.email) {
+                    console.log(`📧 Enviando notificación a: ${email}`);
+
+                    const simpleService = await import('../lib/services/simple-role-notification.service.js');
+                    const success = simpleService.default.createRoleChangeNotification(
+                      email,
+                      'admin',
+                      'volunteer',
+                      `Prueba desde ${user.email}`
+                    );
+
+                    console.log(`${success ? '✅' : '❌'} Notificación para ${email}: ${success}`);
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Error:', error);
+              }
+            }}
+            className="px-3 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
+          >
+            Notificar a Usuarios Conectados
+          </button>
+          <button
             onClick={() => {
-              console.log('🧪 PRUEBA DIRECTA: Disparando evento directo');
+              console.log('🧪 PRUEBA EN TI MISMO');
               window.dispatchEvent(new CustomEvent('role-changed', {
                 detail: {
                   userEmail: user.email,
                   oldRole: 'admin',
                   newRole: 'volunteer',
                   timestamp: new Date().toISOString(),
-                  source: 'direct_test'
+                  source: 'self_test'
                 }
               }));
             }}
             className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
           >
-            Prueba Directa
-          </button>
-          <button
-            onClick={async () => {
-              console.log('🧪 PRUEBA SIMPLE: Sistema localStorage');
-              try {
-                const simpleService = await import('../lib/services/simple-role-notification.service.js');
-                const status = simpleService.default.getStatus();
-                console.log('📊 Estado Simple Service:', status);
-
-                const success = simpleService.default.createRoleChangeNotification(
-                  user.email,
-                  'admin',
-                  'volunteer',
-                  'Prueba'
-                );
-                console.log('✅ Resultado:', success);
-              } catch (error) {
-                console.error('❌ Error:', error);
-              }
-            }}
-            className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-          >
-            Prueba Sistema Simple
+            Probar en Ti Mismo
           </button>
         </div>
+        <p className="text-xs text-yellow-700 mt-2">
+          ⚠️ Estas pruebas envían notificaciones reales. Úsalas solo para verificar que funciona.
+        </p>
       </div>
 
       {/* Información de ayuda - Mejorada para móvil */}
