@@ -12,6 +12,11 @@ const GlobalRoleChangeModal = () => {
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners para usuario:', user?.email);
 
+    // Verificar que el usuario existe antes de proceder
+    if (!user) {
+      console.log('⚠️ GlobalRoleChangeModal: No hay usuario, saltando configuración');
+      return () => {}; // Return empty cleanup function
+    }
 
     // Verificar si usuario tiene UUID válido para Supabase o necesita sincronización
     let notificationInterval = null;
@@ -133,8 +138,8 @@ const GlobalRoleChangeModal = () => {
       console.log('📧 Email del evento:', userEmail);
       console.log('👤 Email del usuario actual:', user?.email);
       console.log('🔍 Tipo de usuario actual:', {
-        isValidUUID,
-        isGoogleUser,
+        hasUser: !!user,
+        hasId: !!user?.id,
         provider: user?.provider,
         auth_provider: user?.auth_provider
       });
@@ -143,7 +148,7 @@ const GlobalRoleChangeModal = () => {
 
       // Solo procesar si es para el usuario actual y no está ya mostrando
       if (user && user.email === userEmail && !showModal) {
-        console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal... (Tipo:', isGoogleUser ? 'Google' : 'CASIRA', ')');
+        console.log('✅ ¡EVENTO ES PARA MÍ! Mostrando modal...');
 
         const roleNames = {
           'admin': 'Administrador',
