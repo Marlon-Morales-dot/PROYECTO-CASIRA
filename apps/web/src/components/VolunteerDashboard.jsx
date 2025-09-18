@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, Camera, MessageCircle, Heart, Calendar, MapPin, Clock, Users, 
-  Settings, LogOut, Plus, Edit3, Save, X, Upload, Star, Award 
+import {
+  User, Camera, MessageCircle, Heart, Calendar, MapPin, Clock, Users,
+  Settings, LogOut, Plus, Edit3, Save, X, Upload, Star, Award, Bell, Check, AlertCircle
 } from 'lucide-react';
 import {
   usersAPI, volunteersAPI, activitiesAPI, categoriesAPI,
   commentsAPI, photosAPI, dataStore
 } from '../lib/api.js';
+import { supabaseNotificationsAPI } from '../lib/supabase-api.js';
+import activityRegistrationsService from '../lib/services/activity-registrations.service.js';
 import ImageUpload from './ImageUpload.jsx';
 import { postsAPI as supabasePosts, commentsAPI as supabaseComments } from '../lib/supabase-singleton.js';
 
@@ -24,16 +26,60 @@ const VolunteerDashboard = ({ user, onLogout }) => {
   const [newComment, setNewComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
-    
+    loadNotifications();
+
     // Subscribe to store changes
     const unsubscribe = dataStore.subscribe(() => {
       loadDashboardData();
     });
-    
-    return unsubscribe;
+
+    // Polling para notificaciones más rápido + Realtime
+    const notificationInterval = setInterval(loadNotifications, 3000); // Cada 3 segundos
+
+    // Configurar Supabase Realtime para notificaciones instantáneas
+    let realtimeChannel = null;
+    const setupRealtime = async () => {
+      if (user?.supabase_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.supabase_id)) {
+        try {
+          const { supabase } = await import('../lib/supabase-singleton.js');
+
+          realtimeChannel = supabase
+            .channel(`volunteer-notifications-${user.supabase_id}`)
+            .on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.supabase_id}`
+            }, (payload) => {
+              console.log('⚡ REALTIME NOTIFICATIONS: Cambio detectado:', payload);
+              // Recargar notificaciones inmediatamente cuando hay cambios
+              loadNotifications();
+            })
+            .subscribe();
+
+          console.log('✅ REALTIME NOTIFICATIONS: Suscripción activada para:', user.supabase_id);
+        } catch (error) {
+          console.warn('⚠️ REALTIME NOTIFICATIONS: No se pudo activar realtime:', error);
+        }
+      }
+    };
+
+    setupRealtime();
+
+    return () => {
+      unsubscribe();
+      clearInterval(notificationInterval);
+      // Limpiar canal de realtime
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+        console.log('🧹 REALTIME NOTIFICATIONS: Canal desconectado');
+      }
+    };
   }, [user.id]);
 
   const loadDashboardData = async () => {
@@ -41,18 +87,18 @@ const VolunteerDashboard = ({ user, onLogout }) => {
       // Load user's registered activities
       const registrations = await volunteersAPI.getUserRegistrations(user.id);
       const userActivityIds = registrations.map(r => r.activity_id);
-      
+
       const allActivities = await activitiesAPI.getPublicActivities();
-      const userRegisteredActivities = allActivities.filter(a => 
+      const userRegisteredActivities = allActivities.filter(a =>
         userActivityIds.includes(a.id)
       );
-      const availableActs = allActivities.filter(a => 
+      const availableActs = allActivities.filter(a =>
         !userActivityIds.includes(a.id) && a.status === 'active'
       );
-      
+
       setUserActivities(userRegisteredActivities);
       setAvailableActivities(availableActs);
-      
+
       // Update user profile
       const updatedUser = await usersAPI.getUserById(user.id);
       if (updatedUser) {
@@ -60,6 +106,102 @@ const VolunteerDashboard = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      console.log('🔔 VOLUNTEER NOTIFICATIONS: Iniciando carga de notificaciones...');
+      console.log('👤 VOLUNTEER NOTIFICATIONS: Usuario actual:', user);
+
+      // Solo cargar notificaciones si el usuario tiene supabase_id
+      const userId = user?.supabase_id || user?.id;
+
+      // Verificar que sea un UUID válido
+      const isValidUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+
+      if (!userId) {
+        console.log('⚠️ VOLUNTEER NOTIFICATIONS: No hay ID de usuario');
+        return;
+      }
+
+      if (!isValidUUID) {
+        console.log('🔍 VOLUNTEER NOTIFICATIONS: Usuario sin UUID válido para Supabase:', userId);
+        // Para usuarios sin UUID válido, simplemente no cargar notificaciones pero no fallar
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      console.log('📡 VOLUNTEER NOTIFICATIONS: Consultando notificaciones para UUID:', userId);
+
+      const userNotifications = await supabaseNotificationsAPI.getUserNotifications(userId);
+
+      console.log('📨 VOLUNTEER NOTIFICATIONS: Respuesta de API:', userNotifications);
+
+      if (userNotifications && Array.isArray(userNotifications)) {
+        // Filtrar solo notificaciones relevantes para voluntarios
+        const volunteerNotifications = userNotifications.filter(n =>
+          ['request_approved', 'request_rejected', 'activity_updated', 'volunteer_request'].includes(n.type)
+        );
+
+        setNotifications(volunteerNotifications);
+
+        // Contar no leídas
+        const unread = volunteerNotifications.filter(n => !n.read).length;
+        setUnreadCount(unread);
+
+        console.log('✅ VOLUNTEER NOTIFICATIONS: Cargadas', volunteerNotifications.length, 'notificaciones, ', unread, 'sin leer');
+      } else {
+        console.log('📭 VOLUNTEER NOTIFICATIONS: No hay notificaciones disponibles');
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('❌ VOLUNTEER NOTIFICATIONS: Error cargando notificaciones:', error);
+      // No fallar el componente, simplemente no mostrar notificaciones
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      await supabaseNotificationsAPI.markAsRead(notificationId);
+
+      // Actualizar localmente
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, read: true } : n
+        )
+      );
+
+      // Actualizar contador
+      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      console.log('✅ VOLUNTEER NOTIFICATIONS: Notificación marcada como leída:', notificationId);
+    } catch (error) {
+      console.error('❌ VOLUNTEER NOTIFICATIONS: Error marcando como leída:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const unreadNotifications = notifications.filter(n => !n.read);
+
+      for (const notification of unreadNotifications) {
+        await supabaseNotificationsAPI.markAsRead(notification.id);
+      }
+
+      // Actualizar todas como leídas
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+
+      console.log('✅ VOLUNTEER NOTIFICATIONS: Todas las notificaciones marcadas como leídas');
+    } catch (error) {
+      console.error('❌ VOLUNTEER NOTIFICATIONS: Error marcando todas como leídas:', error);
     }
   };
 
@@ -82,16 +224,21 @@ const VolunteerDashboard = ({ user, onLogout }) => {
 
   const handleRegisterActivity = async (activityId) => {
     try {
-      await volunteersAPI.registerForActivity(user.id, activityId, {
-        notes: 'Interesado en participar',
-        skills_offered: userProfile.skills || []
-      });
-      
+      console.log('🎯 VOLUNTEER: Registrando en actividad:', activityId, 'Usuario:', user);
+
+      // Usar el nuevo servicio que SÍ notifica a los admins
+      await activityRegistrationsService.registerForActivity(
+        activityId,
+        user, // Pasar el objeto completo del usuario
+        `${user.first_name || user.name || 'Usuario'} está interesado en participar en esta actividad.`
+      );
+
+      console.log('✅ VOLUNTEER: Registro exitoso, recargando datos...');
       await loadDashboardData();
-      alert('¡Te has registrado exitosamente en la actividad!');
+      alert('¡Te has registrado exitosamente! Los administradores han sido notificados.');
     } catch (error) {
+      console.error('❌ VOLUNTEER: Error en registro:', error);
       alert(error.message || 'Error al registrarse en la actividad');
-      console.error(error);
     }
   };
 
@@ -296,6 +443,7 @@ const VolunteerDashboard = ({ user, onLogout }) => {
             {[
               { id: 'activities', label: 'Mis Actividades', icon: Calendar },
               { id: 'available', label: 'Actividades Disponibles', icon: Users },
+              { id: 'notifications', label: 'Notificaciones', icon: Bell, badge: unreadCount },
               { id: 'profile', label: 'Mi Perfil', icon: User }
             ].map((tab) => {
               const Icon = tab.icon;
@@ -303,7 +451,7 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                  className={`relative flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -311,6 +459,11 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                 >
                   <Icon className="h-5 w-5" />
                   <span>{tab.label}</span>
+                  {tab.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -472,6 +625,122 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Notificaciones</h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Marcar todas como leídas
+                </button>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-sm">
+                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No hay notificaciones
+                </h3>
+                <p className="text-gray-600">
+                  Cuando tengas notificaciones sobre tus solicitudes de actividades, aparecerán aquí.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((notification) => {
+                  const isUnread = !notification.read;
+
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg border transition-all ${
+                        isUnread
+                          ? 'bg-blue-50 border-blue-200 shadow-sm'
+                          : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          {notification.type === 'request_approved' && (
+                            <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <Check className="h-4 w-4 text-green-600" />
+                            </div>
+                          )}
+                          {notification.type === 'request_rejected' && (
+                            <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                              <X className="h-4 w-4 text-red-600" />
+                            </div>
+                          )}
+                          {notification.type === 'activity_updated' && (
+                            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Calendar className="h-4 w-4 text-blue-600" />
+                            </div>
+                          )}
+                          {notification.type === 'volunteer_request' && (
+                            <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
+                              <Users className="h-4 w-4 text-orange-600" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className={`text-sm font-medium ${
+                              isUnread ? 'text-gray-900' : 'text-gray-700'
+                            }`}>
+                              {notification.title}
+                            </h4>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500">
+                                {new Date(notification.created_at).toLocaleDateString('es-ES', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              {isUnread && (
+                                <button
+                                  onClick={() => markNotificationAsRead(notification.id)}
+                                  className="text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                  Marcar como leída
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p className={`mt-1 text-sm ${
+                            isUnread ? 'text-gray-800' : 'text-gray-600'
+                          }`}>
+                            {notification.message}
+                          </p>
+
+                          {/* Badge para indicar estado */}
+                          {notification.type === 'request_approved' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                              ✅ Solicitud Aprobada
+                            </span>
+                          )}
+                          {notification.type === 'request_rejected' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-2">
+                              ❌ Solicitud Rechazada
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

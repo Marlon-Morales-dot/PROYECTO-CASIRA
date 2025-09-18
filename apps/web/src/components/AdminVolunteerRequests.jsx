@@ -3,7 +3,7 @@ import {
   Clock, CheckCircle, XCircle, Users, Calendar, MapPin,
   Search, Filter, RefreshCw, Bell, AlertCircle
 } from 'lucide-react';
-import { usePendingRequests } from '../lib/hooks/useActivityRegistrations.js';
+import { useAllRequests } from '../lib/hooks/useActivityRegistrations.js';
 import activityRegistrationsService from '../lib/services/activity-registrations.service.js';
 
 const AdminVolunteerRequests = ({ adminUser }) => {
@@ -11,7 +11,7 @@ const AdminVolunteerRequests = ({ adminUser }) => {
   const [selectedStatus, setSelectedStatus] = useState('pending');
   const [isProcessing, setIsProcessing] = useState(new Set());
 
-  const { requests, isLoading, error, refresh } = usePendingRequests();
+  const { requests, isLoading, error, refresh } = useAllRequests();
 
   const handleApprove = async (requestId, notes = '') => {
     // Resolver ID del administrador

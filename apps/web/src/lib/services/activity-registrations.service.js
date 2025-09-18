@@ -67,10 +67,7 @@ class ActivityRegistrationsService {
       const { data: updatedRequest, error: updateError } = await supabase
         .from('volunteer_requests')
         .update({
-          status: 'approved',
-          reviewed_by: adminUserId,
-          reviewed_at: new Date().toISOString(),
-          review_notes: notes
+          status: 'approved'
         })
         .eq('id', requestId)
         .select(`
@@ -118,10 +115,7 @@ class ActivityRegistrationsService {
       const { data: updatedRequest, error } = await supabase
         .from('volunteer_requests')
         .update({
-          status: 'rejected',
-          reviewed_by: adminUserId,
-          reviewed_at: new Date().toISOString(),
-          review_notes: notes
+          status: 'rejected'
         })
         .eq('id', requestId)
         .select(`
@@ -384,6 +378,26 @@ class ActivityRegistrationsService {
     }
   }
 
+  async getAllRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('volunteer_requests')
+        .select(`
+          *,
+          user:users!volunteer_requests_user_id_fkey(*),
+          activity:activities!volunteer_requests_activity_id_fkey(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+
+    } catch (error) {
+      console.error('❌ Error getting all requests:', error);
+      throw error;
+    }
+  }
+
   // ============= MÉTODOS AUXILIARES =============
 
   async resolveUserForRegistration(userInfo) {
@@ -596,7 +610,6 @@ class ActivityRegistrationsService {
           data: JSON.stringify({
             activity_id: request.activity_id,
             activity_title: request.activity.title,
-            notes: request.review_notes,
             request_id: request.id
           }),
           read: false,

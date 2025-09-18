@@ -313,4 +313,83 @@ export const usePendingRequests = () => {
   };
 };
 
+// Hook para obtener TODAS las solicitudes (pendientes, aprobadas, rechazadas) para el admin
+export const useAllRequests = () => {
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAllRequests = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const data = await activityRegistrationsService.getAllRequests();
+      setRequests(data);
+
+      console.log('📋 HOOK: All requests loaded:', data.length, 'total requests');
+      console.log('📊 HOOK: Status breakdown:', {
+        pending: data.filter(r => r.status === 'pending').length,
+        approved: data.filter(r => r.status === 'approved').length,
+        rejected: data.filter(r => r.status === 'rejected').length
+      });
+
+    } catch (error) {
+      console.error('❌ HOOK: Error loading all requests:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllRequests();
+
+    // Configurar Supabase Realtime para actualizaciones instantáneas de solicitudes
+    let realtimeChannel = null;
+    const setupRealtime = async () => {
+      try {
+        const { supabase: supabaseClient } = await import('../supabase-singleton.js');
+
+        realtimeChannel = supabaseClient
+          .channel('admin-volunteer-requests')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'volunteer_requests'
+          }, (payload) => {
+            console.log('⚡ REALTIME ADMIN: Cambio en solicitud detectado:', payload);
+            // Recargar todas las solicitudes cuando hay cambios
+            fetchAllRequests();
+          })
+          .subscribe();
+
+        console.log('✅ REALTIME ADMIN: Suscripción activada para volunteer_requests');
+      } catch (error) {
+        console.warn('⚠️ REALTIME ADMIN: No se pudo activar realtime:', error);
+      }
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+        console.log('🧹 REALTIME ADMIN: Canal desconectado');
+      }
+    };
+  }, [fetchAllRequests]);
+
+  const refresh = useCallback(async () => {
+    await fetchAllRequests();
+  }, [fetchAllRequests]);
+
+  return {
+    requests,
+    isLoading,
+    error,
+    refresh
+  };
+};
+
 export default useActivityRegistrations;
