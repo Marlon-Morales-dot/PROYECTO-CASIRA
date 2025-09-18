@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../infrastructure/ui/providers/AppProvider.jsx';
 import RoleChangeModal from './RoleChangeModal.jsx';
 
@@ -7,7 +8,8 @@ const GlobalRoleChangeModal = () => {
   const [roleChange, setRoleChange] = useState(null);
   const [renderKey, setRenderKey] = useState(0);
   const [shownNotifications, setShownNotifications] = useState(new Set());
-  const { user, updateUser } = useAuth();
+  const { user, updateUserProfile } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.log('🔧 GlobalRoleChangeModal: Configurando listeners para usuario:', user?.email);
@@ -60,22 +62,23 @@ const GlobalRoleChangeModal = () => {
           const { supabaseNotificationsAPI } = await import('../lib/supabase-api.js');
           const notifications = await supabaseNotificationsAPI.getUserNotifications(userIdForSupabase);
 
-          // Resto de la lógica igual...
+          // Filtrar notificaciones relevantes
           const recentRoleChanges = notifications.filter(notif => {
             const isRoleChange = notif.type === 'role_change';
-            const isRecent = new Date() - new Date(notif.created_at) < 120000; // 2 minutos
+            const isRecent = new Date() - new Date(notif.created_at) < 300000; // 5 minutos
             const isUnread = !notif.read;
             const notShownYet = !shownNotifications.has(notif.id);
-            console.log(`🔍 Checking notification:`, {
-              id: notif.id,
-              type: notif.type,
-              isRoleChange,
-              created: notif.created_at,
-              isRecent,
-              isUnread,
-              notShownYet,
-              title: notif.title
-            });
+
+            // Solo hacer log si pasa los filtros básicos para reducir spam
+            if (isRoleChange && isRecent && isUnread && notShownYet) {
+              console.log(`🔍 Checking valid notification:`, {
+                id: notif.id,
+                type: notif.type,
+                created: notif.created_at,
+                title: notif.title
+              });
+            }
+
             return isRoleChange && isRecent && isUnread && notShownYet;
           });
 
@@ -117,8 +120,8 @@ const GlobalRoleChangeModal = () => {
         }
       };
 
-      // Verificar notificaciones cada 2 segundos para tiempo real
-      notificationInterval = setInterval(checkNotificationsWithCorrectId, 2000);
+      // Verificar notificaciones cada 5 segundos para reducir carga
+      notificationInterval = setInterval(checkNotificationsWithCorrectId, 5000);
       // Verificar inmediatamente
       checkNotificationsWithCorrectId();
     } else if (isGoogleUser) {
@@ -322,8 +325,8 @@ const GlobalRoleChangeModal = () => {
       console.log('🔄 GlobalRoleChangeModal: Actualizando usuario en contexto...');
 
       // Actualizar el contexto de auth directamente
-      if (updateUser && user) {
-        await updateUser({ ...user, role: roleChange.newRole });
+      if (updateUserProfile && user) {
+        await updateUserProfile({ role: roleChange.newRole });
         console.log('✅ GlobalRoleChangeModal: Usuario actualizado en contexto');
       }
 
@@ -348,17 +351,19 @@ const GlobalRoleChangeModal = () => {
       console.error('❌ Error actualizando usuario:', error);
     }
 
-    // Redirección inmediata con fallback
-    setTimeout(() => {
-      setShowModal(false);
-      setRoleChange(null);
-      // Limpiar notificaciones mostradas para futuras notificaciones
-      setShownNotifications(new Set());
+    // Cerrar modal primero
+    setShowModal(false);
+    setRoleChange(null);
+    setShownNotifications(new Set());
 
-      // Forzar recarga completa de la página para asegurar que todo se actualice
-      console.log('🔄 GlobalRoleChangeModal: Redirigiendo y refrescando...');
-      window.location.href = newRoute;
-    }, 1000); // Reducir tiempo de espera
+    // Solo navegar si es necesario cambiar la ruta
+    const currentPath = window.location.pathname;
+    if (currentPath !== newRoute) {
+      console.log('🔄 GlobalRoleChangeModal: Navegando con React Router de', currentPath, 'a', newRoute);
+      navigate(newRoute, { replace: true });
+    } else {
+      console.log('🔄 GlobalRoleChangeModal: Ya estamos en la ruta correcta, solo forzando actualización');
+    }
   };
 
   const handleClose = () => {

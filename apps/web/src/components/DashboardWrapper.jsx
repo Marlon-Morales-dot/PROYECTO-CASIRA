@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../infrastructure/ui/providers/AppProvider.jsx';
 import SocialDashboard from './SocialDashboard.jsx';
@@ -9,6 +9,7 @@ import VisitorDashboard from './VisitorDashboard.jsx';
 const DashboardWrapper = () => {
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
     // Si no está cargando y no hay usuario, redirigir al login
@@ -16,6 +17,28 @@ const DashboardWrapper = () => {
       navigate('/login', { replace: true });
     }
   }, [user, isLoading, navigate]);
+
+  // Escuchar eventos de cambio de rol
+  useEffect(() => {
+    const handleRoleUpdate = (event) => {
+      console.log('🔄 DashboardWrapper: Rol actualizado detectado:', event.detail);
+      setForceUpdate(prev => prev + 1);
+    };
+
+    const handleForceRefresh = (event) => {
+      console.log('🔄 DashboardWrapper: Actualización forzada detectada:', event.detail);
+      setForceUpdate(prev => prev + 1);
+    };
+
+    // Escuchar eventos de actualización de rol
+    window.addEventListener('dashboard-role-updated', handleRoleUpdate);
+    window.addEventListener('force-user-refresh', handleForceRefresh);
+
+    return () => {
+      window.removeEventListener('dashboard-role-updated', handleRoleUpdate);
+      window.removeEventListener('force-user-refresh', handleForceRefresh);
+    };
+  }, []);
 
   // Mostrar loading solo mientras se verifica la autenticación
   if (isLoading || !user) {
@@ -33,6 +56,7 @@ const DashboardWrapper = () => {
   console.log('🔍 DashboardWrapper: Usuario actual:', {
     email: user.email,
     role: user.role,
+    forceUpdate,
     isAdmin: user.isAdmin ? user.isAdmin() : 'N/A',
     isVolunteer: user.isVolunteer ? user.isVolunteer() : 'N/A',
     isVisitor: user.isVisitor ? user.isVisitor() : 'N/A'
