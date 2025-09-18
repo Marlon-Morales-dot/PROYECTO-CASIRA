@@ -161,8 +161,8 @@ export class Activity {
   getOccupancyPercentage() {
     if (this.maxVolunteers === null) return 0;
     return Math.round((this.currentVolunteers / this.maxVolunteers) * 100);
-  }
-
+  } 
+  
   canAcceptVolunteers() {
     return this.isActive() && this.hasVolunteerSpots();
   }

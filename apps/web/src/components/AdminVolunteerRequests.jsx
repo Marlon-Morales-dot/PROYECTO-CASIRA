@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Clock, CheckCircle, XCircle, Users, Calendar, MapPin,
   Search, Filter, RefreshCw, Bell, AlertCircle
@@ -13,7 +13,28 @@ const AdminVolunteerRequests = ({ adminUser }) => {
 
   const { requests, isLoading, error, refresh } = useAllRequests();
 
-  const handleApprove = async (requestId, notes = '') => {
+  // ============= REALTIME TEMPORALMENTE DESACTIVADO =============
+  useEffect(() => {
+    console.log('🔄 ADMIN REQUESTS: Realtime temporalmente desactivado para debug...');
+    // No configurar Realtime por ahora para evitar problemas de CSP
+    // Solo manual refresh por ahora
+  }, [refresh]);
+
+  // Memoizar el filtrado para evitar recálculos innecesarios
+  const filteredRequests = useMemo(() => {
+    return requests.filter(request => {
+      const matchesSearch = !searchTerm ||
+        request.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.activity?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [requests, searchTerm, selectedStatus]);
+
+  const handleApprove = useCallback(async (requestId, notes = '') => {
     // Resolver ID del administrador
     let adminId = adminUser?.supabase_id || adminUser?.id;
 
@@ -63,9 +84,9 @@ const AdminVolunteerRequests = ({ adminUser }) => {
         return newSet;
       });
     }
-  };
+  }, [adminUser, refresh]);
 
-  const handleReject = async (requestId, notes = '') => {
+  const handleReject = useCallback(async (requestId, notes = '') => {
     // Resolver ID del administrador
     let adminId = adminUser?.supabase_id || adminUser?.id;
 
@@ -115,9 +136,9 @@ const AdminVolunteerRequests = ({ adminUser }) => {
         return newSet;
       });
     }
-  };
+  }, [adminUser, refresh]);
 
-  const handleBulkAction = async (action, requestIds) => {
+  const handleBulkAction = useCallback(async (action, requestIds) => {
     if (requestIds.length === 0) return;
 
     const confirmMessage = action === 'approve'
@@ -137,19 +158,7 @@ const AdminVolunteerRequests = ({ adminUser }) => {
         console.error(`Error processing request ${requestId}:`, error);
       }
     }
-  };
-
-  // Filtrar solicitudes
-  const filteredRequests = requests.filter(request => {
-    const matchesSearch = !searchTerm ||
-      request.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.activity?.title?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
-
-    return matchesSearch && matchesStatus;
-  });
+  }, [handleApprove, handleReject]);
 
   if (isLoading) {
     return (
@@ -192,6 +201,10 @@ const AdminVolunteerRequests = ({ adminUser }) => {
               <p className="text-sm text-gray-500">
                 {filteredRequests.length} solicitudes {selectedStatus === 'pending' ? 'pendientes' : selectedStatus}
               </p>
+              <div className="flex items-center space-x-2 mt-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <span className="text-xs text-gray-600 font-medium">Manual refresh</span>
+              </div>
             </div>
           </div>
 

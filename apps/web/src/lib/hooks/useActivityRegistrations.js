@@ -318,64 +318,64 @@ export const useAllRequests = () => {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   const fetchAllRequests = useCallback(async () => {
+    // Evitar múltiples llamadas simultáneas
+    if (isFetchingRef.current) {
+      console.log('⏳ HOOK: Fetch ya en progreso, saltando...');
+      return;
+    }
+
+    // Cancelar solicitud anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     try {
+      isFetchingRef.current = true;
+      abortControllerRef.current = new AbortController();
+
       setIsLoading(true);
       setError(null);
 
       const data = await activityRegistrationsService.getAllRequests();
-      setRequests(data);
 
-      console.log('📋 HOOK: All requests loaded:', data.length, 'total requests');
-      console.log('📊 HOOK: Status breakdown:', {
-        pending: data.filter(r => r.status === 'pending').length,
-        approved: data.filter(r => r.status === 'approved').length,
-        rejected: data.filter(r => r.status === 'rejected').length
-      });
+      // Solo actualizar si no fue cancelado
+      if (!abortControllerRef.current.signal.aborted) {
+        setRequests(data);
+
+        console.log('📋 HOOK: All requests loaded:', data.length, 'total requests');
+        console.log('📊 HOOK: Status breakdown:', {
+          pending: data.filter(r => r.status === 'pending').length,
+          approved: data.filter(r => r.status === 'approved').length,
+          rejected: data.filter(r => r.status === 'rejected').length
+        });
+      }
 
     } catch (error) {
-      console.error('❌ HOOK: Error loading all requests:', error);
-      setError(error.message);
+      if (error.name !== 'AbortError') {
+        console.error('❌ HOOK: Error loading all requests:', error);
+        setError(error.message);
+      }
     } finally {
+      isFetchingRef.current = false;
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   }, []);
 
   useEffect(() => {
     fetchAllRequests();
 
-    // Configurar Supabase Realtime para actualizaciones instantáneas de solicitudes
-    let realtimeChannel = null;
-    const setupRealtime = async () => {
-      try {
-        const { supabase: supabaseClient } = await import('../supabase-singleton.js');
-
-        realtimeChannel = supabaseClient
-          .channel('admin-volunteer-requests')
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'volunteer_requests'
-          }, (payload) => {
-            console.log('⚡ REALTIME ADMIN: Cambio en solicitud detectado:', payload);
-            // Recargar todas las solicitudes cuando hay cambios
-            fetchAllRequests();
-          })
-          .subscribe();
-
-        console.log('✅ REALTIME ADMIN: Suscripción activada para volunteer_requests');
-      } catch (error) {
-        console.warn('⚠️ REALTIME ADMIN: No se pudo activar realtime:', error);
-      }
-    };
-
-    setupRealtime();
+    // DESACTIVAR REALTIME EN EL HOOK - LO MANEJAMOS EN EL COMPONENTE
+    // No configurar Realtime aquí para evitar duplicación
+    console.log('📋 HOOK: Realtime desactivado en hook, se maneja en componente');
 
     return () => {
-      if (realtimeChannel) {
-        realtimeChannel.unsubscribe();
-        console.log('🧹 REALTIME ADMIN: Canal desconectado');
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [fetchAllRequests]);

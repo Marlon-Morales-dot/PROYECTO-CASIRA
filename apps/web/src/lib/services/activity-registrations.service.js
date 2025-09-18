@@ -380,6 +380,9 @@ class ActivityRegistrationsService {
 
   async getAllRequests() {
     try {
+      console.log('📋 GETTING: Getting all requests with working query...');
+
+      // Usar la consulta original que funcionaba, solo con límite
       const { data, error } = await supabase
         .from('volunteer_requests')
         .select(`
@@ -387,13 +390,41 @@ class ActivityRegistrationsService {
           user:users!volunteer_requests_user_id_fkey(*),
           activity:activities!volunteer_requests_activity_id_fkey(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Solo limitar cantidad para performance
 
       if (error) throw error;
+
+      console.log('✅ WORKING: Retrieved', (data || []).length, 'requests successfully');
       return data || [];
 
     } catch (error) {
       console.error('❌ Error getting all requests:', error);
+      throw error;
+    }
+  }
+
+  async getUserApprovedRequests(userId) {
+    try {
+      console.log('📋 USER REQUESTS: Getting approved requests for user:', userId);
+
+      const { data, error } = await supabase
+        .from('volunteer_requests')
+        .select(`
+          *,
+          activity:activities!volunteer_requests_activity_id_fkey(*)
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('✅ USER REQUESTS: Found', (data || []).length, 'approved requests for user:', userId);
+      return data || [];
+
+    } catch (error) {
+      console.error('❌ USER REQUESTS: Error getting user approved requests:', error);
       throw error;
     }
   }

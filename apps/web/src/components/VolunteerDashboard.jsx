@@ -84,17 +84,47 @@ const VolunteerDashboard = ({ user, onLogout }) => {
 
   const loadDashboardData = async () => {
     try {
-      // Load user's registered activities
-      const registrations = await volunteersAPI.getUserRegistrations(user.id);
-      const userActivityIds = registrations.map(r => r.activity_id);
+      console.log('📊 VOLUNTEER DASHBOARD: Cargando datos del dashboard...', user);
 
+      // Obtener todas las actividades públicas
       const allActivities = await activitiesAPI.getPublicActivities();
+
+      // Obtener solicitudes aprobadas del usuario desde el nuevo sistema
+      let userApprovedActivityIds = [];
+
+      // Buscar por supabase_id o id del usuario
+      const userId = user?.supabase_id || user?.id;
+
+      if (userId) {
+        try {
+          // Usar el nuevo servicio para obtener solicitudes aprobadas
+          const approvedRequests = await activityRegistrationsService.getUserApprovedRequests(userId);
+          userApprovedActivityIds = approvedRequests.map(r => r.activity_id);
+
+          console.log('✅ VOLUNTEER DASHBOARD: Solicitudes aprobadas encontradas:', userApprovedActivityIds);
+        } catch (error) {
+          console.warn('⚠️ VOLUNTEER DASHBOARD: Error obteniendo solicitudes aprobadas, usando sistema legacy:', error);
+
+          // Fallback al sistema viejo
+          try {
+            const registrations = await volunteersAPI.getUserRegistrations(user.id);
+            userApprovedActivityIds = registrations.map(r => r.activity_id);
+          } catch (legacyError) {
+            console.warn('⚠️ VOLUNTEER DASHBOARD: Error en sistema legacy también:', legacyError);
+          }
+        }
+      }
+
+      // Filtrar actividades registradas vs disponibles
       const userRegisteredActivities = allActivities.filter(a =>
-        userActivityIds.includes(a.id)
+        userApprovedActivityIds.includes(a.id)
       );
       const availableActs = allActivities.filter(a =>
-        !userActivityIds.includes(a.id) && a.status === 'active'
+        !userApprovedActivityIds.includes(a.id) && a.status === 'active'
       );
+
+      console.log('📊 VOLUNTEER DASHBOARD: Actividades del usuario:', userRegisteredActivities.length);
+      console.log('📊 VOLUNTEER DASHBOARD: Actividades disponibles:', availableActs.length);
 
       setUserActivities(userRegisteredActivities);
       setAvailableActivities(availableActs);
@@ -105,7 +135,7 @@ const VolunteerDashboard = ({ user, onLogout }) => {
         setUserProfile(updatedUser);
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('❌ VOLUNTEER DASHBOARD: Error loading dashboard data:', error);
     }
   };
 
