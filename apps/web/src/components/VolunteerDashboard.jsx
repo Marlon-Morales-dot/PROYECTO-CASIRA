@@ -242,13 +242,16 @@ const VolunteerDashboard = ({ user, onLogout }) => {
 
   const handleSaveProfile = async () => {
     try {
-      const updated = await usersAPI.updateUserProfile(user.id, editForm);
+      const userId = user?.supabase_id || user?.id;
+      console.log('💾 VOLUNTEER: Saving profile for user ID:', userId);
+
+      const updated = await usersAPI.updateUserProfile(userId, editForm);
       setUserProfile(updated);
       setIsEditing(false);
       alert('¡Perfil actualizado exitosamente!');
     } catch (error) {
       alert('Error al actualizar el perfil');
-      console.error(error);
+      console.error('❌ VOLUNTEER: Error updating profile:', error);
     }
   };
 
