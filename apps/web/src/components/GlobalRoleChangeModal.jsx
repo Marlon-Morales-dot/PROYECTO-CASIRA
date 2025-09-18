@@ -396,53 +396,125 @@ const GlobalRoleChangeModal = () => {
     'Boolean(roleChange)': Boolean(roleChange)
   });
 
-  // RENDERIZAR DIRECTAMENTE SIN COMPONENTE HIJO PARA DEBUG
+  // RENDERIZAR MODAL CON DISEÑO MEJORADO
   if (showModal && roleChange) {
     console.log('🎭 GlobalRoleChangeModal: RENDERIZANDO MODAL DIRECTO');
+
+    const roleNames = {
+      'admin': 'Administrador',
+      'volunteer': 'Voluntario',
+      'visitor': 'Visitante'
+    };
+
+    const roleIcons = {
+      'admin': '👑',
+      'volunteer': '🤝',
+      'visitor': '👋'
+    };
+
     return (
       <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 999999,
-          backgroundColor: 'rgba(255, 0, 0, 0.8)', // ROJO PARA VER
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(8px)'
         }}
       >
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            textAlign: 'center',
-            border: '5px solid #00ff00' // VERDE PARA VER
-          }}
-        >
-          <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>
-            🎉 ¡TU ROL HA SIDO ACTUALIZADO!
-          </h1>
-          <p style={{ marginBottom: '20px' }}>
-            Ahora eres: {roleChange.newRole}
-          </p>
-          <button
-            onClick={handleAccept}
-            style={{
-              backgroundColor: '#059669',
-              color: 'white',
-              border: 'none',
-              padding: '15px 30px',
-              borderRadius: '5px',
-              fontSize: '16px',
-              cursor: 'pointer'
-            }}
-          >
-            ¡ACEPTAR Y CONTINUAR!
-          </button>
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
+          {/* Header con gradiente azul */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl p-6 text-center">
+            <div className="mb-4">
+              <img
+                src="/logo.png"
+                alt="CASIRA Logo"
+                className="w-16 h-16 mx-auto mb-2 bg-white rounded-full p-2 shadow-lg"
+              />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              ¡Rol Actualizado!
+            </h2>
+            <div className="text-blue-100 text-sm">
+              Tu acceso ha sido modificado
+            </div>
+          </div>
+
+          {/* Contenido */}
+          <div className="p-6">
+            {/* Cambio de rol visual */}
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl mb-1">
+                    {roleIcons[roleChange.oldRole] || '👤'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {roleNames[roleChange.oldRole] || roleChange.oldRole}
+                  </div>
+                </div>
+
+                <div className="text-blue-600">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-2xl mb-1">
+                    {roleIcons[roleChange.newRole] || '👤'}
+                  </div>
+                  <div className="text-sm font-semibold text-blue-600">
+                    {roleNames[roleChange.newRole] || roleChange.newRole}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  {roleChange.message || `Ahora tienes acceso como ${roleNames[roleChange.newRole]}. Serás redirigido a tu nueva área de trabajo.`}
+                </p>
+              </div>
+
+              {roleChange.redirecting && (
+                <div className="flex items-center justify-center gap-2 text-blue-600 mb-4">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="text-sm">
+                    {roleChange.redirectMessage}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
+                disabled={roleChange.redirecting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAccept}
+                disabled={roleChange.redirecting}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {roleChange.redirecting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Redirigiendo...
+                  </span>
+                ) : (
+                  'Aceptar y Continuar'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
