@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw, X, Globe, Shield, Activity, MapPin } from 'lucide-react';
 import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
+import '../lib/cleanup-script.js'; // Load cleanup utilities
 import adminService from '../lib/services/admin.service.js';
 import LogoutButton from './LogoutButton.jsx';
 import AdminVolunteerRequests from './AdminVolunteerRequests.jsx';

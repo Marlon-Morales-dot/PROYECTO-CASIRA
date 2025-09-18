@@ -334,19 +334,56 @@ class ActivityRegistrationsService {
       if (participants.error) throw participants.error;
       if (activity.error) throw activity.error;
 
+      // FALLBACK: Si no hay participantes en activity_participants, intentar con user_activities
+      let volunteerCount = participants.data?.length || 0;
+
+      if (volunteerCount === 0) {
+        console.log('📊 FETCH: No participants in activity_participants, trying user_activities...');
+
+        try {
+          const { data: userActivities, error: userActivitiesError } = await supabase
+            .from('user_activities')
+            .select('*')
+            .eq('activity_id', activityId);
+
+          if (!userActivitiesError && userActivities) {
+            volunteerCount = userActivities.length;
+            console.log(`📊 FETCH: Found ${volunteerCount} volunteers in user_activities`);
+          }
+        } catch (fallbackError) {
+          console.warn('⚠️ FETCH: Could not query user_activities:', fallbackError);
+        }
+      }
+
+      // SEGUNDO FALLBACK: Usar approved requests si las otras tablas están vacías
+      if (volunteerCount === 0) {
+        const approvedRequests = requests.data?.filter(r => r.status === 'approved') || [];
+        if (approvedRequests.length > 0) {
+          volunteerCount = approvedRequests.length;
+          console.log(`📊 FETCH: Using approved requests count: ${volunteerCount}`);
+        }
+      }
+
+      // TERCER FALLBACK: Usar current_volunteers de la actividad
+      if (volunteerCount === 0 && activity.data?.current_volunteers) {
+        volunteerCount = activity.data.current_volunteers;
+        console.log(`📊 FETCH: Using activity.current_volunteers: ${volunteerCount}`);
+      }
+
       const result = {
         activity: activity.data,
-        pendingRequests: requests.data || [],
+        pendingRequests: requests.data?.filter(r => r.status === 'pending') || [],
         approvedRequests: requests.data?.filter(r => r.status === 'approved') || [],
         rejectedRequests: requests.data?.filter(r => r.status === 'rejected') || [],
         participants: participants.data || [],
-        volunteerCount: participants.data?.length || 0
+        volunteerCount: volunteerCount
       };
 
       console.log('✅ FETCH: Retrieved activity registrations:', {
         pending: result.pendingRequests.length,
         approved: result.approvedRequests.length,
-        participants: result.participants.length
+        participants: result.participants.length,
+        finalVolunteerCount: result.volunteerCount
       });
 
       return result;

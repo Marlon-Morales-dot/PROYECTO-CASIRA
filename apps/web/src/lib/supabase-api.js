@@ -629,11 +629,11 @@ export const supabaseActivitiesAPI = {
   async deleteActivity(activityId) {
     try {
       console.log('🗑️ CASIRA: Deleting activity from Supabase:', activityId);
-      
+
       // First check if activity exists
       const { data: existingActivity, error: checkError } = await supabase
         .from('activities')
-        .select('id')
+        .select('id, title')
         .eq('id', activityId)
         .single()
 
@@ -647,7 +647,85 @@ export const supabaseActivitiesAPI = {
         return { id: activityId, status: 'not_found_but_ok' };
       }
 
-      // Delete the activity
+      console.log(`🔍 CASIRA: Found activity "${existingActivity.title}", checking for associated posts...`);
+
+      // Check for associated posts
+      const { data: associatedPosts, error: postsCheckError } = await supabase
+        .from('posts')
+        .select('id, title')
+        .eq('activity_id', activityId);
+
+      if (postsCheckError) {
+        console.error('❌ CASIRA: Error checking associated posts:', postsCheckError);
+        throw postsCheckError;
+      }
+
+      // Delete associated posts first if they exist
+      if (associatedPosts && associatedPosts.length > 0) {
+        console.log(`🗑️ CASIRA: Found ${associatedPosts.length} associated posts, deleting them first...`);
+
+        const { error: deletePostsError } = await supabase
+          .from('posts')
+          .delete()
+          .eq('activity_id', activityId);
+
+        if (deletePostsError) {
+          console.error('❌ CASIRA: Error deleting associated posts:', deletePostsError);
+          throw deletePostsError;
+        }
+
+        console.log(`✅ CASIRA: Successfully deleted ${associatedPosts.length} associated posts`);
+      } else {
+        console.log('ℹ️ CASIRA: No associated posts found');
+      }
+
+      // Check for associated user_activities (user registrations/participations)
+      const { data: userActivities, error: userActivitiesCheckError } = await supabase
+        .from('user_activities')
+        .select('id')
+        .eq('activity_id', activityId);
+
+      if (!userActivitiesCheckError && userActivities && userActivities.length > 0) {
+        console.log(`🗑️ CASIRA: Found ${userActivities.length} user activity records, deleting them...`);
+
+        const { error: deleteUserActivitiesError } = await supabase
+          .from('user_activities')
+          .delete()
+          .eq('activity_id', activityId);
+
+        if (deleteUserActivitiesError) {
+          console.error('❌ CASIRA: Error deleting user activities:', deleteUserActivitiesError);
+          throw deleteUserActivitiesError;
+        } else {
+          console.log(`✅ CASIRA: Successfully deleted ${userActivities.length} user activity records`);
+        }
+      } else {
+        console.log('ℹ️ CASIRA: No user activity records found');
+      }
+
+      // Check for associated comments
+      const { data: associatedComments, error: commentsCheckError } = await supabase
+        .from('comments')
+        .select('id')
+        .eq('post_id', activityId); // Comments might be linked to activity ID as post_id
+
+      if (!commentsCheckError && associatedComments && associatedComments.length > 0) {
+        console.log(`🗑️ CASIRA: Found ${associatedComments.length} associated comments, deleting them...`);
+
+        const { error: deleteCommentsError } = await supabase
+          .from('comments')
+          .delete()
+          .eq('post_id', activityId);
+
+        if (deleteCommentsError) {
+          console.warn('⚠️ CASIRA: Error deleting associated comments (non-critical):', deleteCommentsError);
+        } else {
+          console.log(`✅ CASIRA: Successfully deleted ${associatedComments.length} associated comments`);
+        }
+      }
+
+      // Now delete the activity
+      console.log('🗑️ CASIRA: Deleting the activity itself...');
       const { data, error } = await supabase
         .from('activities')
         .delete()
@@ -658,7 +736,7 @@ export const supabaseActivitiesAPI = {
         console.error('❌ CASIRA: Supabase error deleting activity:', error);
         throw error;
       }
-      
+
       const deletedActivity = data?.[0] || { id: activityId, status: 'deleted' };
       console.log('✅ CASIRA: Activity deleted successfully from Supabase:', deletedActivity);
       return deletedActivity;
@@ -672,7 +750,7 @@ export const supabaseActivitiesAPI = {
   async updateActivity(activityId, activityData) {
     try {
       console.log('📝 CASIRA: Updating activity in Supabase:', activityId, activityData);
-      
+
       // First check if activity exists
       const { data: existingActivity, error: checkError } = await supabase
         .from('activities')
@@ -690,9 +768,21 @@ export const supabaseActivitiesAPI = {
         throw new Error(`Activity with ID ${activityId} not found in Supabase`);
       }
 
+      // Prepare data for Supabase with proper UUID mapping
+      const supabaseUpdateData = { ...activityData };
+
+      // Map category_id to UUID if it's a numeric value
+      if (supabaseUpdateData.category_id && typeof supabaseUpdateData.category_id === 'string' && /^\d+$/.test(supabaseUpdateData.category_id)) {
+        console.log('🔄 CASIRA: Mapping numeric category_id to UUID:', supabaseUpdateData.category_id);
+        supabaseUpdateData.category_id = await this.mapCategoryIdToUUID(supabaseUpdateData.category_id);
+        console.log('✅ CASIRA: Mapped to UUID:', supabaseUpdateData.category_id);
+      }
+
+      console.log('🔄 CASIRA: Prepared update data with UUID mapping:', supabaseUpdateData);
+
       const { data, error } = await supabase
         .from('activities')
-        .update(activityData)
+        .update(supabaseUpdateData)
         .eq('id', activityId)
         .select(`
           *,
@@ -703,7 +793,7 @@ export const supabaseActivitiesAPI = {
         console.error('❌ CASIRA: Supabase error updating activity:', error);
         throw error;
       }
-      
+
       const updatedActivity = data?.[0];
       if (!updatedActivity) {
         console.error('❌ CASIRA: No activity returned from update operation');

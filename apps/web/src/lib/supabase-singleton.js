@@ -396,20 +396,33 @@ export const storageAPI = {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
+      // Upload to Supabase storage - try activity-images bucket first
+      let data, error;
+      try {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('activity-images')
+          .upload(filePath, file);
+        data = uploadData;
+        error = uploadError;
+      } catch (bucketError) {
+        console.warn('⚠️ CASIRA: activity-images bucket not found, trying images bucket');
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from('images')
+          .upload(filePath, file);
+        data = fallbackData;
+        error = fallbackError;
+      }
 
       if (error) {
         console.error('❌ CASIRA: Error uploading image:', error);
         throw error;
       }
 
-      // Get public URL
+      // Get public URL from correct bucket
+      const bucketName = data && data.path && data.path.includes('activity-images') ? 'activity-images' : 'images';
       const { data: urlData } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
+        .from(bucketName)
+        .getPublicUrl(data?.path || filePath);
 
       console.log('✅ CASIRA: Image uploaded successfully:', urlData.publicUrl);
       return {

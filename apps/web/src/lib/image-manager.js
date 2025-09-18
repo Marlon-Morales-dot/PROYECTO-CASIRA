@@ -137,23 +137,48 @@ class ImageManager {
       const fileName = `${userId}_${timestamp}_${random}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      // Upload to Supabase
-      const { data, error } = await supabase.storage
-        .from('images')
-        .upload(filePath, compressedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Upload to Supabase - try 'activity-images' bucket first, fallback to 'images'
+      let data, error;
+      try {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('activity-images')
+          .upload(filePath, compressedFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        data = uploadData;
+        error = uploadError;
+      } catch (bucketError) {
+        console.warn('⚠️ CASIRA: activity-images bucket not found, trying images bucket');
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from('images')
+          .upload(filePath, compressedFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        data = fallbackData;
+        error = fallbackError;
+      }
 
       if (error) {
         console.error('❌ CASIRA: Supabase upload error:', error);
         throw error;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
+      // Get public URL from the correct bucket
+      let urlData;
+      if (data && data.path) {
+        // Use the bucket that successfully uploaded
+        const bucketName = data.path.includes('activity-images') ? 'activity-images' : 'images';
+        urlData = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(data.path).data;
+      } else {
+        // Fallback - try to construct URL
+        urlData = supabase.storage
+          .from('activity-images')
+          .getPublicUrl(filePath).data;
+      }
 
       const result = {
         success: true,
