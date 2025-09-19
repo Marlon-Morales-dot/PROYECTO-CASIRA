@@ -392,6 +392,31 @@ export const supabaseCommentsAPI = {
     }
   },
 
+  // Get comments for activity with pagination and optimized columns
+  async getActivityComments(activityId, page = 0, limit = 20) {
+    try {
+      const offset = page * limit;
+
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          id,
+          content,
+          created_at,
+          author:users!comments_author_id_fkey(id, first_name, last_name)
+        `)
+        .eq('post_id', activityId)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1)
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error fetching activity comments:', error)
+      return []
+    }
+  },
+
   // Create comment
   async createComment(commentData) {
     try {
@@ -459,6 +484,65 @@ export const supabaseActivitiesAPI = {
       return data || []
     } catch (error) {
       console.error('Error fetching activities:', error)
+      return []
+    }
+  },
+
+  // Get public activities with pagination and optimized columns
+  async getPublicActivities(page = 0, limit = 10) {
+    try {
+      const offset = page * limit;
+
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          location,
+          budget,
+          image_url,
+          created_at,
+          current_volunteers,
+          creator:users!activities_created_by_fkey(id, first_name, last_name)
+        `)
+        .eq('visibility', 'public')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error fetching public activities:', error)
+      return []
+    }
+  },
+
+  // Get activities summary (minimal data for listings)
+  async getActivitiesSummary(page = 0, limit = 10) {
+    try {
+      const offset = page * limit;
+
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          id,
+          title,
+          status,
+          current_volunteers,
+          created_at
+        `)
+        .eq('visibility', 'public')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error fetching activities summary:', error)
       return []
     }
   },

@@ -664,12 +664,13 @@ export const activitiesAPI = {
     }
   },
 
-  getPublicActivities: async () => {
+  getPublicActivities: async (page = 0, limit = 8) => {
     if (USE_SUPABASE) {
-      const activities = await supabaseAPI.activities.getAllActivities();
-      return activities.filter(activity => activity.visibility === 'public');
+      return await supabaseAPI.activities.getPublicActivities(page, limit);
     }
-    return dataStore.activities.filter(activity => activity.visibility === 'public');
+    const publicActivities = dataStore.activities.filter(activity => activity.visibility === 'public');
+    const offset = page * limit;
+    return publicActivities.slice(offset, offset + limit);
   },
 
   getFeaturedActivities: async () => {
@@ -1042,13 +1043,13 @@ export const commentsAPI = {
     return comment;
   },
 
-  getActivityComments: async (activityId) => {
+  getActivityComments: async (activityId, page = 0, limit = 20) => {
     if (USE_SUPABASE) {
       try {
-        // Get comments from Supabase (activities are posts in Supabase)
-        const comments = await supabaseAPI.comments.getCommentsByPost(activityId);
+        // Use optimized method with pagination and reduced columns
+        const comments = await supabaseAPI.comments.getActivityComments(activityId, page, limit);
         console.log('✅ CASIRA: Activity comments retrieved from Supabase:', comments.length);
-        return comments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return comments.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       } catch (error) {
         console.error('❌ CASIRA: Error getting activity comments from Supabase:', error);
         // Fall back to localStorage
@@ -1056,13 +1057,16 @@ export const commentsAPI = {
     }
 
     // localStorage implementation (fallback)
-    return dataStore.comments
+    const allComments = dataStore.comments
       .filter(c => c.activity_id == activityId)
       .map(comment => {
         const user = dataStore.getUserById(comment.user_id);
         return { ...comment, user: user || { first_name: 'Usuario', last_name: 'Desconocido' } };
       })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    const offset = page * limit;
+    return allComments.slice(offset, offset + limit);
   },
 
   likeComment: async (commentId) => {

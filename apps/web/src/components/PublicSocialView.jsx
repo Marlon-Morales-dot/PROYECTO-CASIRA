@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Users, MapPin, Calendar, Clock, Send, Star, Eye, ThumbsUp, Smile } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Heart, MessageCircle, Share2, Users, MapPin, Calendar, Clock, Send, Star, Eye, ThumbsUp, Smile, ArrowLeft, Home } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { activitiesAPI, commentsAPI, photosAPI, dataStore } from '../lib/api.js';
+import OptimizedImage from './OptimizedImage.jsx';
 
 const PublicSocialView = ({ currentUser = null }) => {
   const navigate = useNavigate();
@@ -12,37 +13,48 @@ const PublicSocialView = ({ currentUser = null }) => {
   const [newComment, setNewComment] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreActivities, setHasMoreActivities] = useState(true);
 
   useEffect(() => {
     loadSocialFeed();
   }, []);
 
-  const loadSocialFeed = async () => {
+  const loadSocialFeed = async (page = 0, append = false) => {
     try {
+      setIsLoading(!append);
       console.log('Loading public social feed...');
-      const activitiesData = await activitiesAPI.getPublicActivities();
+
+      // Use optimized API with pagination and minimal columns
+      const activitiesData = await activitiesAPI.getPublicActivities(page, 8);
       console.log('Loaded activities:', activitiesData?.length);
-      
-      setActivities(activitiesData || []);
-      
-      // Cargar comentarios y likes para cada actividad
-      const commentsData = {};
+
+      if (activitiesData?.length < 8) {
+        setHasMoreActivities(false);
+      }
+
+      if (append) {
+        setActivities(prev => [...prev, ...(activitiesData || [])]);
+      } else {
+        setActivities(activitiesData || []);
+      }
+
+      // Generate likes data without API calls
       const likesData = {};
-      
+
       for (const activity of activitiesData || []) {
-        const activityComments = await commentsAPI.getActivityComments(activity.id);
-        const activityPhotos = await photosAPI.getActivityPhotos(activity.id);
-        
-        commentsData[activity.id] = activityComments;
         likesData[activity.id] = {
-          count: (activityComments?.length || 0) * 2 + Math.floor(Math.random() * 15),
+          count: Math.floor(Math.random() * 15) + 5,
           liked: false
         };
       }
-      
-      setComments(commentsData);
-      setLikes(likesData);
-      
+
+      if (append) {
+        setLikes(prev => ({ ...prev, ...likesData }));
+      } else {
+        setLikes(likesData);
+      }
+
     } catch (error) {
       console.error('Error loading social feed:', error);
     } finally {
@@ -74,14 +86,36 @@ const PublicSocialView = ({ currentUser = null }) => {
     }
   };
 
+  const handleToggleComments = async (activityId) => {
+    if (selectedActivity === activityId) {
+      setSelectedActivity(null);
+      return;
+    }
+
+    setSelectedActivity(activityId);
+
+    // Lazy load comments only when activity is selected
+    if (!comments[activityId]) {
+      try {
+        const activityComments = await commentsAPI.getActivityComments(activityId, 0, 15);
+        setComments(prev => ({
+          ...prev,
+          [activityId]: activityComments || []
+        }));
+      } catch (error) {
+        console.error('Error loading comments:', error);
+      }
+    }
+  };
+
   const handleComment = async (activityId) => {
     if (!currentUser) {
       setShowLoginPrompt(true);
       return;
     }
-    
+
     if (!newComment.trim()) return;
-    
+
     try {
       const comment = {
         id: Date.now(),
@@ -89,24 +123,32 @@ const PublicSocialView = ({ currentUser = null }) => {
         user_id: currentUser.id,
         content: newComment,
         created_at: new Date().toISOString(),
-        user: currentUser,
+        author: currentUser,
         likes: 0
       };
-      
+
       setComments(prev => ({
         ...prev,
         [activityId]: [...(prev[activityId] || []), comment]
       }));
-      
+
       setNewComment('');
-      
+
       // Guardar en dataStore
       await commentsAPI.addComment(activityId, currentUser.id, newComment);
       console.log('Comment added successfully');
-      
+
     } catch (error) {
       console.error('Error adding comment:', error);
     }
+  };
+
+  const loadMoreActivities = async () => {
+    if (!hasMoreActivities) return;
+
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    await loadSocialFeed(nextPage, true);
   };
 
   const handleShare = (activity) => {
@@ -144,51 +186,93 @@ const PublicSocialView = ({ currentUser = null }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Heart className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  CASIRA Social
-                </h1>
-                <p className="text-xs text-gray-500">Conoce nuestras actividades</p>
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="flex justify-between items-center py-2">
+            <div className="flex items-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden">
+                <img
+                  src="/logo.png"
+                  alt="CASIRA"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
-            
-            {currentUser ? (
-              <div className="flex items-center space-x-3">
-                <img 
-                  src={currentUser.avatar_url || '/grupo-canadienses.jpg'} 
-                  alt={currentUser.first_name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  {currentUser.first_name}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2 text-sm">
-                <Eye className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Vista pública</span>
-              </div>
-            )}
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              >
+                <Home className="h-4 w-4" />
+                <span className="text-sm font-medium hidden sm:inline">Menú Principal</span>
+              </button>
+
+                {currentUser ? (
+                  <div className="flex items-center space-x-3">
+                    <img
+                      src={currentUser.avatar_url || '/grupo-canadienses.jpg'}
+                      alt={currentUser.first_name}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      {currentUser.first_name}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-sm">
+                    <Eye className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-500">Vista pública</span>
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       </header>
 
+      {/* Navigation Bar */}
+      <nav className="bg-white/70 backdrop-blur-sm border-b border-white/20 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-center space-x-2 sm:space-x-4 py-3">
+            <Link
+              to="/"
+              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+            >
+              Inicio
+            </Link>
+            <Link
+              to="/activities"
+              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium bg-sky-50 text-sky-600"
+            >
+              Actividades
+            </Link>
+            <Link
+              to="/social"
+              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+            >
+              Social
+            </Link>
+            {!currentUser && (
+              <Link
+                to="/login"
+                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+              >
+                Iniciar Sesión
+              </Link>
+            )}
+          </div>
+        </div>
+      </nav>
+
       {/* Feed */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-6 text-white">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 text-white shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
             <div>
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">
                 {currentUser ? 
                   `¡Hola ${currentUser.first_name}! 👋` : 
                   '¡Descubre el Impacto de CASIRA! 🌟'
@@ -209,11 +293,11 @@ const PublicSocialView = ({ currentUser = null }) => {
         </div>
 
         {/* Activities Feed */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {activities.map((activity) => (
-            <div key={activity.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div key={activity.id} className="bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 overflow-hidden hover:shadow-2xl hover:bg-white/95 transition-all duration-300">
               {/* Activity Header */}
-              <div className="p-6 border-b border-gray-100">
+              <div className="p-6 border-b border-white/30">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
@@ -261,15 +345,17 @@ const PublicSocialView = ({ currentUser = null }) => {
 
                 {/* Activity Image */}
                 <div className="mb-4">
-                  <img 
-                    src={activity.image_url || '/grupo-canadienses.jpg'} 
+                  <OptimizedImage
+                    src={activity.image_url}
                     alt={activity.title}
                     className="w-full h-64 object-cover rounded-lg"
+                    quality="medium"
+                    lazy={true}
                   />
                 </div>
 
                 {/* Stats Row */}
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pb-4 border-b border-gray-100">
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-4 pb-4 border-b border-white/30">
                   <div className="flex items-center space-x-4">
                     <span>{likes[activity.id]?.count || 0} me gusta</span>
                     <span>{comments[activity.id]?.length || 0} comentarios</span>
@@ -296,7 +382,7 @@ const PublicSocialView = ({ currentUser = null }) => {
                     </button>
                     
                     <button
-                      onClick={() => setSelectedActivity(selectedActivity === activity.id ? null : activity.id)}
+                      onClick={() => handleToggleComments(activity.id)}
                       className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
                     >
                       <MessageCircle className="h-4 w-4" />
@@ -315,7 +401,7 @@ const PublicSocialView = ({ currentUser = null }) => {
                   {!currentUser && (
                     <button
                       onClick={() => setShowLoginPrompt(true)}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-medium"
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-medium"
                     >
                       Unirse
                     </button>
@@ -324,7 +410,7 @@ const PublicSocialView = ({ currentUser = null }) => {
 
                 {/* Comments Section */}
                 {selectedActivity === activity.id && (
-                  <div className="border-t border-gray-100 pt-4">
+                  <div className="border-t border-white/30 pt-4">
                     {/* Comment Input */}
                     {currentUser ? (
                       <div className="flex space-x-3 mb-4">
@@ -351,7 +437,7 @@ const PublicSocialView = ({ currentUser = null }) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4 text-center">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 mb-4 text-center border border-white/40">
                         <p className="text-gray-600 mb-3">¡Únete para comentar y participar!</p>
                         <button
                           onClick={() => setShowLoginPrompt(true)}
@@ -366,15 +452,15 @@ const PublicSocialView = ({ currentUser = null }) => {
                     <div className="space-y-3">
                       {(comments[activity.id] || []).map((comment) => (
                         <div key={comment.id} className="flex space-x-3">
-                          <img 
-                            src={comment.user?.avatar_url || '/grupo-canadienses.jpg'} 
-                            alt={comment.user?.first_name || 'Usuario'}
+                          <img
+                            src={comment.author?.avatar_url || '/grupo-canadienses.jpg'}
+                            alt={comment.author?.first_name || 'Usuario'}
                             className="w-8 h-8 rounded-full object-cover"
                           />
                           <div className="flex-1">
-                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                            <div className="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/40">
                               <div className="font-medium text-sm text-gray-900">
-                                {comment.user?.first_name} {comment.user?.last_name}
+                                {comment.author?.first_name} {comment.author?.last_name}
                               </div>
                               <div className="text-gray-700">{comment.content}</div>
                             </div>
@@ -394,8 +480,20 @@ const PublicSocialView = ({ currentUser = null }) => {
           ))}
         </div>
 
+        {/* Load More Button */}
+        {hasMoreActivities && activities.length > 0 && (
+          <div className="text-center py-8">
+            <button
+              onClick={loadMoreActivities}
+              className="bg-white/80 backdrop-blur-md text-blue-600 px-8 py-3 rounded-xl border border-blue-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 font-medium shadow-lg"
+            >
+              Cargar más actividades
+            </button>
+          </div>
+        )}
+
         {/* Empty State */}
-        {activities.length === 0 && (
+        {activities.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No hay actividades por el momento</h3>
@@ -406,8 +504,8 @@ const PublicSocialView = ({ currentUser = null }) => {
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md rounded-xl max-w-md w-full p-6 shadow-2xl border border-white/20">
             <div className="text-center">
               <Smile className="h-16 w-16 text-blue-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -419,7 +517,7 @@ const PublicSocialView = ({ currentUser = null }) => {
               <div className="space-y-3">
                 <button
                   onClick={() => navigate('/login')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-medium"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium"
                 >
                   Crear cuenta gratis
                 </button>
