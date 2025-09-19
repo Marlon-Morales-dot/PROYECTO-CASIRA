@@ -148,16 +148,98 @@ export const supabaseAuth = {
 
 // Comments API con Supabase
 export const commentsAPI = {
-  addComment: async (postId, userId, content, parentId = null) => {
-    console.log('💬 CASIRA: Adding comment to post', postId);
-    
+  addComment: async (postId, userId, content) => {
+    console.log('💬 CASIRA: Adding comment to post', postId, 'by user', userId);
+
+    // Resolve user ID for Supabase (convert Google ID to UUID if needed)
+    let resolvedUserId = userId;
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      console.log('🔍 CASIRA: Non-UUID userId detected, resolving to Supabase UUID...');
+
+      try {
+        // Get current user from storage manager
+        const currentUser = JSON.parse(localStorage.getItem('casira-current-user') || '{}');
+
+        if (currentUser.supabase_id) {
+          resolvedUserId = currentUser.supabase_id;
+          console.log('✅ CASIRA: Using supabase_id from current user:', resolvedUserId);
+        } else if (currentUser.email) {
+          // Find user by email in Supabase
+          const { data: supabaseUser, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', currentUser.email)
+            .single();
+
+          if (!userError && supabaseUser) {
+            resolvedUserId = supabaseUser.id;
+            console.log('✅ CASIRA: Found supabase UUID by email:', resolvedUserId);
+          } else {
+            throw new Error('Usuario no encontrado en Supabase');
+          }
+        }
+      } catch (error) {
+        console.error('❌ CASIRA: Error resolving user ID:', error);
+        throw new Error('No se pudo resolver el ID del usuario para comentarios');
+      }
+    }
+
+    console.log('💬 CASIRA: Using resolved user ID:', resolvedUserId);
+
+    // Check if this is an activity ID, create a post entry if needed
+    const { data: existingPost, error: postCheckError } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('id', postId)
+      .single();
+
+    let finalPostId = postId;
+
+    if (postCheckError && postCheckError.code === 'PGRST116') {
+      console.log('🔄 CASIRA: Post not found, checking if this is an activity...');
+
+      // Check if it's an activity ID
+      const { data: activity, error: activityError } = await supabase
+        .from('activities')
+        .select('id, title, description')
+        .eq('id', postId)
+        .single();
+
+      if (!activityError && activity) {
+        console.log('✅ CASIRA: Found activity, creating post entry for comments...');
+
+        // Create a post entry for this activity
+        const { data: newPost, error: createPostError } = await supabase
+          .from('posts')
+          .insert([{
+            id: activity.id,
+            title: activity.title,
+            content: activity.description,
+            author_id: resolvedUserId,
+            activity_id: activity.id
+          }])
+          .select('id')
+          .single();
+
+        if (createPostError) {
+          console.error('❌ CASIRA: Error creating post for activity:', createPostError);
+          throw createPostError;
+        }
+
+        finalPostId = newPost.id;
+        console.log('✅ CASIRA: Created post entry:', finalPostId);
+      } else {
+        throw new Error('No se encontró la actividad o post para comentar');
+      }
+    }
+
     const { data, error } = await supabase
       .from('comments')
       .insert([{
-        post_id: postId,
-        author_id: userId,
-        content: content,
-        parent_id: parentId
+        post_id: finalPostId,
+        author_id: resolvedUserId,
+        content: content
       }])
       .select(`
         *,
@@ -221,6 +303,37 @@ export const commentsAPI = {
     }
 
     return true;
+  },
+
+  // Alias for activity comments (activities are posts in Supabase)
+  getActivityComments: async (activityId, page = 0, limit = 15) => {
+    console.log('📖 CASIRA: Fetching activity comments for', activityId, 'page', page);
+
+    const offset = page * limit;
+
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        id,
+        content,
+        created_at,
+        author:users!comments_author_id_fkey(
+          id,
+          first_name,
+          last_name,
+          role
+        )
+      `)
+      .eq('post_id', activityId)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('❌ CASIRA: Error fetching activity comments:', error);
+      throw error;
+    }
+
+    return data || [];
   },
 
   getCommentCount: async (postId) => {

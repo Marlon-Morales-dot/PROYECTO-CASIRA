@@ -1,11 +1,3 @@
-/**
- * App.jsx - NUEVA VERSIÓN LIMPIA
- * 🔥 DE 2,528 LÍNEAS A ~50 LÍNEAS
- * ✅ Preserva diseño exacto del cliente
- * ✅ Arquitectura hexagonal completa
- * ✅ Patrones de diseño profesionales
- */
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AppProvider from './infrastructure/ui/providers/AppProvider.jsx';
@@ -28,32 +20,12 @@ import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
 // Importar estilos originales
 import './App.css';
 
-/**
- * Componente de redirección basado en autenticación
- */
-function AuthRedirectHandler() {
-  // Toda la lógica de redirección ahora está en AppProvider
-  // Este componente es solo un placeholder
-  return null;
-}
 
-/**
- * Aplicación principal - ARQUITECTURA LIMPIA
- * 
- * ✅ Separation of Concerns
- * ✅ Dependency Injection
- * ✅ Provider Pattern
- * ✅ Repository Pattern
- * ✅ Use Case Pattern
- * ✅ Observer Pattern
- * ✅ Strategy Pattern
- * ✅ Factory Pattern
- */
 function App() {
   return (
     <AppProvider>
       <Router>
-        <AuthRedirectHandler />
+        {/* <AuthRedirectHandler /> */}
         <GlobalRoleChangeModal />
         <Routes>
           {/* Rutas públicas */}

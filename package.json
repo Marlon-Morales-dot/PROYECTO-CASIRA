@@ -38,6 +38,7 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "@supabase/mcp-server-supabase": "^0.5.3"
+    "@supabase/mcp-server-supabase": "^0.5.3",
+    "particles.js": "^2.0.0"
   }
 }

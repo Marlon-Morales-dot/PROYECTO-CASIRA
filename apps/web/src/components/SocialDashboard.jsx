@@ -18,6 +18,11 @@ const SocialDashboard = ({ user, onLogout }) => {
   const [newPost, setNewPost] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [allComments, setAllComments] = useState([]);
+  const [commentsToShow, setCommentsToShow] = useState({}); // Track how many comments to show per activity
+  const [commentLikes, setCommentLikes] = useState({}); // Track comment likes
+  const [commentReplies, setCommentReplies] = useState({}); // Track comment replies visibility
+  const [replyInputs, setReplyInputs] = useState({}); // Track reply input text
 
   // Si no hay usuario, mostrar loading
   if (!user) {
@@ -110,9 +115,8 @@ const SocialDashboard = ({ user, onLogout }) => {
   const loadSocialData = async () => {
     try {
       // Load all data for social feed
-      const [allActivities, allComments, allPhotos, userRegistrations, userNotifications] = await Promise.all([
+      const [allActivities, allPhotos, userRegistrations, userNotifications] = await Promise.all([
         activitiesAPI.getPublicActivities(),
-        Promise.resolve(dataStore.comments || []),
         Promise.resolve(dataStore.photos || []),
         volunteersAPI.getUserRegistrations(user.id),
         notificationsAPI.getUserNotifications(user.id)
@@ -124,7 +128,28 @@ const SocialDashboard = ({ user, onLogout }) => {
       console.log('SocialDashboard: Loaded activities count:', allActivities.length);
       console.log('SocialDashboard: Activities:', allActivities.map(a => a.title));
       setActivities(allActivities);
-      
+
+      // Load comments for all activities from Supabase
+      const loadedComments = [];
+      for (const activity of allActivities) {
+        try {
+          const activityComments = await commentsAPI.getActivityComments(activity.id, 0, 50);
+          // Map comments to ensure they have activity_id for filtering
+          const mappedComments = (activityComments || []).map(comment => ({
+            ...comment,
+            activity_id: comment.activity_id || comment.post_id || activity.id,
+            post_id: comment.post_id || activity.id
+          }));
+          loadedComments.push(...mappedComments);
+          console.log(`📊 SocialDashboard: Loaded ${mappedComments.length} comments for activity ${activity.id}`);
+        } catch (error) {
+          console.error(`❌ Error loading comments for activity ${activity.id}:`, error);
+        }
+      }
+
+      // Save comments to state
+      setAllComments(loadedComments);
+
       // Filter user's registered activities
       const userActivityIds = userRegistrations.map(r => r.activity_id);
       const registeredActivities = allActivities.filter(a => userActivityIds.includes(a.id));
@@ -143,7 +168,7 @@ const SocialDashboard = ({ user, onLogout }) => {
           activity: activity,
           created_at: activity.created_at,
           likes: Math.floor(Math.random() * 50) + 10,
-          comments: allComments.filter(c => c.activity_id === activity.id).length,
+          comments: loadedComments.filter(c => c.activity_id === activity.id || c.post_id === activity.id).length,
           shares: Math.floor(Math.random() * 20) + 5
         });
       });
@@ -166,22 +191,7 @@ const SocialDashboard = ({ user, onLogout }) => {
         });
       });
 
-      // Comment posts (recent comments as posts)
-      allComments.forEach(comment => {
-        const commentUser = dataStore.users?.find(u => u.id === comment.user_id);
-        const activity = allActivities.find(a => a.id === comment.activity_id);
-        socialPosts.push({
-          id: `comment_${comment.id}`,
-          type: 'comment',
-          user: commentUser || { first_name: 'Usuario', last_name: 'Anónimo', avatar_url: '/grupo-canadienses.jpg' },
-          content: comment.content,
-          activity: activity,
-          created_at: comment.created_at,
-          likes: comment.likes || 0,
-          comments: Math.floor(Math.random() * 5),
-          shares: 0
-        });
-      });
+      // No crear posts separados para comentarios - los comentarios se muestran dentro de cada actividad
 
       // Sort by date
       socialPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -327,6 +337,154 @@ const SocialDashboard = ({ user, onLogout }) => {
       ...prev,
       [postId]: value
     }));
+  };
+
+  // Handle "Ver más comentarios" functionality
+  const handleLoadMoreComments = (activityId) => {
+    setCommentsToShow(prev => ({
+      ...prev,
+      [activityId]: (prev[activityId] || 3) + 10 // Show 10 more comments
+    }));
+    console.log(`📖 Loading more comments for activity ${activityId}`);
+  };
+
+  // Handle "Ver menos comentarios" functionality
+  const handleShowLessComments = (activityId) => {
+    setCommentsToShow(prev => ({
+      ...prev,
+      [activityId]: 3 // Reset to show only 3 comments
+    }));
+    console.log(`📖 Showing less comments for activity ${activityId}`);
+  };
+
+  // Handle comment like functionality
+  const handleCommentLike = (commentId) => {
+    setCommentLikes(prev => ({
+      ...prev,
+      [commentId]: {
+        liked: !prev[commentId]?.liked,
+        count: (prev[commentId]?.count || 0) + (!prev[commentId]?.liked ? 1 : -1)
+      }
+    }));
+    console.log(`👍 Toggled like for comment ${commentId}`);
+  };
+
+  // Handle comment reply functionality
+  const handleToggleReply = (commentId) => {
+    setCommentReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+    console.log(`💬 Toggled reply for comment ${commentId}`);
+  };
+
+  // Handle reply input change
+  const handleReplyInputChange = (commentId, value) => {
+    setReplyInputs(prev => ({
+      ...prev,
+      [commentId]: value
+    }));
+  };
+
+  // Function to organize comments hierarchically
+  const organizeComments = (comments) => {
+    const mainComments = [];
+    const replies = {};
+
+    // Sort comments by creation date first to maintain proper order
+    const sortedComments = [...comments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // Separate main comments from replies
+    sortedComments.forEach(comment => {
+      if (comment.content?.startsWith('@') && comment.content.includes(':')) {
+        // This is a reply - extract parent info
+        const replyMatch = comment.content.match(/@([^:]+):\s*(.+)/);
+        if (replyMatch) {
+          const [, mentionedUser, replyText] = replyMatch;
+
+          // Find parent comment by looking for the mentioned user
+          // Look for the most recent main comment from that user before this reply
+          const parentComment = sortedComments
+            .filter(c => !c.content?.startsWith('@') &&
+                        c.author &&
+                        `${c.author.first_name} ${c.author.last_name}` === mentionedUser.trim() &&
+                        new Date(c.created_at) < new Date(comment.created_at))
+            .pop(); // Get the most recent one
+
+          if (parentComment) {
+            if (!replies[parentComment.id]) {
+              replies[parentComment.id] = [];
+            }
+            replies[parentComment.id].push({
+              ...comment,
+              replyText,
+              mentionedUser,
+              parentId: parentComment.id
+            });
+          } else {
+            // If we can't find parent, treat as main comment but mark as orphaned
+            mainComments.push({
+              ...comment,
+              isOrphanedReply: true
+            });
+          }
+        } else {
+          mainComments.push(comment);
+        }
+      } else {
+        // This is a main comment
+        mainComments.push(comment);
+      }
+    });
+
+    // Sort replies by creation date for each parent
+    Object.keys(replies).forEach(parentId => {
+      replies[parentId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+
+    return { mainComments, replies };
+  };
+
+  // Handle submit reply
+  const handleSubmitReply = async (commentId, activityId, parentComment) => {
+    const replyText = replyInputs[commentId]?.trim();
+    if (!replyText) return;
+
+    try {
+      console.log(`📤 Submitting reply to comment ${commentId}: ${replyText}`);
+
+      // Find the parent comment to get author info
+      const parentAuthor = parentComment?.author || { first_name: 'Usuario', last_name: 'Anónimo' };
+      const replyContent = `@${parentAuthor.first_name} ${parentAuthor.last_name}: ${replyText}`;
+
+      // Add reply using the standard API
+      const newReply = await commentsAPI.addComment(activityId, user.id, replyContent);
+
+      // Add the reply optimistically to local state for immediate display
+      if (newReply) {
+        const replyWithAuthor = {
+          ...newReply,
+          author: {
+            id: user.id,
+            first_name: user.first_name || user.name || 'Usuario',
+            last_name: user.last_name || 'Anónimo'
+          }
+        };
+
+        // Update local comments immediately
+        setAllComments(prevComments => [...prevComments, replyWithAuthor]);
+      }
+
+      // Clear reply input and hide reply box
+      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+      setCommentReplies(prev => ({ ...prev, [commentId]: false }));
+
+      console.log('✅ Reply submitted successfully');
+
+    } catch (error) {
+      console.error('❌ Error submitting reply:', error);
+      alert('Error al enviar respuesta: ' + error.message);
+    }
   };
 
   // Handle photo upload functionality
@@ -1094,13 +1252,37 @@ const SocialDashboard = ({ user, onLogout }) => {
                         </div>
 
                         {/* Existing Comments Display */}
-                        {post.activity && dataStore.comments && (
+                        {post.activity && allComments.length > 0 && (
                           <div className="space-y-3">
-                            {dataStore.comments
-                              .filter(comment => comment.activity_id === post.activity.id)
-                              .slice(0, 3) // Show only first 3 comments
-                              .map(comment => {
-                                const commentUser = dataStore.users?.find(u => u.id === comment.user_id);
+                            <div className="text-xs text-gray-500 mb-2">
+                              Comentarios para: {post.activity.title}
+                            </div>
+                            {(() => {
+                              const activityComments = allComments.filter(comment => {
+                                console.log(`🔍 Filtering comment:`, {
+                                  commentId: comment.id,
+                                  commentPostId: comment.post_id,
+                                  commentActivityId: comment.activity_id,
+                                  postActivityId: post.activity.id,
+                                  match: (comment.activity_id === post.activity.id) || (comment.post_id === post.activity.id)
+                                });
+                                // Comments in Supabase use post_id to reference activities
+                                return comment.activity_id === post.activity.id || comment.post_id === post.activity.id;
+                              });
+
+                              const { mainComments, replies } = organizeComments(activityComments);
+                              const commentsLimit = commentsToShow[post.activity.id] || 3;
+                              const visibleMainComments = mainComments.slice(0, commentsLimit);
+
+                              console.log(`📊 Activity ${post.activity.id}: ${mainComments.length} main comments, ${Object.keys(replies).length} have replies`);
+
+                              return visibleMainComments.map(comment => {
+                                const commentUser = comment.author || { first_name: 'Usuario', last_name: 'Anónimo' };
+                                console.log(`💬 Displaying comment:`, {
+                                  id: comment.id,
+                                  content: comment.content.substring(0, 50),
+                                  author: commentUser
+                                });
                                 return (
                                   <div key={comment.id} className="flex space-x-3">
                                     <div className="flex-shrink-0">
@@ -1116,22 +1298,186 @@ const SocialDashboard = ({ user, onLogout }) => {
                                         <div className="text-sm text-gray-700">{comment.content}</div>
                                       </div>
                                       <div className="flex items-center space-x-4 mt-1 px-3">
-                                        <button className="text-xs text-gray-500 hover:text-blue-600">
-                                          Me gusta ({comment.likes || 0})
-                                        </button>
+                                        <motion.button
+                                          onClick={() => handleCommentLike(comment.id)}
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          className={`text-xs hover:text-blue-600 flex items-center space-x-1 ${
+                                            commentLikes[comment.id]?.liked ? 'text-blue-600 font-medium' : 'text-gray-500'
+                                          }`}
+                                        >
+                                          <span>👍</span>
+                                          <span>Me gusta ({(comment.likes || 0) + (commentLikes[comment.id]?.count || 0)})</span>
+                                        </motion.button>
+
+                                        <motion.button
+                                          onClick={() => handleToggleReply(comment.id)}
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          className={`text-xs hover:text-green-600 flex items-center space-x-1 ${
+                                            commentReplies[comment.id] ? 'text-green-600 font-medium' : 'text-gray-500'
+                                          }`}
+                                        >
+                                          <span>💬</span>
+                                          <span>Responder</span>
+                                        </motion.button>
+
                                         <span className="text-xs text-gray-400">
                                           {new Date(comment.created_at).toLocaleDateString()}
                                         </span>
                                       </div>
+
+                                      {/* Reply Input Box */}
+                                      {commentReplies[comment.id] && (
+                                        <motion.div
+                                          initial={{ opacity: 0, height: 0 }}
+                                          animate={{ opacity: 1, height: 'auto' }}
+                                          exit={{ opacity: 0, height: 0 }}
+                                          className="mt-3 ml-3 pl-3 border-l-2 border-blue-200"
+                                        >
+                                          <div className="flex space-x-2">
+                                            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                                              {user.first_name?.charAt(0) || 'U'}
+                                            </div>
+                                            <div className="flex-1 flex space-x-2">
+                                              <input
+                                                type="text"
+                                                placeholder="Escribe una respuesta..."
+                                                value={replyInputs[comment.id] || ''}
+                                                onChange={(e) => handleReplyInputChange(comment.id, e.target.value)}
+                                                onKeyPress={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    handleSubmitReply(comment.id, post.activity.id);
+                                                  }
+                                                }}
+                                                className="flex-1 px-3 py-1 border border-gray-300 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                              />
+                                              <motion.button
+                                                onClick={() => handleSubmitReply(comment.id, post.activity.id, comment)}
+                                                disabled={!replyInputs[comment.id]?.trim()}
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                              >
+                                                💬
+                                              </motion.button>
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      )}
+
+                                      {/* Nested Replies */}
+                                      {replies[comment.id] && replies[comment.id].length > 0 && (
+                                        <div className="ml-8 mt-3 space-y-2 border-l-2 border-gray-200 pl-4">
+                                          {replies[comment.id].map(reply => {
+                                            const replyUser = reply.author || { first_name: 'Usuario', last_name: 'Anónimo' };
+                                            return (
+                                              <div key={reply.id} className="flex space-x-2">
+                                                <div className="flex-shrink-0">
+                                                  <div className="w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs">
+                                                    {replyUser?.first_name?.charAt(0) || 'A'}
+                                                  </div>
+                                                </div>
+                                                <div className="flex-1">
+                                                  <div className="bg-gray-50 rounded-2xl px-3 py-2">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                      <span className="text-blue-600">@{reply.mentionedUser}</span>
+                                                      <span className="text-gray-600 ml-1">{replyUser ? `${replyUser.first_name} ${replyUser.last_name}` : 'Usuario Anónimo'}</span>
+                                                    </div>
+                                                    <div className="text-sm text-gray-700 mt-1">{reply.replyText}</div>
+                                                  </div>
+                                                  <div className="flex items-center space-x-4 mt-1 px-3">
+                                                    <motion.button
+                                                      onClick={() => handleCommentLike(reply.id)}
+                                                      whileHover={{ scale: 1.05 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      className={`text-xs hover:text-blue-600 flex items-center space-x-1 ${
+                                                        commentLikes[reply.id]?.liked ? 'text-blue-600 font-medium' : 'text-gray-500'
+                                                      }`}
+                                                    >
+                                                      <span>👍</span>
+                                                      <span>({(reply.likes || 0) + (commentLikes[reply.id]?.count || 0)})</span>
+                                                    </motion.button>
+                                                    <span className="text-xs text-gray-400">
+                                                      {new Date(reply.created_at).toLocaleDateString()}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 );
-                              })}
-                            {post.activity && dataStore.comments?.filter(c => c.activity_id === post.activity.id).length > 3 && (
-                              <button className="text-sm text-blue-600 hover:text-blue-800 px-3">
-                                Ver más comentarios ({dataStore.comments.filter(c => c.activity_id === post.activity.id).length - 3} más)
-                              </button>
-                            )}
+                              });
+                            })()}
+
+                            {/* Show "Ver más comentarios" / "Ver menos comentarios" buttons */}
+                            {(() => {
+                              const activityComments = allComments.filter(c => c.activity_id === post.activity.id || c.post_id === post.activity.id);
+                              const { mainComments: allMainComments } = organizeComments(activityComments);
+                              const commentsLimit = commentsToShow[post.activity.id] || 3;
+                              const remainingComments = allMainComments.length - commentsLimit;
+                              const isExpanded = commentsLimit > 3;
+
+                              console.log(`📊 Activity ${post.activity.id}: ${activityComments.length} total, limit: ${commentsLimit}, remaining: ${remainingComments}, expanded: ${isExpanded}`);
+
+                              return (
+                                <div className="flex space-x-2 mt-3">
+                                  {remainingComments > 0 && (
+                                    <motion.button
+                                      onClick={() => handleLoadMoreComments(post.activity.id)}
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      className="text-sm text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50 transition-all font-medium flex items-center space-x-1"
+                                    >
+                                      <span>Ver más comentarios ({remainingComments} más)</span>
+                                      <motion.span
+                                        whileHover={{ y: 2 }}
+                                        className="text-xs"
+                                      >
+                                        ▼
+                                      </motion.span>
+                                    </motion.button>
+                                  )}
+                                  {isExpanded && (
+                                    <motion.button
+                                      onClick={() => handleShowLessComments(post.activity.id)}
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      className="text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all font-medium flex items-center space-x-1"
+                                    >
+                                      <span>Ver menos</span>
+                                      <motion.span
+                                        whileHover={{ y: -2 }}
+                                        className="text-xs"
+                                      >
+                                        ▲
+                                      </motion.span>
+                                    </motion.button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Debug info */}
+                            {(() => {
+                              const activityComments = allComments.filter(c => c.activity_id === post.activity.id || c.post_id === post.activity.id);
+                              const { mainComments: debugMainComments, replies: debugReplies } = organizeComments(activityComments);
+                              const totalReplies = Object.values(debugReplies).reduce((sum, replies) => sum + replies.length, 0);
+
+                              return (
+                                <div className="text-xs text-gray-400 mt-2 p-2 bg-gray-50 rounded border">
+                                  <div>📊 <strong>Activity ID:</strong> {post.activity.id}</div>
+                                  <div>💬 <strong>Total comentarios:</strong> {activityComments.length}</div>
+                                  <div>🎯 <strong>Comentarios principales:</strong> {debugMainComments.length}</div>
+                                  <div>↳ <strong>Respuestas anidadas:</strong> {totalReplies}</div>
+                                  <div>👀 <strong>Mostrando:</strong> {commentsToShow[post.activity.id] || 3} comentarios principales</div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

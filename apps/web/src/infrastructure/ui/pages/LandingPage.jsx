@@ -246,12 +246,6 @@ const LandingPage = () => {
             </div>
             <nav className="hidden md:flex space-x-6">
               <Link
-                to="/"
-                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
-              >
-                Inicio
-              </Link>
-              <Link
                 to="/activities"
                 className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
               >
@@ -296,6 +290,12 @@ const LandingPage = () => {
             
             {/* Navegación móvil simplificada */}
             <div className="md:hidden flex items-center space-x-2">
+              <Link
+                to="/activities"
+                className="px-3 py-2 text-sm text-gray-700 hover:text-sky-600 font-medium"
+              >
+                Actividades
+              </Link>
               {!user ? (
                 <Link
                   to="/login"

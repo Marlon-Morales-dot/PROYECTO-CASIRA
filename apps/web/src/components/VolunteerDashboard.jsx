@@ -29,6 +29,12 @@ const VolunteerDashboard = ({ user, onLogout }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // States for nested comments functionality
+  const [commentLikes, setCommentLikes] = useState({});
+  const [commentReplies, setCommentReplies] = useState({});
+  const [replyInputs, setReplyInputs] = useState({});
+  const [commentsToShow, setCommentsToShow] = useState({});
+
   useEffect(() => {
     loadDashboardData();
     loadNotifications();
@@ -290,6 +296,65 @@ const VolunteerDashboard = ({ user, onLogout }) => {
     setShowActivityModal(true);
   };
 
+  // Function to organize comments hierarchically
+  const organizeComments = (comments) => {
+    const mainComments = [];
+    const replies = {};
+
+    // Sort comments by creation date first to maintain proper order
+    const sortedComments = [...comments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // Separate main comments from replies
+    sortedComments.forEach(comment => {
+      if (comment.content?.startsWith('@') && comment.content.includes(':')) {
+        // This is a reply - extract parent info
+        const replyMatch = comment.content.match(/@([^:]+):\s*(.+)/);
+        if (replyMatch) {
+          const [, mentionedUser, replyText] = replyMatch;
+
+          // Find parent comment by looking for the mentioned user
+          // Look for the most recent main comment from that user before this reply
+          const parentComment = sortedComments
+            .filter(c => !c.content?.startsWith('@') &&
+                        c.user &&
+                        `${c.user.first_name} ${c.user.last_name}` === mentionedUser.trim() &&
+                        new Date(c.created_at) < new Date(comment.created_at))
+            .pop(); // Get the most recent one
+
+          if (parentComment) {
+            if (!replies[parentComment.id]) {
+              replies[parentComment.id] = [];
+            }
+            replies[parentComment.id].push({
+              ...comment,
+              replyText,
+              mentionedUser,
+              parentId: parentComment.id
+            });
+          } else {
+            // If we can't find parent, treat as main comment but mark as orphaned
+            mainComments.push({
+              ...comment,
+              isOrphanedReply: true
+            });
+          }
+        } else {
+          mainComments.push(comment);
+        }
+      } else {
+        // This is a main comment
+        mainComments.push(comment);
+      }
+    });
+
+    // Sort replies by creation date for each parent
+    Object.keys(replies).forEach(parentId => {
+      replies[parentId].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+
+    return { mainComments, replies };
+  };
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
 
@@ -307,6 +372,58 @@ const VolunteerDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('❌ VOLUNTARIO: Error adding comment:', error);
       alert('Error al agregar comentario: ' + error.message);
+    }
+  };
+
+  // Handle toggle reply functionality
+  const handleToggleReply = (commentId) => {
+    setCommentReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+    // Clear reply input when closing
+    if (commentReplies[commentId]) {
+      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+    }
+  };
+
+  // Handle reply input change
+  const handleReplyInputChange = (commentId, value) => {
+    setReplyInputs(prev => ({
+      ...prev,
+      [commentId]: value
+    }));
+  };
+
+  // Handle submit reply
+  const handleSubmitReply = async (commentId, activityId, parentComment) => {
+    const replyText = replyInputs[commentId]?.trim();
+    if (!replyText) return;
+
+    try {
+      console.log(`📤 VOLUNTARIO: Submitting reply to comment ${commentId}: ${replyText}`);
+
+      // Find the parent comment to get author info
+      const parentAuthor = parentComment?.user || { first_name: 'Usuario', last_name: 'Anónimo' };
+      const replyContent = `@${parentAuthor.first_name} ${parentAuthor.last_name}: ${replyText}`;
+
+      // Add reply using the standard API
+      const newReply = await supabaseComments.addComment(activityId, user.id, replyContent);
+
+      // Add the reply optimistically to local state for immediate display
+      if (newReply) {
+        setComments(prevComments => [...prevComments, newReply]);
+      }
+
+      // Clear reply input and hide reply box
+      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+      setCommentReplies(prev => ({ ...prev, [commentId]: false }));
+
+      console.log('✅ VOLUNTARIO: Reply submitted successfully');
+
+    } catch (error) {
+      console.error('❌ VOLUNTARIO: Error submitting reply:', error);
+      alert('Error al enviar respuesta: ' + error.message);
     }
   };
 
@@ -1083,7 +1200,7 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                         </div>
                       </div>
 
-                      {/* Comments List */}
+                      {/* Comments List with Nested Replies */}
                       <div className="space-y-4">
                         {comments.length === 0 ? (
                           <div className="text-center py-8">
@@ -1092,53 +1209,148 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                             <p className="text-gray-400 text-sm mt-1">¡Sé el primero en compartir tu experiencia!</p>
                           </div>
                         ) : (
-                          comments.map((comment) => (
-                            <div key={comment.id} className="hover:bg-gray-50 transition-colors p-3 rounded-xl group">
-                              <div className="flex space-x-3">
-                                <img
-                                  src={comment.user?.avatar_url || '/grupo-canadienses.jpg'}
-                                  alt={comment.user?.first_name}
-                                  className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="bg-gray-100 group-hover:bg-gray-200 rounded-2xl px-4 py-3 transition-colors">
-                                    <div className="flex items-center space-x-2 mb-1">
-                                      <span className="font-semibold text-sm text-gray-900 truncate">
-                                        {comment.user?.first_name} {comment.user?.last_name}
-                                      </span>
-                                      <span className="text-xs text-gray-500 flex-shrink-0">
-                                        {(() => {
-                                          const now = new Date();
-                                          const commentDate = new Date(comment.created_at);
-                                          const diffInMinutes = Math.floor((now - commentDate) / (1000 * 60));
+                          (() => {
+                            const { mainComments, replies } = organizeComments(comments);
+                            const commentsLimit = commentsToShow[selectedActivity.id] || 3;
+                            const visibleMainComments = mainComments.slice(0, commentsLimit);
 
-                                          if (diffInMinutes < 1) return 'Ahora';
-                                          if (diffInMinutes < 60) return `${diffInMinutes}m`;
-                                          if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-                                          return commentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-                                        })()}
+                            return visibleMainComments.map((comment) => (
+                              <div key={comment.id} className="hover:bg-gray-50 transition-colors p-3 rounded-xl group">
+                                <div className="flex space-x-3">
+                                  <img
+                                    src={comment.user?.avatar_url || '/grupo-canadienses.jpg'}
+                                    alt={comment.user?.first_name}
+                                    className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="bg-gray-100 group-hover:bg-gray-200 rounded-2xl px-4 py-3 transition-colors">
+                                      <div className="flex items-center space-x-2 mb-1">
+                                        <span className="font-semibold text-sm text-gray-900 truncate">
+                                          {comment.user?.first_name} {comment.user?.last_name}
+                                        </span>
+                                        <span className="text-xs text-gray-500 flex-shrink-0">
+                                          {(() => {
+                                            const now = new Date();
+                                            const commentDate = new Date(comment.created_at);
+                                            const diffInMinutes = Math.floor((now - commentDate) / (1000 * 60));
+
+                                            if (diffInMinutes < 1) return 'Ahora';
+                                            if (diffInMinutes < 60) return `${diffInMinutes}m`;
+                                            if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+                                            return commentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                          })()}
+                                        </span>
+                                      </div>
+                                      <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">{comment.content}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-4 mt-2 px-2">
+                                      <button
+                                        onClick={() => handleLikeComment(comment.id)}
+                                        className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors group"
+                                      >
+                                        <Heart className={`h-4 w-4 group-hover:scale-110 transition-transform ${
+                                          comment.liked ? 'fill-current text-red-500' : ''
+                                        }`} />
+                                        <span>{comment.likes || 0}</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleToggleReply(comment.id)}
+                                        className="flex items-center space-x-1 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                                      >
+                                        <MessageCircle className="h-4 w-4" />
+                                        <span>Responder</span>
+                                      </button>
+                                      <span className="text-xs text-gray-400">
+                                        {new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                                       </span>
                                     </div>
-                                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">{comment.content}</p>
-                                  </div>
-                                  <div className="flex items-center space-x-4 mt-2 px-2">
-                                    <button
-                                      onClick={() => handleLikeComment(comment.id)}
-                                      className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors group"
-                                    >
-                                      <Heart className={`h-4 w-4 group-hover:scale-110 transition-transform ${
-                                        comment.liked ? 'fill-current text-red-500' : ''
-                                      }`} />
-                                      <span>{comment.likes || 0}</span>
-                                    </button>
-                                    <span className="text-xs text-gray-400">
-                                      {new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+
+                                    {/* Reply Input */}
+                                    {commentReplies[comment.id] && (
+                                      <div className="mt-3 ml-2">
+                                        <div className="flex space-x-2">
+                                          <img
+                                            src={user.avatar_url || '/grupo-canadienses.jpg'}
+                                            alt={user.first_name}
+                                            className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                                          />
+                                          <div className="flex-1 flex space-x-2">
+                                            <input
+                                              type="text"
+                                              value={replyInputs[comment.id] || ''}
+                                              onChange={(e) => handleReplyInputChange(comment.id, e.target.value)}
+                                              placeholder={`Responder a ${comment.user?.first_name}...`}
+                                              onKeyPress={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  handleSubmitReply(comment.id, selectedActivity.id, comment);
+                                                }
+                                              }}
+                                              className="flex-1 px-3 py-1 border border-gray-300 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <button
+                                              onClick={() => handleSubmitReply(comment.id, selectedActivity.id, comment)}
+                                              disabled={!replyInputs[comment.id]?.trim()}
+                                              className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                              💬
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Nested Replies */}
+                                    {replies[comment.id] && replies[comment.id].length > 0 && (
+                                      <div className="ml-8 mt-3 space-y-2 border-l-2 border-gray-200 pl-4">
+                                        {replies[comment.id].map(reply => {
+                                          const replyUser = reply.user || { first_name: 'Usuario', last_name: 'Anónimo' };
+                                          return (
+                                            <div key={reply.id} className="flex space-x-2">
+                                              <div className="flex-shrink-0">
+                                                <div className="w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs">
+                                                  {replyUser?.first_name?.charAt(0) || 'A'}
+                                                </div>
+                                              </div>
+                                              <div className="flex-1">
+                                                <div className="bg-gray-50 rounded-2xl px-3 py-2">
+                                                  <div className="text-sm font-medium text-gray-900">
+                                                    <span className="text-blue-600">@{reply.mentionedUser}</span>
+                                                    <span className="text-gray-600 ml-1">{replyUser ? `${replyUser.first_name} ${replyUser.last_name}` : 'Usuario Anónimo'}</span>
+                                                  </div>
+                                                  <div className="text-sm text-gray-700">{reply.replyText}</div>
+                                                </div>
+                                                <div className="flex items-center space-x-3 mt-1 px-2">
+                                                  <button
+                                                    onClick={() => handleLikeComment(reply.id)}
+                                                    className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors"
+                                                  >
+                                                    <Heart className={`h-3 w-3 ${reply.liked ? 'fill-current text-red-500' : ''}`} />
+                                                    <span>{reply.likes || 0}</span>
+                                                  </button>
+                                                  <span className="text-xs text-gray-400">
+                                                    {(() => {
+                                                      const now = new Date();
+                                                      const replyDate = new Date(reply.created_at);
+                                                      const diffInMinutes = Math.floor((now - replyDate) / (1000 * 60));
+
+                                                      if (diffInMinutes < 1) return 'Ahora';
+                                                      if (diffInMinutes < 60) return `${diffInMinutes}m`;
+                                                      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+                                                      return replyDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                                    })()}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))
+                            ));
+                          })()
                         )}
                       </div>
                     </div>

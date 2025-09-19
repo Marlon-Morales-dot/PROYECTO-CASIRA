@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Users, MapPin, Calendar, Clock, Send, Star, Eye, ThumbsUp, Smile, ArrowLeft, Home } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import { activitiesAPI, commentsAPI, photosAPI, dataStore } from '../lib/api.js';
+import { activitiesAPI, photosAPI, dataStore, commentsAPI } from '../lib/api.js';
 import OptimizedImage from './OptimizedImage.jsx';
 
 const PublicSocialView = ({ currentUser = null }) => {
@@ -15,6 +15,11 @@ const PublicSocialView = ({ currentUser = null }) => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMoreActivities, setHasMoreActivities] = useState(true);
+  const [publishingComment, setPublishingComment] = useState(null);
+  const [commentsToShow, setCommentsToShow] = useState({}); // Track how many comments to show per activity
+  const [commentLikes, setCommentLikes] = useState({}); // Track comment likes
+  const [commentReplies, setCommentReplies] = useState({}); // Track comment replies visibility
+  const [replyInputs, setReplyInputs] = useState({}); // Track reply input text
 
   useEffect(() => {
     loadSocialFeed();
@@ -41,18 +46,32 @@ const PublicSocialView = ({ currentUser = null }) => {
 
       // Generate likes data without API calls
       const likesData = {};
+      const commentsData = {};
 
+      // Load comment counts for each activity
       for (const activity of activitiesData || []) {
         likesData[activity.id] = {
           count: Math.floor(Math.random() * 15) + 5,
           liked: false
         };
+
+        // Load actual comment count from API (just count, not full comments)
+        try {
+          const activityComments = await commentsAPI.getActivityComments(activity.id, 0, 50);
+          commentsData[activity.id] = activityComments || [];
+          console.log(`📊 Comments for activity ${activity.id}:`, activityComments?.length || 0);
+        } catch (error) {
+          console.error(`❌ Error loading comments for activity ${activity.id}:`, error);
+          commentsData[activity.id] = [];
+        }
       }
 
       if (append) {
         setLikes(prev => ({ ...prev, ...likesData }));
+        setComments(prev => ({ ...prev, ...commentsData }));
       } else {
         setLikes(likesData);
+        setComments(commentsData);
       }
 
     } catch (error) {
@@ -87,59 +106,266 @@ const PublicSocialView = ({ currentUser = null }) => {
   };
 
   const handleToggleComments = async (activityId) => {
+    console.log('🔄 PUBLIC SOCIAL VIEW - TOGGLE COMMENTS:', {
+      activityId,
+      selectedActivity,
+      hasComments: !!comments[activityId],
+      commentsCount: comments[activityId]?.length || 0,
+      currentUser: currentUser?.email
+    });
+
     if (selectedActivity === activityId) {
+      console.log('📖 PUBLIC SOCIAL VIEW: Closing comments for activity:', activityId);
       setSelectedActivity(null);
       return;
     }
 
+    console.log('📖 PUBLIC SOCIAL VIEW: Opening comments for activity:', activityId);
     setSelectedActivity(activityId);
 
-    // Lazy load comments only when activity is selected
-    if (!comments[activityId]) {
-      try {
-        const activityComments = await commentsAPI.getActivityComments(activityId, 0, 15);
-        setComments(prev => ({
+    // Always reload comments to show latest (including just posted ones)
+    try {
+      console.log('📖 PUBLIC SOCIAL VIEW: Loading comments for activity:', activityId);
+      const activityComments = await commentsAPI.getActivityComments(activityId, 0, 15);
+      console.log('✅ PUBLIC SOCIAL VIEW: Loaded comments:', {
+        count: activityComments?.length || 0,
+        comments: activityComments,
+        activityId: activityId
+      });
+      setComments(prev => {
+        const newComments = {
           ...prev,
           [activityId]: activityComments || []
-        }));
-      } catch (error) {
-        console.error('Error loading comments:', error);
-      }
+        };
+        console.log('📝 PUBLIC SOCIAL VIEW: Updated comments state:', newComments);
+        return newComments;
+      });
+    } catch (error) {
+      console.error('❌ PUBLIC SOCIAL VIEW: Error loading comments:', error);
+      // Set empty array to prevent infinite loading
+      setComments(prev => ({
+        ...prev,
+        [activityId]: []
+      }));
     }
   };
 
   const handleComment = async (activityId) => {
     if (!currentUser) {
+      console.log('❌ PUBLIC SOCIAL VIEW: No current user, showing login prompt');
       setShowLoginPrompt(true);
       return;
     }
 
-    if (!newComment.trim()) return;
+    if (!newComment.trim()) {
+      console.log('❌ PUBLIC SOCIAL VIEW: Empty comment, ignoring');
+      return;
+    }
+
+    const commentId = Date.now();
+    setPublishingComment(activityId);
 
     try {
-      const comment = {
-        id: Date.now(),
+      console.log('💬 PUBLIC SOCIAL VIEW: Publishing comment:', {
+        activityId,
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        userRole: currentUser.role,
+        content: newComment.substring(0, 50),
+        commentId: commentId
+      });
+
+      // Check user permissions
+      const userRole = currentUser.role || 'visitor';
+      if (userRole === 'visitor' && !currentUser.email) {
+        setShowLoginPrompt(true);
+        return;
+      }
+
+      // Optimistic update - add comment immediately to UI
+      const optimisticComment = {
+        id: commentId,
         activity_id: activityId,
         user_id: currentUser.id,
         content: newComment,
         created_at: new Date().toISOString(),
-        author: currentUser,
-        likes: 0
+        author: {
+          id: currentUser.id,
+          first_name: currentUser.first_name || currentUser.firstName,
+          last_name: currentUser.last_name || currentUser.lastName,
+          avatar_url: currentUser.avatar_url
+        }
       };
 
       setComments(prev => ({
         ...prev,
-        [activityId]: [...(prev[activityId] || []), comment]
+        [activityId]: [...(prev[activityId] || []), optimisticComment]
       }));
 
       setNewComment('');
 
-      // Guardar en dataStore
-      await commentsAPI.addComment(activityId, currentUser.id, newComment);
-      console.log('Comment added successfully');
+      // Save to database (with proper user ID resolution)
+      const savedComment = await commentsAPI.addComment(activityId, currentUser.id, newComment);
+      console.log('✅ Comment saved successfully:', savedComment);
+
+      // Reload comments to show the real saved comment
+      try {
+        const updatedComments = await commentsAPI.getActivityComments(activityId, 0, 15);
+        setComments(prev => ({
+          ...prev,
+          [activityId]: updatedComments || []
+        }));
+        console.log('✅ Comments reloaded after save');
+      } catch (reloadError) {
+        console.error('❌ Error reloading comments:', reloadError);
+      }
 
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error('❌ Error adding comment:', error);
+
+      // Remove optimistic comment on error
+      setComments(prev => ({
+        ...prev,
+        [activityId]: (prev[activityId] || []).filter(c => c.id !== commentId)
+      }));
+
+      alert('Error al publicar comentario. Inténtalo de nuevo.');
+    } finally {
+      setPublishingComment(null);
+    }
+  };
+
+  // Handle "Ver más comentarios" functionality
+  const handleLoadMoreComments = (activityId) => {
+    setCommentsToShow(prev => ({
+      ...prev,
+      [activityId]: (prev[activityId] || 3) + 10 // Show 10 more comments
+    }));
+    console.log(`📖 Loading more comments for activity ${activityId}`);
+  };
+
+  // Handle "Ver menos comentarios" functionality
+  const handleShowLessComments = (activityId) => {
+    setCommentsToShow(prev => ({
+      ...prev,
+      [activityId]: 3 // Reset to show only 3 comments
+    }));
+    console.log(`📖 Showing less comments for activity ${activityId}`);
+  };
+
+  // Handle comment like functionality
+  const handleCommentLike = (commentId) => {
+    if (!currentUser) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    setCommentLikes(prev => ({
+      ...prev,
+      [commentId]: {
+        liked: !prev[commentId]?.liked,
+        count: (prev[commentId]?.count || 0) + (!prev[commentId]?.liked ? 1 : -1)
+      }
+    }));
+    console.log(`👍 Toggled like for comment ${commentId}`);
+  };
+
+  // Handle comment reply functionality
+  const handleToggleReply = (commentId) => {
+    if (!currentUser) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    setCommentReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+    console.log(`💬 Toggled reply for comment ${commentId}`);
+  };
+
+  // Handle reply input change
+  const handleReplyInputChange = (commentId, value) => {
+    setReplyInputs(prev => ({
+      ...prev,
+      [commentId]: value
+    }));
+  };
+
+  // Function to organize comments hierarchically
+  const organizeComments = (comments) => {
+    const mainComments = [];
+    const replies = {};
+
+    // Separate main comments from replies
+    comments.forEach(comment => {
+      if (comment.content?.startsWith('@') && comment.content.includes(':')) {
+        // This is a reply - extract parent info
+        const replyMatch = comment.content.match(/@([^:]+):\s*(.+)/);
+        if (replyMatch) {
+          const [, mentionedUser, replyText] = replyMatch;
+
+          // Find parent comment by looking for the mentioned user
+          const parentComment = comments.find(c =>
+            !c.content?.startsWith('@') &&
+            c.author &&
+            `${c.author.first_name} ${c.author.last_name}` === mentionedUser.trim()
+          );
+
+          if (parentComment) {
+            if (!replies[parentComment.id]) {
+              replies[parentComment.id] = [];
+            }
+            replies[parentComment.id].push({
+              ...comment,
+              replyText,
+              mentionedUser
+            });
+          } else {
+            // If we can't find parent, treat as main comment
+            mainComments.push(comment);
+          }
+        } else {
+          mainComments.push(comment);
+        }
+      } else {
+        // This is a main comment
+        mainComments.push(comment);
+      }
+    });
+
+    return { mainComments, replies };
+  };
+
+  // Handle submit reply
+  const handleSubmitReply = async (commentId, activityId, parentComment) => {
+    const replyText = replyInputs[commentId]?.trim();
+    if (!replyText || !currentUser) return;
+
+    try {
+      console.log(`📤 Submitting reply to comment ${commentId}: ${replyText}`);
+
+      // Find the parent comment to get author info
+      const parentAuthor = parentComment?.author || { first_name: 'Usuario', last_name: 'Anónimo' };
+      const replyContent = `@${parentAuthor.first_name} ${parentAuthor.last_name}: ${replyText}`;
+
+      // Add reply with parent reference
+      await commentsAPI.addComment(activityId, currentUser.id, replyContent);
+
+      // Clear reply input and hide reply box
+      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+      setCommentReplies(prev => ({ ...prev, [commentId]: false }));
+
+      // Reload comments
+      const updatedComments = await commentsAPI.getActivityComments(activityId, 0, 50);
+      setComments(prev => ({
+        ...prev,
+        [activityId]: updatedComments || []
+      }));
+
+    } catch (error) {
+      console.error('❌ Error submitting reply:', error);
+      alert('Error al enviar respuesta: ' + error.message);
     }
   };
 
@@ -235,29 +461,28 @@ const PublicSocialView = ({ currentUser = null }) => {
       {/* Navigation Bar */}
       <nav className="bg-white/70 backdrop-blur-sm border-b border-white/20 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-center space-x-2 sm:space-x-4 py-3">
+          <div className="flex items-center justify-center space-x-1 sm:space-x-2 md:space-x-4 py-3 overflow-x-auto">
             <Link
               to="/"
-              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
             >
               Inicio
             </Link>
             <Link
               to="/activities"
-              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium bg-sky-50 text-sky-600"
+              className="px-2 sm:px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium bg-sky-50 text-sky-600 text-sm sm:text-base whitespace-nowrap"
             >
               Actividades
             </Link>
             <Link
               to="/social"
-              className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+              className="px-2 sm:px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
             >
               Social
             </Link>
             {!currentUser && (
               <Link
                 to="/login"
-                className="px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium"
+                className="px-2 sm:px-4 py-2 text-gray-700 hover:text-sky-600 hover:bg-white/50 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
               >
                 Iniciar Sesión
               </Link>
@@ -430,15 +655,28 @@ const PublicSocialView = ({ currentUser = null }) => {
                           />
                           <button
                             onClick={() => handleComment(activity.id)}
-                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                            disabled={publishingComment === activity.id}
+                            className={`p-2 text-white rounded-full transition-colors ${
+                              publishingComment === activity.id
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                           >
-                            <Send className="h-4 w-4" />
+                            {publishingComment === activity.id ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 mb-4 text-center border border-white/40">
-                        <p className="text-gray-600 mb-3">¡Únete para comentar y participar!</p>
+                        <div className="flex items-center justify-center mb-2">
+                          <Eye className="h-4 w-4 text-gray-400 mr-2" />
+                          <span className="text-sm text-gray-500">Vista como visitante</span>
+                        </div>
+                        <p className="text-gray-600 mb-3">¡Únete como voluntario para comentar y participar!</p>
                         <button
                           onClick={() => setShowLoginPrompt(true)}
                           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -450,28 +688,175 @@ const PublicSocialView = ({ currentUser = null }) => {
 
                     {/* Comments List */}
                     <div className="space-y-3">
-                      {(comments[activity.id] || []).map((comment) => (
-                        <div key={comment.id} className="flex space-x-3">
-                          <img
-                            src={comment.author?.avatar_url || '/grupo-canadienses.jpg'}
-                            alt={comment.author?.first_name || 'Usuario'}
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                          <div className="flex-1">
-                            <div className="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/40">
-                              <div className="font-medium text-sm text-gray-900">
-                                {comment.author?.first_name} {comment.author?.last_name}
-                              </div>
-                              <div className="text-gray-700">{comment.content}</div>
-                            </div>
-                            <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
-                              <span>{formatTimeAgo(comment.created_at)}</span>
-                              <button className="hover:text-blue-600">Me gusta</button>
-                              <button className="hover:text-blue-600">Responder</button>
-                            </div>
-                          </div>
+                      {/* Debug info */}
+                      <div className="text-xs text-gray-400 mb-2">
+                        Comentarios cargados: {(comments[activity.id] || []).length}
+                      </div>
+
+                      {(comments[activity.id] || []).length === 0 ? (
+                        <div className="text-center py-6 text-gray-500">
+                          <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No hay comentarios aún</p>
+                          <p className="text-xs">¡Sé el primero en comentar!</p>
                         </div>
-                      ))}
+                      ) : (
+                        <div>
+                          {(() => {
+                            const allActivityComments = comments[activity.id] || [];
+                            const { mainComments, replies } = organizeComments(allActivityComments);
+                            const commentsLimit = commentsToShow[activity.id] || 3;
+                            const visibleMainComments = mainComments.slice(0, commentsLimit);
+
+                            return visibleMainComments.map((comment) => (
+                              <div key={comment.id} className="flex space-x-3 mb-3">
+                                <img
+                                  src={comment.author?.avatar_url || '/grupo-canadienses.jpg'}
+                                  alt={comment.author?.first_name || 'Usuario'}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                                <div className="flex-1">
+                                  <div className="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/40">
+                                    <div className="font-medium text-sm text-gray-900 flex items-center justify-between">
+                                      <span>{comment.author?.first_name} {comment.author?.last_name}</span>
+                                      {comment.author?.role === 'admin' && (
+                                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Admin</span>
+                                      )}
+                                      {comment.author?.role === 'volunteer' && (
+                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Voluntario</span>
+                                      )}
+                                    </div>
+                                    <div className="text-gray-700">{comment.content}</div>
+                                  </div>
+                                  <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                    <span>{formatTimeAgo(comment.created_at)}</span>
+                                    <button
+                                      onClick={() => handleCommentLike(comment.id)}
+                                      className={`hover:text-blue-600 flex items-center space-x-1 ${
+                                        commentLikes[comment.id]?.liked ? 'text-blue-600 font-medium' : 'text-gray-500'
+                                      }`}
+                                    >
+                                      <span>👍</span>
+                                      <span>Me gusta ({(comment.likes || 0) + (commentLikes[comment.id]?.count || 0)})</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleToggleReply(comment.id)}
+                                      className={`hover:text-green-600 flex items-center space-x-1 ${
+                                        commentReplies[comment.id] ? 'text-green-600 font-medium' : 'text-gray-500'
+                                      }`}
+                                    >
+                                      <span>💬</span>
+                                      <span>Responder</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Reply Input Box */}
+                                  {commentReplies[comment.id] && currentUser && (
+                                    <div className="mt-3 ml-3 pl-3 border-l-2 border-blue-200">
+                                      <div className="flex space-x-2">
+                                        <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                                          {currentUser.first_name?.charAt(0) || 'U'}
+                                        </div>
+                                        <div className="flex-1 flex space-x-2">
+                                          <input
+                                            type="text"
+                                            placeholder="Escribe una respuesta..."
+                                            value={replyInputs[comment.id] || ''}
+                                            onChange={(e) => handleReplyInputChange(comment.id, e.target.value)}
+                                            onKeyPress={(e) => {
+                                              if (e.key === 'Enter') {
+                                                handleSubmitReply(comment.id, activity.id, comment);
+                                              }
+                                            }}
+                                            className="flex-1 px-3 py-1 border border-gray-300 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/80"
+                                          />
+                                          <button
+                                            onClick={() => handleSubmitReply(comment.id, activity.id, comment)}
+                                            disabled={!replyInputs[comment.id]?.trim()}
+                                            className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          >
+                                            💬
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Nested Replies */}
+                                  {replies[comment.id] && replies[comment.id].length > 0 && (
+                                    <div className="ml-8 mt-3 space-y-2 border-l-2 border-sky-200 pl-4">
+                                      {replies[comment.id].map(reply => {
+                                        const replyUser = reply.author || { first_name: 'Usuario', last_name: 'Anónimo' };
+                                        return (
+                                          <div key={reply.id} className="flex space-x-2">
+                                            <div className="flex-shrink-0">
+                                              <div className="w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs">
+                                                {replyUser?.first_name?.charAt(0) || 'A'}
+                                              </div>
+                                            </div>
+                                            <div className="flex-1">
+                                              <div className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/40">
+                                                <div className="text-sm font-medium text-gray-900">
+                                                  <span className="text-blue-600">@{reply.mentionedUser}</span>
+                                                  <span className="text-gray-600 ml-1">{replyUser ? `${replyUser.first_name} ${replyUser.last_name}` : 'Usuario Anónimo'}</span>
+                                                </div>
+                                                <div className="text-sm text-gray-700 mt-1">{reply.replyText}</div>
+                                              </div>
+                                              <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                                <span>{formatTimeAgo(reply.created_at)}</span>
+                                                <button
+                                                  onClick={() => handleCommentLike(reply.id)}
+                                                  className={`hover:text-blue-600 flex items-center space-x-1 ${
+                                                    commentLikes[reply.id]?.liked ? 'text-blue-600 font-medium' : 'text-gray-500'
+                                                  }`}
+                                                >
+                                                  <span>👍</span>
+                                                  <span>({(reply.likes || 0) + (commentLikes[reply.id]?.count || 0)})</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ));
+                          })()}
+
+                          {/* Ver más/menos comentarios buttons */}
+                          {(() => {
+                            const allActivityComments = comments[activity.id] || [];
+                            const { mainComments: allMainComments } = organizeComments(allActivityComments);
+                            const commentsLimit = commentsToShow[activity.id] || 3;
+                            const remainingComments = allMainComments.length - commentsLimit;
+                            const isExpanded = commentsLimit > 3;
+
+                            return allMainComments.length > 3 && (
+                              <div className="flex space-x-2 mt-4 pt-2 border-t border-white/30">
+                                {remainingComments > 0 && (
+                                  <button
+                                    onClick={() => handleLoadMoreComments(activity.id)}
+                                    className="text-sm text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50/50 transition-all font-medium flex items-center space-x-1"
+                                  >
+                                    <span>Ver más comentarios ({remainingComments} más)</span>
+                                    <span className="text-xs">▼</span>
+                                  </button>
+                                )}
+                                {isExpanded && (
+                                  <button
+                                    onClick={() => handleShowLessComments(activity.id)}
+                                    className="text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-50/50 transition-all font-medium flex items-center space-x-1"
+                                  >
+                                    <span>Ver menos</span>
+                                    <span className="text-xs">▲</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

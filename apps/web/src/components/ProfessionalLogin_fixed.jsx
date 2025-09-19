@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../infrastructure/ui/providers/AppProvider.jsx';
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import ParticlesBackground from './ParticlesBackground.jsx';
 
 export default function ProfessionalLogin() {
   const navigate = useNavigate();
@@ -77,8 +78,88 @@ export default function ProfessionalLogin() {
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
-        {/* Geometric Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
+        {/* Particles Background */}
+        <ParticlesBackground
+          containerId="login-particles-fixed"
+          config={{
+            particles: {
+              number: {
+                value: 60,
+                density: {
+                  enable: true,
+                  value_area: 800
+                }
+              },
+              color: {
+                value: "#ffffff"
+              },
+              shape: {
+                type: "circle"
+              },
+              opacity: {
+                value: 0.4,
+                random: true,
+                anim: {
+                  enable: true,
+                  speed: 0.8,
+                  opacity_min: 0.1,
+                  sync: false
+                }
+              },
+              size: {
+                value: 2,
+                random: true,
+                anim: {
+                  enable: true,
+                  speed: 2,
+                  size_min: 0.5,
+                  sync: false
+                }
+              },
+              line_linked: {
+                enable: true,
+                distance: 120,
+                color: "#ffffff",
+                opacity: 0.3,
+                width: 1
+              },
+              move: {
+                enable: true,
+                speed: 1,
+                direction: "none",
+                random: true,
+                straight: false,
+                out_mode: "out",
+                bounce: false
+              }
+            },
+            interactivity: {
+              detect_on: "canvas",
+              events: {
+                onhover: {
+                  enable: true,
+                  mode: "grab"
+                },
+                onclick: {
+                  enable: false
+                },
+                resize: true
+              },
+              modes: {
+                grab: {
+                  distance: 140,
+                  line_linked: {
+                    opacity: 0.6
+                  }
+                }
+              }
+            },
+            retina_detect: true
+          }}
+        />
+
+        {/* Geometric Background Pattern - reduced opacity */}
+        <div className="absolute inset-0 opacity-5">
           <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMzYgMzRjMC0yIDItNCA0LTRzNCwyIDQsNHMtMiw0LTQsNHMtNC0yLTQtNHptLTIwIDJjMC0yIDItNCA0LTRzNCwyIDQsNHMtMiw0LTQsNHMtNC0yLTQtNHptMjAgMGMwLTIgMi00IDQtNHM0LDIgNCw0cy0yLDQtNCw0cy00LTItNC00eiIgZmlsbD0iI2ZmZmZmZiIvPgo8L3N2Zz4K')]"></div>
         </div>
 
@@ -297,7 +378,7 @@ export default function ProfessionalLogin() {
               ¿Primera vez en CASIRA Connect?{' '}
               <button
                 className="text-blue-600 hover:text-blue-700 font-medium"
-                onClick={() => navigate('/visitor')}
+                onClick={() => navigate('/activities')}
               >
                 Explorar como visitante
               </button>

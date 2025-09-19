@@ -392,6 +392,7 @@ export const supabaseCommentsAPI = {
     }
   },
 
+
   // Get comments for activity with pagination and optimized columns
   async getActivityComments(activityId, page = 0, limit = 20) {
     try {
@@ -420,10 +421,57 @@ export const supabaseCommentsAPI = {
   // Create comment
   async createComment(commentData) {
     try {
+      // Check if post exists, create if needed (same logic as supabase-singleton)
+      const { data: existingPost, error: postCheckError } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('id', commentData.post_id)
+        .single();
+
+      let finalPostId = commentData.post_id;
+
+      if (postCheckError && postCheckError.code === 'PGRST116') {
+        console.log('🔄 CASIRA: Post not found, checking if this is an activity...');
+
+        // Check if it's an activity ID
+        const { data: activity, error: activityError } = await supabase
+          .from('activities')
+          .select('id, title, description')
+          .eq('id', commentData.post_id)
+          .single();
+
+        if (!activityError && activity) {
+          console.log('✅ CASIRA: Found activity, creating post entry for comments...');
+
+          // Create a post entry for this activity
+          const { data: newPost, error: createPostError } = await supabase
+            .from('posts')
+            .insert([{
+              id: activity.id,
+              title: activity.title,
+              content: activity.description,
+              author_id: commentData.author_id,
+              activity_id: activity.id
+            }])
+            .select('id')
+            .single();
+
+          if (createPostError) {
+            console.error('❌ CASIRA: Error creating post for activity:', createPostError);
+            throw createPostError;
+          }
+
+          finalPostId = newPost.id;
+          console.log('✅ CASIRA: Created post entry:', finalPostId);
+        } else {
+          throw new Error('No se encontró la actividad o post para comentar');
+        }
+      }
+
       const { data, error } = await supabase
         .from('comments')
         .insert([{
-          post_id: commentData.post_id,
+          post_id: finalPostId,
           author_id: commentData.author_id,
           content: commentData.content
         }])
@@ -436,7 +484,7 @@ export const supabaseCommentsAPI = {
       if (error) throw error
 
       // Update post comments count
-      await this.updatePostCommentsCount(commentData.post_id)
+      await this.updatePostCommentsCount(finalPostId)
 
       return data
     } catch (error) {

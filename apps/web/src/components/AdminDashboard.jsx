@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Users, Calendar, BarChart3, Settings, RotateCcw, Bell, CheckCircle, XCircle, AlertCircle, RefreshCw, X, Globe, Shield, Activity, MapPin } from 'lucide-react';
 import { activitiesAPI, categoriesAPI, statsAPI, resetDataToDefaults, forceRefreshData, cleanStorageData, notificationsAPI, volunteersAPI, usersAPI, dataStore } from '../lib/api.js';
 import '../lib/cleanup-script.js'; // Load cleanup utilities
+import { cleanupAllComments, getCommentsStats } from '../lib/cleanup-comments.js';
 import adminService from '../lib/services/admin.service.js';
 import LogoutButton from './LogoutButton.jsx';
 import AdminVolunteerRequests from './AdminVolunteerRequests.jsx';
@@ -18,6 +19,8 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [isCleaningComments, setIsCleaningComments] = useState(false);
   
   // New states for registrations/notifications management
   const [notifications, setNotifications] = useState([]);
@@ -564,6 +567,46 @@ const AdminDashboard = ({ user, onLogout }) => {
       resetDataToDefaults();
       loadAdminData(); // Reload data after reset
       alert('Datos reseteados exitosamente');
+    }
+  };
+
+  // Load comments statistics
+  const loadCommentsStats = async () => {
+    try {
+      const result = await getCommentsStats();
+      if (result.success) {
+        setCommentsCount(result.totalComments);
+      }
+    } catch (error) {
+      console.error('Error loading comments stats:', error);
+    }
+  };
+
+  // Handle cleanup of all comments
+  const handleCleanupComments = async () => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar TODOS los ${commentsCount} comentarios?\n\nEsta acción NO se puede deshacer y limpiará:\n- Todos los comentarios principales\n- Todas las respuestas anidadas\n- Contadores de comentarios\n\n¿Continuar?`)) {
+      return;
+    }
+
+    setIsCleaningComments(true);
+
+    try {
+      console.log('🗑️ ADMIN: Iniciando limpieza de comentarios...');
+
+      const result = await cleanupAllComments();
+
+      if (result.success) {
+        alert(`✅ ${result.message}\n\nLa base de datos de comentarios está ahora como nueva.`);
+        // Reload comments stats
+        await loadCommentsStats();
+      } else {
+        alert(`❌ Error durante la limpieza: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('❌ ADMIN: Error durante limpieza:', error);
+      alert(`❌ Error inesperado: ${error.message}`);
+    } finally {
+      setIsCleaningComments(false);
     }
   };
 
