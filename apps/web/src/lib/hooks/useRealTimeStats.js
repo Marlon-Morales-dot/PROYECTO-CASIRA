@@ -4,9 +4,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { supabaseAPI } from '../supabase-api.js';
+import optimizedCache from '../optimized-supabase-cache.js';
 
-export const useRealTimeStats = (refreshInterval = 30000) => {
+export const useRealTimeStats = (refreshInterval = 600000) => { // 10 minutos (era 30 segundos) - REDUCCIÓN 20X
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeProjects: 0,
@@ -19,38 +19,23 @@ export const useRealTimeStats = (refreshInterval = 30000) => {
 
   const fetchStats = async () => {
     try {
-      // Obtener usuarios totales
-      const users = await supabaseAPI.users.getAllUsers();
-      const totalUsers = users.length;
+      console.log('📊 Fetching real-time stats using OPTIMIZED CACHE...');
 
-      // Obtener actividades
-      const activities = await supabaseAPI.activities.getAllActivities();
-      const totalActivities = activities.length;
-
-      // Contar proyectos activos (estado: planning, active, in_progress)
-      const activeStatuses = ['planning', 'active', 'in_progress'];
-      const activeProjects = activities.filter(activity =>
-        activeStatuses.includes(activity.status?.toLowerCase())
-      ).length;
-
-      // Contar proyectos completados (estado: completed, finished, done)
-      const completedStatuses = ['completed', 'finished', 'done'];
-      const completedProjects = activities.filter(activity =>
-        completedStatuses.includes(activity.status?.toLowerCase())
-      ).length;
+      // USAR CACHÉ OPTIMIZADO - reduce múltiples llamadas a 1 resultado cacheado
+      const cachedCounters = await optimizedCache.getOptimizedCounters();
 
       const newStats = {
-        totalUsers,
-        activeProjects,
-        completedProjects,
-        totalActivities,
+        totalUsers: cachedCounters.totalUsers,
+        activeProjects: cachedCounters.activeProjects,
+        completedProjects: cachedCounters.completedProjects,
+        totalActivities: cachedCounters.totalActivities,
         isLoading: false,
         error: null,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: cachedCounters.lastUpdated
       };
 
       setStats(newStats);
-      console.log('📊 Real-time stats updated:', newStats);
+      console.log('✅ Real-time stats updated from CACHE:', newStats);
 
       return newStats;
     } catch (error) {

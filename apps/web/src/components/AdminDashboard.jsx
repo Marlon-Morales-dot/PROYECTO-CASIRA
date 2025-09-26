@@ -8,6 +8,7 @@ import LogoutButton from './LogoutButton.jsx';
 import AdminVolunteerRequests from './AdminVolunteerRequests.jsx';
 import DataMigrationPanel from './DataMigrationPanel.jsx';
 import AdminRoleChangeTest from './AdminRoleChangeTest.jsx';
+import AdminStatistics from './AdminStatistics.jsx';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [activities, setActivities] = useState([]);
@@ -1487,42 +1488,7 @@ const AdminDashboard = ({ user, onLogout }) => {
             )}
 
             {activeTab === 'analytics' && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-6">Estadísticas y Analytics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="font-medium mb-4">Actividades por Estado</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Activas:</span>
-                        <span className="font-semibold">{stats.active_projects}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Completadas:</span>
-                        <span className="font-semibold">{stats.completed_projects}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total:</span>
-                        <span className="font-semibold">{Array.isArray(activities) ? activities.length : 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="font-medium mb-4">Participación</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Total Voluntarios:</span>
-                        <span className="font-semibold">{stats.total_volunteers}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Vidas Transformadas:</span>
-                        <span className="font-semibold">{stats.lives_transformed}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <AdminStatistics />
             )}
 
             {activeTab === 'users' && (

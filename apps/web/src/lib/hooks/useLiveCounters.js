@@ -5,12 +5,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase-singleton.js';
-import { supabaseAPI } from '../supabase-api.js';
+import optimizedCache from '../optimized-supabase-cache.js';
 
 export const useLiveCounters = (options = {}) => {
   const {
-    enableRealTimeSubscription = true,
-    refreshInterval = 15000, // 15 segundos por defecto
+    enableRealTimeSubscription = false, // DESHABILITADO por defecto para ahorrar egress
+    refreshInterval = 300000, // 5 minutos (era 15 segundos) - REDUCCIÓN 20X
     retryAttempts = 3,
     retryDelay = 2000
   } = options;
@@ -32,49 +32,21 @@ export const useLiveCounters = (options = {}) => {
 
   const fetchCounters = async () => {
     try {
-      console.log('🔄 Fetching live counters...');
+      console.log('🔄 Fetching live counters using OPTIMIZED CACHE...');
 
-      // Obtener todos los datos en paralelo para mejor performance
-      const [users, activities, posts] = await Promise.all([
-        supabaseAPI.users.getAllUsers(),
-        supabaseAPI.activities.getAllActivities(),
-        supabaseAPI.posts.getAllPosts()
-      ]);
-
-      // Calcular estadísticas
-      const totalUsers = users.length;
-      const totalActivities = activities.length;
-      const totalPosts = posts.length;
-
-      // Contar proyectos por estado
-      const activeStatuses = ['planning', 'active', 'in_progress', 'ongoing'];
-      const completedStatuses = ['completed', 'finished', 'done'];
-
-      const activeProjects = activities.filter(activity => {
-        const status = activity.status?.toLowerCase();
-        return activeStatuses.includes(status);
-      }).length;
-
-      const completedProjects = activities.filter(activity => {
-        const status = activity.status?.toLowerCase();
-        return completedStatuses.includes(status);
-      }).length;
+      // USAR CACHÉ OPTIMIZADO - reduce 3 llamadas a 1 resultado cacheado
+      const cachedCounters = await optimizedCache.getOptimizedCounters();
 
       const newCounters = {
-        totalUsers,
-        activeProjects,
-        completedProjects,
-        totalActivities,
-        totalPosts,
+        ...cachedCounters,
         isLoading: false,
-        error: null,
-        lastUpdated: new Date().toISOString()
+        error: null
       };
 
       setCounters(newCounters);
       retryCountRef.current = 0; // Reset retry count on success
 
-      console.log('✅ Live counters updated:', newCounters);
+      console.log('✅ Live counters updated from CACHE:', newCounters);
       return newCounters;
 
     } catch (error) {
