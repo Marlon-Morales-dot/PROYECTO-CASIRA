@@ -349,7 +349,8 @@ export function AuthProvider({ children }) {
       console.log('🔐 AppProvider: Iniciando login CASIRA con backend real');
 
       // Llamar al backend real - EXACTAMENTE como Google OAuth
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -459,7 +460,8 @@ export function AuthProvider({ children }) {
       console.log('🔐 AppProvider: Iniciando registro CASIRA con backend real');
 
       // Llamar al backend real - EXACTAMENTE como loginWithCasira
-      const response = await fetch('http://localhost:3000/api/auth/register', {
+      const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
+      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -38,7 +38,8 @@ export default function CasiraRegister() {
     setEmailValidation(prev => ({ ...prev, isChecking: true }));
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/check-email', {
+      const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://proyecto-casira.onrender.com';
+      const response = await fetch(`${BACKEND_URL}/api/auth/check-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
