@@ -31,7 +31,7 @@ export default function CasiraRegister() {
     checked: false
   });
 
-  // Función para verificar si el email existe
+  // Función para verificar si el email existe todo sea pir el commmit
   const checkEmailExists = async (email) => {
     if (!email || !email.includes('@')) return;
 
