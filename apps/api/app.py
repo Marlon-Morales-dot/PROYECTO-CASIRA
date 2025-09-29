@@ -2,20 +2,73 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from supabase import create_client, Client
+import bcrypt
+import jwt
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # API-only Flask app - no static file serving
 app = Flask(__name__)
 
 # CORS configuration for Vercel frontend
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://proyecto-casira-web.vercel.app')
-ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', f'{FRONTEND_URL},https://proyecto-casira-1.onrender.com,http://localhost:5173').split(',')
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', f'{FRONTEND_URL},https://proyecto-casira-1.onrender.com,http://localhost:5173,http://localhost:3000').split(',')
 
-CORS(app, 
+CORS(app,
      origins=ALLOWED_ORIGINS,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
+
+# =============================================================================
+# CONFIGURACIÓN SUPABASE Y JWT
+# =============================================================================
+
+# Configuración de Supabase
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://wlliqmcpiiktcdzwzhdn.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbGlxbWNwaWlrdGNkend6aGRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjcxMjc0OTUsImV4cCI6MjA0MjcwMzQ5NX0.ug3fCAD0V6b0b2JrGFcxuGBf8t3wCK7QV9FIKOXBLps')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'casira-super-secret-key-for-jwt-tokens-2024')
+
+# Inicializar cliente Supabase
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# =============================================================================
+# FUNCIONES AUXILIARES
+# =============================================================================
+
+def hash_password(password: str) -> str:
+    """Hash de contraseña usando bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verificar contraseña contra hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def generate_jwt_token(user_data: dict) -> str:
+    """Generar token JWT - EXACTAMENTE como Google OAuth"""
+    payload = {
+        'user_id': user_data['id'],
+        'email': user_data['email'],
+        'role': user_data['role'],
+        'exp': datetime.utcnow() + timedelta(days=7),  # Token válido por 7 días
+        'iat': datetime.utcnow(),
+        'iss': 'casira-connect'
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+def verify_jwt_token(token: str) -> dict:
+    """Verificar y decodificar token JWT"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        return {'valid': True, 'payload': payload}
+    except jwt.ExpiredSignatureError:
+        return {'valid': False, 'error': 'Token expired'}
+    except jwt.InvalidTokenError:
+        return {'valid': False, 'error': 'Invalid token'}
 
 # Datos simulados para el despliegue
 SAMPLE_DATA = {
@@ -132,60 +185,210 @@ def health_check():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    """Simulated login endpoint"""
-    data = request.get_json()
-    
-    if not data or 'email' not in data or 'password' not in data:
-        return jsonify({'error': 'Email and password required'}), 400
-    
-    # Simulate user lookup
-    for user in SAMPLE_DATA['users']:
-        if user['email'] == data['email']:
-            # In real app, verify password hash
-            return jsonify({
-                'message': 'Login successful',
-                'user': {
-                    'id': user['id'],
-                    'email': user['email'],
-                    'first_name': user['first_name'],
-                    'last_name': user['last_name'],
-                    'role': user['role']
-                },
-                'token': 'sample_jwt_token_here'
-            })
-    
-    return jsonify({'error': 'Invalid credentials'}), 401
+    """CASIRA Auth Login - EXACTAMENTE como Google OAuth"""
+    try:
+        data = request.get_json()
+
+        if not data or 'email' not in data or 'password' not in data:
+            return jsonify({'error': 'Email and password required'}), 400
+
+        email = data['email'].lower().strip()
+        password = data['password']
+
+        print(f"[LOGIN] Login attempt for: {email}")
+
+        # Buscar usuario en Supabase
+        response = supabase.table('users').select('*').eq('email', email).execute()
+
+        if not response.data:
+            print(f"[ERROR] User not found: {email}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        user = response.data[0]
+        print(f"[OK] User found: {user['first_name']} {user['last_name']}")
+
+        # Verificar contraseña - EXTRAER DEL CAMPO BIO
+        bio = user.get('bio', '')
+        if not bio.startswith('CASIRA_PWD:'):
+            print(f"[ERROR] No CASIRA password for user: {email}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        # Extraer password hash del bio
+        try:
+            pwd_part = bio.split('|')[0]  # Tomar la parte antes del |
+            password_hash = pwd_part.replace('CASIRA_PWD:', '')
+        except:
+            print(f"[ERROR] Invalid password format for user: {email}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        if not verify_password(password, password_hash):
+            print(f"[ERROR] Invalid password for user: {email}")
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        # Usuario autenticado correctamente
+        print(f"[OK] Password verified for user: {email}")
+
+        # Actualizar último login
+        supabase.table('users').update({
+            'last_login': datetime.utcnow().isoformat()
+        }).eq('id', user['id']).execute()
+
+        # Preparar datos del usuario EXACTAMENTE como Google OAuth
+        # Extraer bio real (sin password hash)
+        clean_bio = ''
+        if '|' in user.get('bio', ''):
+            clean_bio = user['bio'].split('|', 1)[1]  # Tomar todo después del primer |
+
+        user_data = {
+            'id': user['id'],
+            'email': user['email'],
+            'first_name': user['first_name'],
+            'last_name': user['last_name'],
+            'fullName': f"{user['first_name']} {user['last_name']}",
+            'role': user['role'],
+            'bio': clean_bio,  # Bio sin password hash
+            'avatar_url': user.get('avatar_url', ''),
+            'created_at': user.get('created_at', ''),
+            'last_login': datetime.utcnow().isoformat(),
+            'auth_provider': 'casira'
+        }
+
+        # Generar token JWT
+        token = generate_jwt_token(user_data)
+
+        # Respuesta EXACTAMENTE igual a Google OAuth
+        response_data = {
+            'success': True,
+            'message': f'¡Bienvenido {user_data["first_name"]}!',
+            'user': user_data,
+            'token': token
+        }
+
+        print(f"[SUCCESS] Login successful for: {email}")
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        print(f"[ERROR] Login error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Error interno del servidor'
+        }), 500
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    """Simulated registration endpoint"""
-    data = request.get_json()
-    
-    required_fields = ['email', 'password', 'first_name', 'last_name']
-    if not data or not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing required fields'}), 400
-    
-    # Check if user exists
-    for user in SAMPLE_DATA['users']:
-        if user['email'] == data['email']:
-            return jsonify({'error': 'User already exists'}), 409
-    
-    # Create new user
-    new_user = {
-        'id': len(SAMPLE_DATA['users']) + 1,
-        'email': data['email'],
-        'first_name': data['first_name'],
-        'last_name': data['last_name'],
-        'role': data.get('role', 'beneficiary'),
-        'bio': data.get('bio', '')
-    }
-    
-    SAMPLE_DATA['users'].append(new_user)
-    
-    return jsonify({
-        'message': 'Registration successful', 
-        'user': new_user
-    }), 201
+    """CASIRA Auth Register - EXACTAMENTE como Google OAuth"""
+    try:
+        data = request.get_json()
+
+        # Validar campos requeridos
+        required_fields = ['email', 'password', 'first_name', 'last_name']
+        if not data or not all(field in data for field in required_fields):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields',
+                'message': 'Todos los campos son requeridos'
+            }), 400
+
+        email = data['email'].lower().strip()
+        password = data['password']
+        first_name = data['first_name'].strip()
+        last_name = data['last_name'].strip()
+
+        print(f"[REGISTER] Registration attempt for: {email}")
+
+        # Validar longitud de contraseña
+        if len(password) < 6:
+            return jsonify({
+                'success': False,
+                'error': 'Password too short',
+                'message': 'La contraseña debe tener al menos 6 caracteres'
+            }), 400
+
+        # Verificar si el usuario ya existe
+        response = supabase.table('users').select('*').eq('email', email).execute()
+
+        if response.data:
+            print(f"[ERROR] User already exists: {email}")
+            return jsonify({
+                'success': False,
+                'error': 'User already exists',
+                'message': 'Ya existe un usuario con este email'
+            }), 409
+
+        # Hash de la contraseña
+        password_hash = hash_password(password)
+
+        # Crear nuevo usuario en Supabase - USANDO ESTRUCTURA EXISTENTE
+        user_data = {
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'full_name': f"{first_name} {last_name}",
+            'role': data.get('role', 'visitor'),  # Rol por defecto: visitor
+            'bio': f"CASIRA_PWD:{password_hash}|{data.get('bio', '')}",  # Password hash en bio
+            'provider': 'casira',  # Identificar como usuario CASIRA
+            'verified': True,  # Auto-verificado para usuarios CASIRA
+            'status': 'active',  # Usuario activo
+            'avatar_url': '',
+            'google_id': None,
+            'preferences': {}  # Objeto vacío para preferencias
+        }
+
+        response = supabase.table('users').insert(user_data).execute()
+
+        if not response.data:
+            print(f"[ERROR] Failed to create user: {email}")
+            return jsonify({
+                'success': False,
+                'error': 'Registration failed',
+                'message': 'Error al crear el usuario'
+            }), 500
+
+        created_user = response.data[0]
+        print(f"[SUCCESS] User created: {email}")
+
+        # Preparar datos de respuesta EXACTAMENTE como Google OAuth
+        # Extraer bio real (sin password hash)
+        clean_bio = ''
+        if '|' in created_user.get('bio', ''):
+            clean_bio = created_user['bio'].split('|', 1)[1]  # Tomar todo después del primer |
+
+        user_response = {
+            'id': created_user['id'],
+            'email': created_user['email'],
+            'first_name': created_user['first_name'],
+            'last_name': created_user['last_name'],
+            'fullName': f"{created_user['first_name']} {created_user['last_name']}",
+            'role': created_user['role'],
+            'bio': clean_bio,  # Bio sin password hash
+            'avatar_url': created_user.get('avatar_url', ''),
+            'created_at': created_user.get('created_at', ''),
+            'last_login': created_user.get('last_login', ''),
+            'auth_provider': 'casira'
+        }
+
+        # Generar token JWT
+        token = generate_jwt_token(user_response)
+
+        # Respuesta EXACTAMENTE igual a Google OAuth
+        response_data = {
+            'success': True,
+            'message': f'¡Bienvenido a CASIRA Connect, {user_response["first_name"]}!',
+            'user': user_response,
+            'token': token
+        }
+
+        print(f"[SUCCESS] Registration successful for: {email}")
+        return jsonify(response_data), 201
+
+    except Exception as e:
+        print(f"[ERROR] Registration error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Error interno del servidor'
+        }), 500
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
@@ -526,6 +729,39 @@ def internal_error(error):
         'message': 'Something went wrong on the server'
     }), 500
 
+@app.route('/api/auth/check-email', methods=['POST'])
+def check_email():
+    """Verificar si un email ya existe en la base de datos"""
+    try:
+        data = request.get_json()
+
+        if not data or 'email' not in data:
+            return jsonify({'error': 'Email required'}), 400
+
+        email = data['email'].lower().strip()
+
+        # Buscar usuario por email en Supabase
+        response = supabase.table('users').select('email').eq('email', email).execute()
+
+        exists = len(response.data) > 0
+
+        return jsonify({
+            'exists': exists,
+            'message': 'Email ya está registrado' if exists else 'Email disponible'
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Error checking email: {str(e)}")
+        return jsonify({
+            'error': 'Server error',
+            'message': 'Error al verificar email'
+        }), 500
+
 if __name__ == '__main__':
-    # Para desarrollo local
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 3000)), debug=True)
+    # Para desarrollo local - FORZAR puerto 3000
+    port = 3000  # Forzar puerto 3000 directamente
+    print(f"[INFO] CASIRA Connect API starting on http://0.0.0.0:{port}")
+    print(f"[INFO] Supabase URL: {SUPABASE_URL}")
+    print(f"[INFO] CORS enabled for: {ALLOWED_ORIGINS}")
+
+    app.run(host='0.0.0.0', port=port, debug=True)

@@ -14,6 +14,7 @@ import SocialDashboard from './components/SocialDashboard.jsx';
 import VisitorDashboard from './components/VisitorDashboard.jsx';
 import PublicSocialView from './components/PublicSocialView.jsx';
 import ProfessionalLogin from './components/ProfessionalLogin.jsx';
+import CasiraRegister from './components/CasiraRegister.jsx';
 import DashboardWrapper from './components/DashboardWrapper.jsx';
 import GlobalRoleChangeModal from './components/GlobalRoleChangeModal.jsx';
 
@@ -31,6 +32,7 @@ function App() {
           {/* Rutas públicas */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<ProfessionalLogin />} />
+          <Route path="/register" element={<CasiraRegister />} />
           <Route path="/enhanced-login" element={<ProfessionalLogin />} />
           <Route path="/social" element={<PublicSocialView />} />
           <Route path="/activities" element={<PublicSocialView />} />

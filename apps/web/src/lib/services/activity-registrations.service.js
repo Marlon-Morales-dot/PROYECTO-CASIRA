@@ -470,9 +470,31 @@ class ActivityRegistrationsService {
 
   async resolveUserForRegistration(userInfo) {
     try {
+      console.log('🔍 RESOLVE: Resolving user:', userInfo);
+
       // Si ya es un objeto con supabase_id, usarlo directamente
       if (typeof userInfo === 'object' && userInfo.supabase_id) {
+        console.log('✅ RESOLVE: User already has supabase_id:', userInfo.supabase_id);
         return userInfo;
+      }
+
+      // Detectar usuarios CASIRA (tienen 'id' que es UUID de Supabase)
+      if (typeof userInfo === 'object' && userInfo.id && userInfo.auth_provider === 'casira') {
+        console.log('✅ RESOLVE: CASIRA user detected, using id as supabase_id:', userInfo.id);
+        return {
+          ...userInfo,
+          supabase_id: userInfo.id
+        };
+      }
+
+      // Detectar usuarios CASIRA sin auth_provider pero con estructura típica
+      if (typeof userInfo === 'object' && userInfo.id &&
+          userInfo.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.log('✅ RESOLVE: UUID detected, assuming CASIRA user:', userInfo.id);
+        return {
+          ...userInfo,
+          supabase_id: userInfo.id
+        };
       }
 
       // Si es un ID numérico (Google ID), buscar en usuarios actuales

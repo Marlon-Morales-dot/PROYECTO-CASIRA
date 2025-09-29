@@ -379,9 +379,18 @@ export default function ProfessionalLogin() {
               ¿Primera vez en CASIRA Connect?{' '}
               <button
                 className="text-blue-600 hover:text-blue-700 font-medium"
+                onClick={() => navigate('/register')}
+              >
+                Crear cuenta CASIRA
+              </button>
+            </div>
+            <div className="text-sm text-gray-500">
+              O{' '}
+              <button
+                className="text-blue-600 hover:text-blue-700 font-medium"
                 onClick={() => navigate('/activities')}
               >
-                Explorar como visitante
+                explorar como visitante
               </button>
             </div>
           </div>

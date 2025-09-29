@@ -340,45 +340,69 @@ export function AuthProvider({ children }) {
   }, [authState.user]);
 
   /**
-   * Login con credenciales CASIRA
+   * Login con credenciales CASIRA - CONECTADO AL BACKEND REAL
    */
   const loginWithCasira = async (email, password) => {
-    if (!loginUseCase) {
-      throw new Error('Login service not available');
-    }
-
     authDispatch({ type: 'LOGIN_START' });
 
     try {
-      // Login temporal para demo - evita errores de Supabase
-      if (email === 'admin@casira.org' && password === 'admin123') {
-        const demoUser = {
-          id: 'demo-admin-id',
-          email: 'admin@casira.org',
-          firstName: 'Administrador',
-          lastName: 'CASIRA',
-          fullName: 'Administrador CASIRA',
-          role: 'admin',
-          isAdmin: () => true,
-          isVolunteer: () => false,
-          isVisitor: () => false
+      console.log('🔐 AppProvider: Iniciando login CASIRA con backend real');
+
+      // Llamar al backend real - EXACTAMENTE como Google OAuth
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Backend error:', data);
+        authDispatch({
+          type: 'LOGIN_FAILURE',
+          payload: data.message || data.error || 'Error de autenticación'
+        });
+        return {
+          success: false,
+          message: data.message || data.error || 'Error de autenticación'
         };
-        
-        const tokenData = {
-          userId: demoUser.id,
-          email: demoUser.email,
-          role: demoUser.role,
-          timestamp: Date.now()
+      }
+
+      if (data.success && data.user) {
+        console.log('✅ AppProvider: Login exitoso desde backend:', data.user);
+
+        // Preparar usuario EXACTAMENTE como Google OAuth
+        const user = {
+          id: data.user.id,
+          email: data.user.email,
+          firstName: data.user.first_name,
+          lastName: data.user.last_name,
+          fullName: data.user.fullName || `${data.user.first_name} ${data.user.last_name}`,
+          role: data.user.role,
+          bio: data.user.bio || '',
+          avatar_url: data.user.avatar_url || '',
+          created_at: data.user.created_at,
+          last_login: data.user.last_login,
+          auth_provider: 'casira',
+          isAdmin: () => data.user.role === 'admin',
+          isVolunteer: () => data.user.role === 'volunteer',
+          isVisitor: () => data.user.role === 'visitor'
         };
 
         const result = {
           success: true,
-          user: demoUser,
-          token: `casira-jwt-${btoa(JSON.stringify(tokenData))}`,
-          message: '¡Bienvenido Administrador!'
+          user: user,
+          token: data.token,
+          message: data.message
         };
-        
-        // Guardar en localStorage
+
+        // Guardar en localStorage - EXACTAMENTE como Google OAuth
         localStorage.setItem('casira-current-user', JSON.stringify(result.user));
         localStorage.setItem('casira-token', result.token);
 
@@ -390,54 +414,145 @@ export function AuthProvider({ children }) {
           }
         });
 
-        // Emitir evento de login
+        // Emitir evento de login - EXACTAMENTE como Google OAuth
         eventBus.emit(DomainEvents.USER_LOGGED_IN, {
           user: result.user,
           method: 'casira'
         });
 
-        return result;
-      }
-      
-      // Para otras credenciales, intentar Supabase (puede fallar)
-      const result = await loginUseCase.executeWithCasira(email, password);
-
-      if (result.success) {
-        // Guardar en localStorage
-        localStorage.setItem('casira-current-user', JSON.stringify(result.user));
-        localStorage.setItem('casira-token', result.token);
-
-        authDispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: {
-            user: result.user,
-            token: result.token
-          }
-        });
-
-        // Emitir evento de login
-        eventBus.emit(DomainEvents.USER_LOGGED_IN, {
-          user: result.user,
-          method: 'casira'
-        });
-
-        // Inicializar servicio de tiempo real
+        // Inicializar servicio de tiempo real - EXACTAMENTE como Google OAuth
         await initializeRealtimeService(result.user);
 
+        console.log('✅ AppProvider: Estado actualizado, login completo');
         return result;
       } else {
+        console.error('❌ Invalid response format:', data);
         authDispatch({
           type: 'LOGIN_FAILURE',
-          payload: result.message
+          payload: 'Respuesta inválida del servidor'
         });
-        return result;
+        return {
+          success: false,
+          message: 'Respuesta inválida del servidor'
+        };
       }
     } catch (error) {
+      console.error('❌ AppProvider: Error en loginWithCasira:', error);
       authDispatch({
         type: 'LOGIN_FAILURE',
-        payload: error.message
+        payload: 'Error de conexión con el servidor'
       });
-      throw error;
+      return {
+        success: false,
+        message: 'Error de conexión con el servidor'
+      };
+    }
+  };
+
+  /**
+   * Registro con credenciales CASIRA - CONECTADO AL BACKEND REAL
+   */
+  const registerWithCasira = async (userData) => {
+    authDispatch({ type: 'LOGIN_START' });
+
+    try {
+      console.log('🔐 AppProvider: Iniciando registro CASIRA con backend real');
+
+      // Llamar al backend real - EXACTAMENTE como loginWithCasira
+      const response = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Backend error:', data);
+        authDispatch({
+          type: 'LOGIN_FAILURE',
+          payload: data.message || data.error || 'Error de registro'
+        });
+        return {
+          success: false,
+          message: data.message || data.error || 'Error de registro'
+        };
+      }
+
+      if (data.success && data.user) {
+        console.log('✅ AppProvider: Registro exitoso desde backend:', data.user);
+
+        // Preparar usuario EXACTAMENTE como loginWithCasira
+        const user = {
+          id: data.user.id,
+          email: data.user.email,
+          firstName: data.user.first_name,
+          lastName: data.user.last_name,
+          fullName: data.user.fullName || `${data.user.first_name} ${data.user.last_name}`,
+          role: data.user.role,
+          bio: data.user.bio || '',
+          avatar_url: data.user.avatar_url || '',
+          created_at: data.user.created_at,
+          last_login: data.user.last_login,
+          auth_provider: 'casira',
+          isAdmin: () => data.user.role === 'admin',
+          isVolunteer: () => data.user.role === 'volunteer',
+          isVisitor: () => data.user.role === 'visitor'
+        };
+
+        const result = {
+          success: true,
+          user: user,
+          token: data.token,
+          message: data.message
+        };
+
+        // Guardar en localStorage - EXACTAMENTE como loginWithCasira
+        localStorage.setItem('casira-current-user', JSON.stringify(result.user));
+        localStorage.setItem('casira-token', result.token);
+
+        authDispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: {
+            user: result.user,
+            token: result.token
+          }
+        });
+
+        // Emitir evento de login - EXACTAMENTE como loginWithCasira
+        eventBus.emit(DomainEvents.USER_LOGGED_IN, {
+          user: result.user,
+          method: 'casira'
+        });
+
+        // Inicializar servicio de tiempo real - EXACTAMENTE como loginWithCasira
+        await initializeRealtimeService(result.user);
+
+        console.log('✅ AppProvider: Usuario registrado y logueado automáticamente');
+        return result;
+      } else {
+        console.error('❌ Invalid registration response:', data);
+        authDispatch({
+          type: 'LOGIN_FAILURE',
+          payload: 'Respuesta inválida del servidor'
+        });
+        return {
+          success: false,
+          message: 'Respuesta inválida del servidor'
+        };
+      }
+    } catch (error) {
+      console.error('❌ AppProvider: Error en registerWithCasira:', error);
+      authDispatch({
+        type: 'LOGIN_FAILURE',
+        payload: 'Error de conexión con el servidor'
+      });
+      return {
+        success: false,
+        message: 'Error de conexión con el servidor'
+      };
     }
   };
 
@@ -576,6 +691,7 @@ export function AuthProvider({ children }) {
     ...authState,
     loginWithCasira,
     loginWithGoogle,
+    registerWithCasira,
     logout,
     updateUserProfile,
     getRedirectRoute,
