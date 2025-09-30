@@ -43,8 +43,8 @@ export class SupabaseActivityRepository extends ActivityRepository {
    */
   async findAll(filters = {}, pagination = {}, sorting = {}) {
     try {
-      // Temporarily simplified query to avoid foreign key issues
-      let query = this.supabase.from(this.tableName).select('*', { count: 'exact' });
+      // OPTIMIZACIÓN: Select específico sin campos grandes + límite por defecto
+      let query = this.supabase.from(this.tableName).select('id, title, description, category_id, created_by, status, priority, location, start_date, end_date, max_volunteers, current_volunteers, budget, funds_raised, image_url, featured, created_at, updated_at, progress_percentage, category, date_start, date_end, beneficiaries_count', { count: 'exact' });
 
       // Aplicar filtros
       if (filters.status) {
@@ -54,7 +54,7 @@ export class SupabaseActivityRepository extends ActivityRepository {
         query = query.eq('category_id', filters.categoryId);
       }
       if (filters.creatorId) {
-        query = query.eq('creator_id', filters.creatorId);
+        query = query.eq('created_by', filters.creatorId);
       }
       if (filters.isFeatured !== undefined) {
         // Skip is_featured filter since column doesn't exist
@@ -77,11 +77,14 @@ export class SupabaseActivityRepository extends ActivityRepository {
       const sortDirection = sorting.direction === 'asc' ? true : false;
       query = query.order(sortField, { ascending: sortDirection });
 
-      // Aplicar paginación
+      // Aplicar paginación con límite por defecto de 30
+      const defaultLimit = 30;
       if (pagination.offset) {
-        query = query.range(pagination.offset, pagination.offset + (pagination.limit || 10) - 1);
+        query = query.range(pagination.offset, pagination.offset + (pagination.limit || defaultLimit) - 1);
       } else if (pagination.limit) {
         query = query.limit(pagination.limit);
+      } else {
+        query = query.limit(defaultLimit);
       }
 
       const { data, error, count } = await query;
@@ -103,7 +106,7 @@ export class SupabaseActivityRepository extends ActivityRepository {
       }
 
       const activities = data ? data
-        .filter(activityData => activityData.creator_id) // Filter out activities without creator_id
+        .filter(activityData => activityData.created_by) // Filter out activities without created_by
         .map(activityData => Activity.fromDatabase(activityData)) : [];
 
       return {
@@ -131,16 +134,15 @@ export class SupabaseActivityRepository extends ActivityRepository {
    */
   async findFeatured(limit = 10) {
     try {
-      // Skip is_featured column completely since it doesn't exist
-      // Just get active activities as featured activities
-      console.log('Getting active activities as featured (is_featured column not available)');
+      // OPTIMIZACIÓN: Select específico para reducir egress
+      console.log('Getting active activities as featured (optimized query)');
 
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, title, description, category_id, created_by, status, priority, location, start_date, end_date, max_volunteers, current_volunteers, image_url, featured, created_at, progress_percentage')
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-        .limit(limit);
+        .limit(Math.min(limit, 20)); // Máximo 20 actividades destacadas
 
       if (error) {
         console.error('Error finding active activities:', error);
@@ -156,7 +158,7 @@ export class SupabaseActivityRepository extends ActivityRepository {
       }
 
       return data ? data
-        .filter(activityData => activityData.created_by || activityData.creator_id)
+        .filter(activityData => activityData.created_by)
         .map(activityData => Activity.fromDatabase(activityData)) : [];
     } catch (error) {
       console.error('Error finding featured activities:', error);
@@ -169,19 +171,21 @@ export class SupabaseActivityRepository extends ActivityRepository {
    */
   async findByStatus(status, pagination = {}) {
     try {
-      // Temporarily simplified query to avoid foreign key issues
+      // OPTIMIZACIÓN: Select específico + límite por defecto
       let query = this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, title, description, category_id, created_by, status, priority, location, start_date, end_date, max_volunteers, current_volunteers, image_url, created_at, progress_percentage')
         .eq('status', status)
         .order('created_at', { ascending: false });
 
-      // Aplicar paginación
-      if (pagination.limit) {
-        query = query.limit(pagination.limit);
-      }
+      // Aplicar paginación con límite por defecto
+      const defaultLimit = 50;
       if (pagination.offset) {
-        query = query.range(pagination.offset, pagination.offset + (pagination.limit || 10) - 1);
+        query = query.range(pagination.offset, pagination.offset + (pagination.limit || defaultLimit) - 1);
+      } else if (pagination.limit) {
+        query = query.limit(pagination.limit);
+      } else {
+        query = query.limit(defaultLimit);
       }
 
       const { data, error } = await query;
@@ -189,7 +193,7 @@ export class SupabaseActivityRepository extends ActivityRepository {
       if (error) throw error;
 
       return data ? data
-        .filter(activityData => activityData.creator_id) // Filter out activities without creator_id
+        .filter(activityData => activityData.created_by) // Filter out activities without created_by
         .map(activityData => Activity.fromDatabase(activityData)) : [];
     } catch (error) {
       console.error('Error finding activities by status:', error);
@@ -583,9 +587,11 @@ export class SupabaseActivityRepository extends ActivityRepository {
    */
   async getStats() {
     try {
+      // OPTIMIZACIÓN: Solo seleccionar 'status' para minimizar egress
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('status');
+        .select('status')
+        .not('created_by', 'is', null); // Solo actividades con creador válido
 
       if (error) throw error;
 
@@ -599,7 +605,7 @@ export class SupabaseActivityRepository extends ActivityRepository {
         total: stats.total || 0,
         active: stats.active || 0,
         completed: stats.completed || 0,
-        draft: stats.draft || 0,
+        planning: stats.planning || 0,
         cancelled: stats.cancelled || 0
       };
     } catch (error) {

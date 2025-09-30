@@ -19,9 +19,10 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findById(id) {
     try {
+      // OPTIMIZACIÓN: Select específico para reducir egress
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, email, first_name, last_name, full_name, role, bio, avatar_url, provider, verified, status, preferences, last_login, created_at')
         .eq('id', id)
         .single();
 
@@ -42,9 +43,10 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findByEmail(email) {
     try {
+      // OPTIMIZACIÓN: Select específico para reducir egress
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, email, first_name, last_name, full_name, role, bio, avatar_url, provider, verified, status, preferences, last_login, created_at')
         .eq('email', email)
         .single();
 
@@ -65,9 +67,10 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findByGoogleId(googleId) {
     try {
+      // OPTIMIZACIÓN: Select específico para reducir egress
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, email, first_name, last_name, full_name, role, bio, avatar_url, google_id, provider, verified, status, preferences, last_login, created_at')
         .eq('google_id', googleId)
         .single();
 
@@ -88,7 +91,8 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findAll(filters = {}, pagination = {}) {
     try {
-      let query = this.supabase.from(this.tableName).select('*', { count: 'exact' });
+      // OPTIMIZACIÓN: Select específico sin campos grandes + límite por defecto
+      let query = this.supabase.from(this.tableName).select('id, email, first_name, last_name, full_name, role, avatar_url, provider, verified, status, last_login, created_at', { count: 'exact' });
 
       // Aplicar filtros
       if (filters.role) {
@@ -104,11 +108,14 @@ export class SupabaseUserRepository extends UserRepository {
         query = query.eq('auth_provider', filters.authProvider);
       }
 
-      // Aplicar paginación
+      // Aplicar paginación con límite por defecto de 50
+      const defaultLimit = 50;
       if (pagination.offset) {
-        query = query.range(pagination.offset, pagination.offset + (pagination.limit || 10) - 1);
+        query = query.range(pagination.offset, pagination.offset + (pagination.limit || defaultLimit) - 1);
       } else if (pagination.limit) {
         query = query.limit(pagination.limit);
+      } else {
+        query = query.limit(defaultLimit);
       }
 
       // Ordenamiento por defecto por fecha de creación
@@ -229,10 +236,11 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async countByRole() {
     try {
-      // Skip is_active filter since column doesn't exist
+      // OPTIMIZACIÓN: Solo seleccionar campo 'role' para minimizar egress
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('role');
+        .select('role')
+        .eq('status', 'active'); // Solo contar usuarios activos
 
       if (error) {
         console.error('Error counting users by role:', error);
@@ -281,12 +289,13 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async findByRole(role) {
     try {
-      // Skip is_active filter since column doesn't exist
+      // OPTIMIZACIÓN: Select específico + límite por defecto
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select('id, email, first_name, last_name, full_name, role, avatar_url, provider, verified, status, last_login, created_at')
         .eq('role', role)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Límite de seguridad
 
       if (error) throw error;
 
@@ -398,9 +407,10 @@ export class SupabaseUserRepository extends UserRepository {
    */
   async search(searchText, filters = {}, pagination = {}) {
     try {
+      // OPTIMIZACIÓN: Select específico + límite por defecto
       let query = this.supabase
         .from(this.tableName)
-        .select('*', { count: 'exact' })
+        .select('id, email, first_name, last_name, full_name, role, avatar_url, provider, verified, status, last_login, created_at', { count: 'exact' })
         .or(`first_name.ilike.%${searchText}%,last_name.ilike.%${searchText}%,email.ilike.%${searchText}%`);
 
       // Aplicar filtros adicionales
@@ -412,11 +422,14 @@ export class SupabaseUserRepository extends UserRepository {
         console.warn('Skipping is_active filter - column does not exist');
       }
 
-      // Aplicar paginación
+      // Aplicar paginación con límite por defecto
+      const defaultLimit = 50;
       if (pagination.offset) {
-        query = query.range(pagination.offset, pagination.offset + (pagination.limit || 10) - 1);
+        query = query.range(pagination.offset, pagination.offset + (pagination.limit || defaultLimit) - 1);
       } else if (pagination.limit) {
         query = query.limit(pagination.limit);
+      } else {
+        query = query.limit(defaultLimit);
       }
 
       // Ordenamiento
