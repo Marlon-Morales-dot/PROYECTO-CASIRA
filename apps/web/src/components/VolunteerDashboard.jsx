@@ -56,10 +56,14 @@ const VolunteerDashboard = ({ user, onLogout }) => {
   });
   const [activityRequests, setActivityRequests] = useState([]);
 
-  // States for image upload
+  // States for image upload (activities)
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageUploadMode, setImageUploadMode] = useState('url'); // 'url' or 'file'
+
+  // States for avatar upload (profile)
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -275,14 +279,41 @@ const VolunteerDashboard = ({ user, onLogout }) => {
     setIsEditing(true);
   };
 
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedAvatar(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       const userId = user?.supabase_id || user?.id;
       console.log('💾 VOLUNTEER: Saving profile for user ID:', userId);
 
-      const updated = await usersAPI.updateUserProfile(userId, editForm);
+      let profileData = { ...editForm };
+
+      // Handle avatar upload if user selected a new file
+      if (selectedAvatar) {
+        console.log('📸 VOLUNTEER: Uploading avatar...');
+        const { storageAPI } = await import('../lib/supabase-singleton.js');
+        const timestamp = Date.now();
+        const filename = `avatar_${userId}_${timestamp}_${selectedAvatar.name}`;
+        const uploadResult = await storageAPI.uploadImage(selectedAvatar, 'avatars');
+        profileData.avatar_url = uploadResult.url;
+        console.log('✅ VOLUNTEER: Avatar uploaded:', uploadResult.url);
+      }
+
+      const updated = await usersAPI.updateUserProfile(userId, profileData);
       setUserProfile(updated);
       setIsEditing(false);
+      setSelectedAvatar(null);
+      setAvatarPreview(null);
       alert('¡Perfil actualizado exitosamente!');
     } catch (error) {
       alert('Error al actualizar el perfil');
@@ -1498,7 +1529,11 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                       <span>Guardar</span>
                     </button>
                     <button
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        setIsEditing(false);
+                        setSelectedAvatar(null);
+                        setAvatarPreview(null);
+                      }}
                       className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                     >
                       <X className="h-4 w-4" />
@@ -1513,13 +1548,27 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                 <div className="text-center">
                   <div className="relative inline-block">
                     <img
-                      src={userProfile.avatar_url || '/grupo-canadienses.jpg'}
+                      src={avatarPreview || userProfile.avatar_url || '/grupo-canadienses.jpg'}
                       alt={userProfile.first_name}
                       className="w-32 h-32 rounded-full object-cover border-4 border-blue-100"
                     />
-                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2">
-                      <Camera className="h-4 w-4 text-white" />
-                    </div>
+                    {isEditing && (
+                      <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-700 transition-colors">
+                        <Camera className="h-4 w-4 text-white" />
+                        <input
+                          id="avatar-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    {!isEditing && (
+                      <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2">
+                        <Camera className="h-4 w-4 text-white" />
+                      </div>
+                    )}
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mt-4">
                     {userProfile.first_name} {userProfile.last_name}
@@ -1570,8 +1619,8 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                         <input
                           type="email"
                           value={editForm.email || ''}
-                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
                       </div>
                       <div>

@@ -112,6 +112,43 @@ export const supabaseUsersAPI = {
     }
   },
 
+  // Update user profile (includes bio field)
+  async updateUserProfile(userId, profileData) {
+    try {
+      console.log('📝 SUPABASE: Updating user profile for ID:', userId);
+      console.log('📝 SUPABASE: Profile data:', profileData);
+
+      // Filtrar campos permitidos para perfil de usuario
+      const allowedFields = ['first_name', 'last_name', 'full_name', 'bio', 'avatar_url'];
+      const filteredData = Object.keys(profileData)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = profileData[key];
+          return obj;
+        }, {});
+
+      console.log('📝 SUPABASE: Filtered data:', filteredData);
+
+      const { data, error } = await supabase
+        .from('users')
+        .update(filteredData)
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ SUPABASE: Error updating profile:', error);
+        throw error;
+      }
+
+      console.log('✅ SUPABASE: Profile updated successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ SUPABASE: Error in updateUserProfile:', error);
+      throw error;
+    }
+  },
+
   // Update user role specifically
   async updateUserRole(userId, newRole) {
     try {

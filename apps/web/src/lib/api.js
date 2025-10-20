@@ -569,14 +569,8 @@ export const usersAPI = {
   },
 
   updateUserProfile: async (userId, updateData) => {
-    const userIndex = dataStore.users.findIndex(user => user.id == userId);
-    if (userIndex !== -1) {
-      dataStore.users[userIndex] = { ...dataStore.users[userIndex], ...updateData };
-      dataStore.saveToStorage();
-      dataStore.notify();
-      return dataStore.users[userIndex];
-    }
-    throw new Error('Usuario no encontrado');
+    console.log('🔄 API: Delegating profile update to Supabase for user:', userId);
+    return await supabaseAPI.users.updateUserProfile(userId, updateData);
   },
 
   getAllUsers: async () => {
