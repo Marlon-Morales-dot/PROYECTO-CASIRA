@@ -323,7 +323,7 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="py-16 lg:py-24 relative overflow-hidden">
+      <section className="py-4 lg:py-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="space-y-8 animate-fade-in">
