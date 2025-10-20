@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   User, Camera, MessageCircle, Heart, Calendar, MapPin, Clock, Users,
-  Settings, LogOut, Plus, Edit3, Save, X, Upload, Star, Award, Bell, Check, AlertCircle
+  Settings, LogOut, Plus, Edit3, Save, X, Upload, Star, Award, Bell, Check, AlertCircle, Trash2
 } from 'lucide-react';
 import {
   usersAPI, volunteersAPI, activitiesAPI, categoriesAPI,
@@ -34,6 +34,32 @@ const VolunteerDashboard = ({ user, onLogout }) => {
   const [commentReplies, setCommentReplies] = useState({});
   const [replyInputs, setReplyInputs] = useState({});
   const [commentsToShow, setCommentsToShow] = useState({});
+
+  // States for volunteer-created activities
+  const [myVolunteerActivities, setMyVolunteerActivities] = useState([]);
+  const [showCreateActivityModal, setShowCreateActivityModal] = useState(false);
+  const [editingVolunteerActivity, setEditingVolunteerActivity] = useState(null);
+  const [activityFormData, setActivityFormData] = useState({
+    title: '',
+    description: '',
+    detailed_description: '',
+    location: '',
+    start_date: '',
+    end_date: '',
+    max_participants: 10,
+    image_url: '',
+    requirements: [],
+    benefits: [],
+    category_id: '',
+    status: 'active',
+    priority: 'medium'
+  });
+  const [activityRequests, setActivityRequests] = useState([]);
+
+  // States for image upload
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageUploadMode, setImageUploadMode] = useState('url'); // 'url' or 'file'
 
   useEffect(() => {
     loadDashboardData();
@@ -94,6 +120,9 @@ const VolunteerDashboard = ({ user, onLogout }) => {
 
       // Obtener todas las actividades públicas
       const allActivities = await activitiesAPI.getPublicActivities();
+
+      // Cargar actividades creadas por este voluntario
+      await loadMyVolunteerActivities();
 
       // Obtener solicitudes aprobadas del usuario desde el nuevo sistema
       let userApprovedActivityIds = [];
@@ -554,6 +583,355 @@ const VolunteerDashboard = ({ user, onLogout }) => {
     }
   };
 
+  // ====== VOLUNTEER ACTIVITIES FUNCTIONS ======
+  // Detectar si estamos en desarrollo o producción
+  const API_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://proyecto-casira.onrender.com';
+
+  const loadMyVolunteerActivities = async () => {
+    try {
+      const userId = user?.supabase_id || user?.id;
+      console.log('📋 VOLUNTEER: Loading my created activities for user:', userId);
+
+      // Get all activities from Supabase and filter by created_by
+      const allActivities = await activitiesAPI.getAllActivities();
+
+      // Filter activities created by this volunteer
+      const myActivities = allActivities.filter(activity => {
+        const createdBy = activity.created_by;
+        const matches = createdBy === userId || createdBy === user?.id || createdBy === user?.email;
+        return matches;
+      });
+
+      setMyVolunteerActivities(myActivities || []);
+      console.log('✅ VOLUNTEER: Loaded', myActivities?.length || 0, 'activities created by me');
+
+      // Cargar solicitudes para cada actividad usando Supabase
+      if (myActivities && myActivities.length > 0) {
+        await loadActivityRequests(myActivities.map(a => a.id));
+      }
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error loading my activities:', error);
+      setMyVolunteerActivities([]);
+    }
+  };
+
+  const loadActivityRequests = async (activityIds) => {
+    try {
+      console.log('📋 VOLUNTEER: Loading requests for activities:', activityIds);
+
+      // Get all requests from Supabase for these activities
+      const allRequests = [];
+      for (const activityId of activityIds) {
+        try {
+          const requests = await activityRegistrationsService.getActivityRequests(activityId);
+          if (requests && requests.length > 0) {
+            allRequests.push(...requests.map(r => ({ ...r, activity_id: activityId })));
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error loading requests for activity ${activityId}:`, error);
+        }
+      }
+
+      setActivityRequests(allRequests);
+      console.log('✅ VOLUNTEER: Loaded', allRequests.length, 'activity requests');
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error loading activity requests:', error);
+      setActivityRequests([]);
+    }
+  };
+
+  // ====== IMAGE UPLOAD FUNCTIONS ======
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('El archivo es muy grande. Máximo 5MB.');
+        return;
+      }
+      setSelectedFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetImageStates = () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    setImageUploadMode('url');
+  };
+
+  const handleCreateVolunteerActivity = async (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (!activityFormData.title.trim()) {
+      alert('El título es requerido');
+      return;
+    }
+    if (!activityFormData.description.trim()) {
+      alert('La descripción es requerida');
+      return;
+    }
+    if (!activityFormData.location.trim()) {
+      alert('La ubicación es requerida');
+      return;
+    }
+    if (!activityFormData.start_date) {
+      alert('La fecha de inicio es requerida');
+      return;
+    }
+    if (activityFormData.end_date && activityFormData.start_date > activityFormData.end_date) {
+      alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
+
+    try {
+      console.log('�� VOLUNTEER: Creating new activity:', activityFormData);
+
+      // Get current user ID for activity creation
+      const userId = user?.supabase_id || user?.id;
+      console.log('🔍 Current volunteer user for activity creation:', {
+        user: user,
+        userId: userId,
+        email: user?.email
+      });
+
+      // Handle image - either URL or file upload to Supabase Storage
+      let finalImageUrl = activityFormData.image_url || '/grupo-canadienses.jpg';
+
+      if (selectedFile) {
+        try {
+          console.log('📷 VOLUNTEER: Uploading image file to Supabase Storage...');
+          const { storageAPI } = await import('../lib/supabase-singleton.js');
+
+          // Generate unique filename
+          const timestamp = Date.now();
+          const filename = `volunteer_activity_${timestamp}_${selectedFile.name}`;
+
+          // Upload to Supabase Storage
+          const uploadResult = await storageAPI.uploadImage(
+            selectedFile,
+            userId,
+            null, // activity_id will be null for new activities
+            filename
+          );
+
+          finalImageUrl = uploadResult.url;
+          console.log('✅ VOLUNTEER: Image file uploaded successfully:', finalImageUrl);
+        } catch (uploadError) {
+          console.error('❌ VOLUNTEER: Image file upload failed:', uploadError);
+          finalImageUrl = imagePreview || activityFormData.image_url || '/grupo-canadienses.jpg';
+          console.log('⚠️ VOLUNTEER: Using fallback image URL:', finalImageUrl);
+        }
+      }
+
+      // Prepare activity data - only include fields that exist in Supabase
+      const activityData = {
+        title: activityFormData.title,
+        description: activityFormData.description,
+        detailed_description: activityFormData.detailed_description,
+        location: activityFormData.location,
+        created_by: userId, // Use current volunteer user ID
+        requirements: activityFormData.requirements.filter(r => r.trim()),
+        benefits: activityFormData.benefits.filter(b => b.trim()),
+        max_volunteers: parseInt(activityFormData.max_participants) || null,
+        date_start: activityFormData.start_date,
+        date_end: activityFormData.end_date || activityFormData.start_date,
+        image_url: finalImageUrl,
+        current_volunteers: 0,
+        category_id: activityFormData.category_id ? parseInt(activityFormData.category_id) : null,
+        visibility: 'public',
+        status: activityFormData.status || 'active',
+        priority: activityFormData.priority || 'medium'
+      };
+
+      console.log('🚀 VOLUNTEER: Creating activity with data:', activityData);
+      const result = await activitiesAPI.createActivity(activityData);
+      console.log('✅ VOLUNTEER: Activity created successfully:', result);
+
+      alert('¡Actividad creada exitosamente! Todos los usuarios ahora podrán verla.');
+
+      // Reset form
+      setActivityFormData({
+        title: '',
+        description: '',
+        detailed_description: '',
+        location: '',
+        start_date: '',
+        end_date: '',
+        max_participants: 10,
+        image_url: '',
+        requirements: [],
+        benefits: [],
+        category_id: '',
+        status: 'active',
+        priority: 'medium'
+      });
+      resetImageStates();
+      setShowCreateActivityModal(false);
+
+      // Reload activities
+      await loadMyVolunteerActivities();
+      await loadDashboardData();
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error creating activity:', error);
+      alert('Error al crear la actividad: ' + error.message);
+    }
+  };
+
+  const handleUpdateVolunteerActivity = async (e) => {
+    e.preventDefault();
+
+    if (!editingVolunteerActivity) return;
+
+    // Validation
+    if (!activityFormData.title.trim()) {
+      alert('El título es requerido');
+      return;
+    }
+    if (!activityFormData.description.trim()) {
+      alert('La descripción es requerida');
+      return;
+    }
+    if (!activityFormData.location.trim()) {
+      alert('La ubicación es requerida');
+      return;
+    }
+    if (!activityFormData.start_date) {
+      alert('La fecha de inicio es requerida');
+      return;
+    }
+
+    try {
+      console.log('📝 VOLUNTEER: Updating activity:', editingVolunteerActivity.id);
+
+      // Prepare update data - only include fields that exist in Supabase
+      const updateData = {
+        title: activityFormData.title,
+        description: activityFormData.description,
+        detailed_description: activityFormData.detailed_description,
+        location: activityFormData.location,
+        requirements: activityFormData.requirements.filter(r => r.trim()),
+        benefits: activityFormData.benefits.filter(b => b.trim()),
+        max_volunteers: parseInt(activityFormData.max_participants) || null,
+        date_start: activityFormData.start_date,
+        date_end: activityFormData.end_date || activityFormData.start_date,
+        category_id: activityFormData.category_id ? parseInt(activityFormData.category_id) : null,
+        status: activityFormData.status || 'active',
+        priority: activityFormData.priority || 'medium',
+        image_url: activityFormData.image_url || null
+      };
+
+      console.log('🚀 VOLUNTEER: Updating activity with data:', updateData);
+      const result = await activitiesAPI.updateActivity(editingVolunteerActivity.id, updateData);
+      console.log('✅ VOLUNTEER: Activity updated successfully:', result);
+
+      alert('¡Actividad actualizada exitosamente!');
+
+      // Reset form
+      setActivityFormData({
+        title: '',
+        description: '',
+        detailed_description: '',
+        location: '',
+        start_date: '',
+        end_date: '',
+        max_participants: 10,
+        image_url: '',
+        requirements: [],
+        benefits: [],
+        category_id: '',
+        status: 'active',
+        priority: 'medium'
+      });
+      setEditingVolunteerActivity(null);
+      setShowCreateActivityModal(false);
+
+      // Reload activities
+      await loadMyVolunteerActivities();
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error updating activity:', error);
+      alert('Error al actualizar la actividad: ' + error.message);
+    }
+  };
+
+  const handleEditVolunteerActivity = (activity) => {
+    setEditingVolunteerActivity(activity);
+    setActivityFormData({
+      title: activity.title,
+      description: activity.description,
+      detailed_description: activity.detailed_description || '',
+      location: activity.location,
+      start_date: activity.start_date ? activity.start_date.split('T')[0] : (activity.date_start ? activity.date_start.split('T')[0] : ''),
+      end_date: activity.end_date ? activity.end_date.split('T')[0] : (activity.date_end ? activity.date_end.split('T')[0] : ''),
+      max_participants: activity.max_volunteers || activity.max_participants || 10,
+      image_url: activity.image_url || '',
+      requirements: activity.requirements || [],
+      benefits: activity.benefits || [],
+      category_id: activity.category_id || '',
+      status: activity.status || 'active',
+      priority: activity.priority || 'medium'
+    });
+    setShowCreateActivityModal(true);
+  };
+
+  const handleDeleteVolunteerActivity = async (activityId) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta actividad?')) return;
+
+    try {
+      console.log('🗑️ VOLUNTEER: Deleting activity:', activityId);
+
+      const result = await activitiesAPI.deleteActivity(activityId);
+      console.log('✅ VOLUNTEER: Activity deleted successfully:', result);
+
+      alert('Actividad eliminada exitosamente');
+
+      // Reload activities
+      await loadMyVolunteerActivities();
+      await loadDashboardData();
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error deleting activity:', error);
+      alert('Error al eliminar la actividad: ' + error.message);
+    }
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    try {
+      console.log('✅ VOLUNTEER: Approving request:', requestId);
+
+      // Use Supabase to approve request
+      await activityRegistrationsService.approveRequest(requestId);
+
+      alert('✅ Solicitud aprobada exitosamente');
+      await loadMyVolunteerActivities();
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error approving request:', error);
+      alert('Error al aprobar solicitud: ' + error.message);
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      console.log('❌ VOLUNTEER: Rejecting request:', requestId);
+
+      // Use Supabase to reject request
+      await activityRegistrationsService.rejectRequest(requestId);
+
+      alert('❌ Solicitud rechazada');
+      await loadMyVolunteerActivities();
+    } catch (error) {
+      console.error('❌ VOLUNTEER: Error rejecting request:', error);
+      alert('Error al rechazar solicitud: ' + error.message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -589,10 +967,11 @@ const VolunteerDashboard = ({ user, onLogout }) => {
       {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-8 overflow-x-auto">
             {[
               { id: 'activities', label: 'Mis Actividades', icon: Calendar },
               { id: 'available', label: 'Actividades Disponibles', icon: Users },
+              { id: 'my-created-activities', label: 'Crear Mis Actividades', icon: Plus, badge: activityRequests.filter(r => r.status === 'pending').length || null },
               { id: 'notifications', label: 'Notificaciones', icon: Bell, badge: unreadCount },
               { id: 'profile', label: 'Mi Perfil', icon: User }
             ].map((tab) => {
@@ -884,6 +1263,207 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                               ❌ Solicitud Rechazada
                             </span>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* My Created Activities Tab */}
+        {activeTab === 'my-created-activities' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Mis Actividades Creadas</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Actividades que has creado para que otros se unan
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingVolunteerActivity(null);
+                  setActivityFormData({
+                    title: '',
+                    description: '',
+                    detailed_description: '',
+                    location: '',
+                    start_date: '',
+                    end_date: '',
+                    max_participants: 10,
+                    image_url: '',
+                    requirements: [],
+                    benefits: []
+                  });
+                  setShowCreateActivityModal(true);
+                }}
+                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Crear Nueva Actividad</span>
+              </button>
+            </div>
+
+            {/* Activity Cards Grid */}
+            {myVolunteerActivities.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-sm">
+                <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No has creado actividades aún
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Crea tu primera actividad y permite que otros visitantes se unan
+                </p>
+                <button
+                  onClick={() => setShowCreateActivityModal(true)}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Crear Mi Primera Actividad
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myVolunteerActivities.map((activity) => {
+                  const activityPendingRequests = activityRequests.filter(
+                    r => r.activity_id === activity.id && r.status === 'pending'
+                  );
+                  const activityApprovedRequests = activityRequests.filter(
+                    r => r.activity_id === activity.id && r.status === 'approved'
+                  );
+
+                  return (
+                    <div
+                      key={activity.id}
+                      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow"
+                    >
+                      <div className="relative h-48 overflow-hidden rounded-t-xl">
+                        <img
+                          src={activity.image_url || '/grupo-canadienses.jpg'}
+                          alt={activity.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {activityPendingRequests.length > 0 && (
+                          <div className="absolute top-4 right-4">
+                            <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center">
+                              <Bell className="h-3 w-3 mr-1" />
+                              {activityPendingRequests.length} solicitudes
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">{activity.title}</h3>
+                        <p className="text-gray-600 mb-4 line-clamp-2">{activity.description}</p>
+
+                        <div className="space-y-2 mb-4">
+                          {activity.location && (
+                            <div className="flex items-center text-sm text-gray-500">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              {activity.location}
+                            </div>
+                          )}
+                          {(activity.date_start || activity.start_date) && (
+                            <div className="flex items-center text-sm text-gray-500">
+                              <Clock className="h-4 w-4 mr-2" />
+                              {new Date(activity.date_start || activity.start_date).toLocaleDateString('es-ES')}
+                            </div>
+                          )}
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Users className="h-4 w-4 mr-2" />
+                            {activity.current_volunteers || activity.current_participants || 0}/{activity.max_volunteers || activity.max_participants || '∞'} participantes
+                          </div>
+                        </div>
+
+                        {/* Requests Section */}
+                        {activityPendingRequests.length > 0 && (
+                          <div className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                            <h4 className="text-sm font-semibold text-orange-800 mb-2">
+                              Solicitudes pendientes ({activityPendingRequests.length})
+                            </h4>
+                            <div className="space-y-2">
+                              {activityPendingRequests.slice(0, 2).map((request) => (
+                                <div key={request.id} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center space-x-2">
+                                    <img
+                                      src={request.users?.avatar_url || '/default-avatar.jpg'}
+                                      alt={request.users?.first_name}
+                                      className="w-6 h-6 rounded-full"
+                                    />
+                                    <span className="text-gray-700">
+                                      {request.users?.first_name} {request.users?.last_name}
+                                    </span>
+                                  </div>
+                                  <div className="flex space-x-1">
+                                    <button
+                                      onClick={() => handleApproveRequest(request.id)}
+                                      className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                      title="Aprobar"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectRequest(request.id)}
+                                      className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                      title="Rechazar"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {activityPendingRequests.length > 2 && (
+                                <p className="text-xs text-orange-600">
+                                  +{activityPendingRequests.length - 2} más...
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Approved participants */}
+                        {activityApprovedRequests.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-600 mb-1">Participantes confirmados:</p>
+                            <div className="flex -space-x-2">
+                              {activityApprovedRequests.slice(0, 5).map((request) => (
+                                <img
+                                  key={request.id}
+                                  src={request.users?.avatar_url || '/default-avatar.jpg'}
+                                  alt={request.users?.first_name}
+                                  className="w-8 h-8 rounded-full border-2 border-white"
+                                  title={`${request.users?.first_name} ${request.users?.last_name}`}
+                                />
+                              ))}
+                              {activityApprovedRequests.length > 5 && (
+                                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center">
+                                  <span className="text-xs font-semibold text-gray-600">
+                                    +{activityApprovedRequests.length - 5}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => handleEditVolunteerActivity(activity)}
+                            className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVolunteerActivity(activity.id)}
+                            className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center space-x-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Eliminar</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1484,6 +2064,358 @@ const VolunteerDashboard = ({ user, onLogout }) => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE/EDIT ACTIVITY MODAL */}
+      {showCreateActivityModal && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-gray-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-4 sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Plus className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {editingVolunteerActivity ? 'Editar Actividad' : 'Crear Nueva Actividad'}
+                    </h3>
+                    <p className="text-blue-100 text-xs">
+                      {editingVolunteerActivity ? 'Modifica los detalles' : 'Crea una oportunidad para la comunidad'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCreateActivityModal(false);
+                    setEditingVolunteerActivity(null);
+                  }}
+                  className="text-white hover:text-gray-200 transition-colors p-1 hover:bg-white hover:bg-opacity-20 rounded-md"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="p-6">
+              <form onSubmit={editingVolunteerActivity ? handleUpdateVolunteerActivity : handleCreateVolunteerActivity} className="space-y-4">
+                {/* Basic Info */}
+                <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
+                  <h4 className="text-sm font-bold text-blue-800 mb-3 flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Información Básica
+                  </h4>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Título de la Actividad *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={activityFormData.title}
+                        onChange={(e) => setActivityFormData({...activityFormData, title: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm"
+                        placeholder="Ej: Taller de Alfabetización Digital"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Descripción Breve *
+                      </label>
+                      <textarea
+                        required
+                        rows="2"
+                        value={activityFormData.description}
+                        onChange={(e) => setActivityFormData({...activityFormData, description: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm resize-none"
+                        placeholder="Describe brevemente el propósito..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Descripción Detallada
+                      </label>
+                      <textarea
+                        rows="3"
+                        value={activityFormData.detailed_description}
+                        onChange={(e) => setActivityFormData({...activityFormData, detailed_description: e.target.value})}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all text-sm resize-none"
+                        placeholder="Objetivos específicos, metodología, beneficiarios..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location & Dates */}
+                <div className="bg-purple-50 rounded-md p-4 border border-purple-200">
+                  <h4 className="text-sm font-bold text-purple-800 mb-3 flex items-center">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Ubicación y Fechas
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Ubicación *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={activityFormData.location}
+                        onChange={(e) => setActivityFormData({...activityFormData, location: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                        placeholder="Ej: Guatemala Ciudad, Zona 1"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Fecha de Inicio *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={activityFormData.start_date}
+                          onChange={(e) => setActivityFormData({...activityFormData, start_date: e.target.value})}
+                          className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Fecha de Fin
+                        </label>
+                        <input
+                          type="date"
+                          value={activityFormData.end_date}
+                          onChange={(e) => setActivityFormData({...activityFormData, end_date: e.target.value})}
+                          className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                          min={activityFormData.start_date || new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Máximo de Participantes
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={activityFormData.max_participants}
+                        onChange={(e) => setActivityFormData({...activityFormData, max_participants: parseInt(e.target.value)})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                        placeholder="10"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Número máximo de personas que pueden participar</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category, Status & Priority */}
+                <div className="bg-green-50 rounded-md p-4 border border-green-200">
+                  <h4 className="text-sm font-bold text-green-800 mb-3 flex items-center">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configuración
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Categoría
+                      </label>
+                      <select
+                        value={activityFormData.category_id || ''}
+                        onChange={(e) => setActivityFormData({...activityFormData, category_id: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                      >
+                        <option value="">Sin categoría</option>
+                        <option value="1">🌱 Medio Ambiente</option>
+                        <option value="2">🍞 Alimentación</option>
+                        <option value="3">📚 Educación</option>
+                        <option value="4">❤️ Salud</option>
+                        <option value="5">🏠 Vivienda</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Estado
+                      </label>
+                      <select
+                        value={activityFormData.status || 'active'}
+                        onChange={(e) => setActivityFormData({...activityFormData, status: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                      >
+                        <option value="planning">Planificación</option>
+                        <option value="active">Activa</option>
+                        <option value="completed">Completada</option>
+                        <option value="cancelled">Cancelada</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Prioridad
+                      </label>
+                      <select
+                        value={activityFormData.priority || 'medium'}
+                        onChange={(e) => setActivityFormData({...activityFormData, priority: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                      >
+                        <option value="low">Baja</option>
+                        <option value="medium">Media</option>
+                        <option value="high">Alta</option>
+                        <option value="urgent">Urgente</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Image y Opciones */}
+                <div className="bg-orange-50 rounded-md p-4 border border-orange-200">
+                  <h4 className="text-sm font-bold text-orange-800 mb-3 flex items-center">
+                    <Camera className="h-4 w-4 mr-2" />
+                    Imagen de la Actividad
+                  </h4>
+
+                  {/* Opciones de imagen */}
+                  <div className="flex gap-4 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setImageUploadMode('url')}
+                      className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                        imageUploadMode === 'url'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">URL de Imagen</div>
+                      <div className="text-xs mt-1">Desde internet</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageUploadMode('file')}
+                      className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                        imageUploadMode === 'file'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">Subir Archivo</div>
+                      <div className="text-xs mt-1">Desde computadora</div>
+                    </button>
+                  </div>
+
+                  {/* URL Input */}
+                  {imageUploadMode === 'url' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        URL de Imagen
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://ejemplo.com/imagen.jpg"
+                        value={activityFormData.image_url}
+                        onChange={(e) => setActivityFormData({...activityFormData, image_url: e.target.value})}
+                        className="w-full px-3 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm"
+                      />
+                      {activityFormData.image_url && (
+                        <div className="mt-3">
+                          <img
+                            src={activityFormData.image_url}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-md"
+                            onError={(e) => {
+                              e.target.src = '/grupo-canadienses.jpg';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  {imageUploadMode === 'file' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Seleccionar archivo
+                      </label>
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-600">
+                              <span className="font-semibold">Click para subir</span> o arrastra el archivo
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP hasta 5MB</p>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleFileSelect}
+                          />
+                        </label>
+                      </div>
+                      {(imagePreview || selectedFile) && (
+                        <div className="mt-3 relative">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-md"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFile(null);
+                              setImagePreview(null);
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                          <p className="text-xs text-gray-600 mt-2">
+                            📄 {selectedFile?.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateActivityModal(false);
+                      setEditingVolunteerActivity(null);
+                      resetImageStates();
+                    }}
+                    className="flex-1 bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    {editingVolunteerActivity ? 'Actualizar Actividad' : 'Crear Actividad'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

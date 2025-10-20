@@ -45,6 +45,11 @@ const VisitorDashboard = ({ user, onLogout }) => {
       setIsLoading(true);
       console.log('Loading visitor dashboard data...');
 
+      // Detectar URL del backend
+      const API_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:3000'
+        : 'https://proyecto-casira.onrender.com';
+
       // Load activities, posts, registrations, and volunteer requests in parallel
       const [activitiesData, postsData, registrationsData, volunteerRequestsData] = await Promise.all([
         activitiesAPI.getPublicActivities(),
@@ -53,14 +58,43 @@ const VisitorDashboard = ({ user, onLogout }) => {
         adminService.getUserVolunteerRequests(user.email || user.id)
       ]);
 
-      console.log('Loaded data:', { 
-        activities: activitiesData?.length, 
-        posts: postsData?.length, 
+      // Cargar también actividades de voluntarios
+      let volunteerActivities = [];
+      try {
+        console.log('🔗 VISITOR: Loading volunteer activities from:', API_URL);
+        const volunteerActivitiesResponse = await fetch(`${API_URL}/api/volunteer-activities`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          }
+        });
+
+        if (volunteerActivitiesResponse.ok) {
+          volunteerActivities = await volunteerActivitiesResponse.json();
+          console.log('✅ VISITOR: Loaded', volunteerActivities.length, 'volunteer activities');
+
+          // Marcar actividades de voluntarios y agregar nombre del creador
+          volunteerActivities = volunteerActivities.map(activity => ({
+            ...activity,
+            created_by_volunteer: true,
+            creator_name: activity.users ? `${activity.users.first_name} ${activity.users.last_name}` : 'Voluntario',
+            creator_info: activity.users
+          }));
+        }
+      } catch (error) {
+        console.error('❌ VISITOR: Error loading volunteer activities:', error);
+      }
+
+      console.log('Loaded data:', {
+        activities: activitiesData?.length,
+        posts: postsData?.length,
         registrations: registrationsData?.length,
-        volunteerRequests: volunteerRequestsData?.length
+        volunteerRequests: volunteerRequestsData?.length,
+        volunteerActivities: volunteerActivities?.length
       });
 
-      setActivities(activitiesData || []);
+      // Combinar actividades normales y de voluntarios
+      const allActivitiesCombined = [...(activitiesData || []), ...volunteerActivities];
+      setActivities(allActivitiesCombined);
       setPosts(postsData || []);
       setUserRegistrations(registrationsData || []);
       setVolunteerRequests(volunteerRequestsData || []);
@@ -148,7 +182,44 @@ const VisitorDashboard = ({ user, onLogout }) => {
       return;
     }
 
+    // Detectar URL del backend
+    const API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://proyecto-casira.onrender.com';
+
     try {
+      // Si es una actividad creada por voluntario, usar endpoint diferente
+      if (activity.created_by_volunteer) {
+        console.log('🎯 VISITOR: Joining volunteer activity:', activity.title);
+        const userId = user?.supabase_id || user?.id;
+
+        const response = await fetch(`${API_URL}/api/volunteer-activities/${activity.id}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            message: `${user.first_name} ${user.last_name} quiere unirse a esta actividad`
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          if (error.error?.includes('Already requested')) {
+            alert('Ya has solicitado unirte a esta actividad.');
+            return;
+          }
+          throw new Error(error.error || 'Error al enviar solicitud');
+        }
+
+        alert(`¡Solicitud enviada exitosamente!\\n\\n✅ El voluntario "${activity.creator_name}" revisará tu solicitud pronto.\\n🔔 Recibirás una notificación cuando sea aprobada.`);
+        loadDashboardData();
+        return;
+      }
+
+      // Código existente para actividades normales del admin
       // Check if already registered
       const existingRegistration = userRegistrations.find(r => r.activity_id === activity.id);
       if (existingRegistration) {
@@ -171,11 +242,11 @@ const VisitorDashboard = ({ user, onLogout }) => {
       // Usar el nuevo manejador de solicitudes de voluntarios
       const { createVolunteerRequest } = await import('../lib/volunteer-request-handler.js');
       const message = `${user.first_name} ${user.last_name} (Visitante) quiere asistir a "${activity.title}"`;
-      
+
       await createVolunteerRequest(user, activity.id, message);
-      
+
       alert(`¡Te has registrado exitosamente para "${activity.title}"!\\n\\n✅ Tu solicitud ha sido enviada al equipo de coordinación.\\n🔔 Recibirás una notificación cuando sea aprobada.`);
-      
+
       loadDashboardData();
     } catch (error) {
       console.error('Error joining activity:', error);

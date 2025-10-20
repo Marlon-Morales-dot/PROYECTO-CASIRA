@@ -466,6 +466,45 @@ class ActivityRegistrationsService {
     }
   }
 
+  async getActivityRequests(activityId) {
+    try {
+      console.log('📋 ACTIVITY REQUESTS: Getting requests for activity:', activityId);
+
+      const { data, error } = await supabase
+        .from('volunteer_requests')
+        .select(`
+          *,
+          users!volunteer_requests_user_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            avatar_url,
+            role
+          )
+        `)
+        .eq('activity_id', activityId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('✅ ACTIVITY REQUESTS: Found', (data || []).length, 'requests for activity:', activityId);
+      return data || [];
+
+    } catch (error) {
+      console.error('❌ ACTIVITY REQUESTS: Error getting activity requests:', error);
+      return []; // Return empty array on error
+    }
+  }
+
+  async approveRequest(requestId) {
+    return await this.approveRegistration(requestId);
+  }
+
+  async rejectRequest(requestId) {
+    return await this.rejectRegistration(requestId);
+  }
+
   // ============= MÉTODOS AUXILIARES =============
 
   async resolveUserForRegistration(userInfo) {

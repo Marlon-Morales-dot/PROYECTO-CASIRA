@@ -757,6 +757,299 @@ def check_email():
             'message': 'Error al verificar email'
         }), 500
 
+# =============================================================================
+# VOLUNTEER ACTIVITIES ENDPOINTS
+# =============================================================================
+
+@app.route('/api/volunteer-activities', methods=['GET'])
+def get_volunteer_activities():
+    """Obtener todas las actividades creadas por voluntarios"""
+    try:
+        response = supabase.table('volunteer_activities')\
+            .select('*, users!volunteer_activities_created_by_fkey(id, first_name, last_name, email, avatar_url)')\
+            .eq('status', 'active')\
+            .order('created_at', desc=True)\
+            .execute()
+
+        return jsonify(response.data)
+    except Exception as e:
+        print(f"[ERROR] Error fetching volunteer activities: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/my-activities/<user_id>', methods=['GET'])
+def get_my_volunteer_activities(user_id):
+    """Obtener actividades creadas por un voluntario específico"""
+    try:
+        response = supabase.table('volunteer_activities')\
+            .select('*, users!volunteer_activities_created_by_fkey(id, first_name, last_name, email, avatar_url)')\
+            .eq('created_by', user_id)\
+            .order('created_at', desc=True)\
+            .execute()
+
+        return jsonify(response.data)
+    except Exception as e:
+        print(f"[ERROR] Error fetching my volunteer activities: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities', methods=['POST'])
+def create_volunteer_activity():
+    """Crear nueva actividad de voluntario"""
+    try:
+        data = request.get_json()
+
+        # Validar campos requeridos
+        required_fields = ['title', 'description', 'created_by', 'location', 'start_date']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Field {field} is required'}), 400
+
+        # Crear actividad
+        activity_data = {
+            'title': data['title'],
+            'description': data['description'],
+            'detailed_description': data.get('detailed_description', ''),
+            'created_by': data['created_by'],
+            'location': data['location'],
+            'start_date': data['start_date'],
+            'end_date': data.get('end_date'),
+            'max_participants': data.get('max_participants', 10),
+            'image_url': data.get('image_url', ''),
+            'requirements': data.get('requirements', []),
+            'benefits': data.get('benefits', []),
+            'status': 'active',
+            'created_at': datetime.utcnow().isoformat()
+        }
+
+        response = supabase.table('volunteer_activities').insert(activity_data).execute()
+
+        print(f"[OK] Volunteer activity created: {data['title']} by user {data['created_by']}")
+
+        return jsonify({
+            'message': 'Activity created successfully',
+            'activity': response.data[0]
+        }), 201
+
+    except Exception as e:
+        print(f"[ERROR] Error creating volunteer activity: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/<activity_id>', methods=['PUT'])
+def update_volunteer_activity(activity_id):
+    """Actualizar actividad de voluntario"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        # Verificar que el usuario sea el creador
+        activity = supabase.table('volunteer_activities')\
+            .select('created_by')\
+            .eq('id', activity_id)\
+            .execute()
+
+        if not activity.data:
+            return jsonify({'error': 'Activity not found'}), 404
+
+        if activity.data[0]['created_by'] != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Actualizar actividad
+        update_data = {
+            'title': data.get('title'),
+            'description': data.get('description'),
+            'detailed_description': data.get('detailed_description'),
+            'location': data.get('location'),
+            'start_date': data.get('start_date'),
+            'end_date': data.get('end_date'),
+            'max_participants': data.get('max_participants'),
+            'image_url': data.get('image_url'),
+            'requirements': data.get('requirements'),
+            'benefits': data.get('benefits'),
+            'updated_at': datetime.utcnow().isoformat()
+        }
+
+        # Remover None values
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+
+        response = supabase.table('volunteer_activities')\
+            .update(update_data)\
+            .eq('id', activity_id)\
+            .execute()
+
+        return jsonify({
+            'message': 'Activity updated successfully',
+            'activity': response.data[0]
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Error updating volunteer activity: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/<activity_id>', methods=['DELETE'])
+def delete_volunteer_activity(activity_id):
+    """Eliminar actividad de voluntario"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        # Verificar que el usuario sea el creador
+        activity = supabase.table('volunteer_activities')\
+            .select('created_by')\
+            .eq('id', activity_id)\
+            .execute()
+
+        if not activity.data:
+            return jsonify({'error': 'Activity not found'}), 404
+
+        if activity.data[0]['created_by'] != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Eliminar actividad (soft delete)
+        supabase.table('volunteer_activities')\
+            .update({'status': 'deleted'})\
+            .eq('id', activity_id)\
+            .execute()
+
+        return jsonify({'message': 'Activity deleted successfully'})
+
+    except Exception as e:
+        print(f"[ERROR] Error deleting volunteer activity: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/<activity_id>/join', methods=['POST'])
+def join_volunteer_activity(activity_id):
+    """Solicitud para unirse a una actividad de voluntario"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        message = data.get('message', '')
+
+        if not user_id:
+            return jsonify({'error': 'User ID required'}), 400
+
+        # Verificar que la actividad existe
+        activity = supabase.table('volunteer_activities')\
+            .select('*')\
+            .eq('id', activity_id)\
+            .execute()
+
+        if not activity.data:
+            return jsonify({'error': 'Activity not found'}), 404
+
+        # Verificar que no haya solicitado antes
+        existing = supabase.table('volunteer_activity_requests')\
+            .select('*')\
+            .eq('activity_id', activity_id)\
+            .eq('user_id', user_id)\
+            .execute()
+
+        if existing.data:
+            return jsonify({'error': 'Already requested to join this activity'}), 400
+
+        # Crear solicitud
+        request_data = {
+            'activity_id': activity_id,
+            'user_id': user_id,
+            'message': message,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat()
+        }
+
+        response = supabase.table('volunteer_activity_requests').insert(request_data).execute()
+
+        return jsonify({
+            'message': 'Request sent successfully',
+            'request': response.data[0]
+        }), 201
+
+    except Exception as e:
+        print(f"[ERROR] Error joining volunteer activity: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/<activity_id>/requests', methods=['GET'])
+def get_activity_requests(activity_id):
+    """Obtener solicitudes para una actividad de voluntario"""
+    try:
+        response = supabase.table('volunteer_activity_requests')\
+            .select('*, users!volunteer_activity_requests_user_id_fkey(id, first_name, last_name, email, avatar_url)')\
+            .eq('activity_id', activity_id)\
+            .order('created_at', desc=True)\
+            .execute()
+
+        return jsonify(response.data)
+    except Exception as e:
+        print(f"[ERROR] Error fetching activity requests: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/requests/<request_id>/approve', methods=['POST'])
+def approve_activity_request(request_id):
+    """Aprobar solicitud para actividad de voluntario"""
+    try:
+        data = request.get_json()
+        volunteer_id = data.get('volunteer_id')  # ID del voluntario que aprueba
+
+        # Obtener la solicitud
+        request_data = supabase.table('volunteer_activity_requests')\
+            .select('*, volunteer_activities!volunteer_activity_requests_activity_id_fkey(created_by)')\
+            .eq('id', request_id)\
+            .execute()
+
+        if not request_data.data:
+            return jsonify({'error': 'Request not found'}), 404
+
+        # Verificar que el voluntario sea el creador de la actividad
+        if request_data.data[0]['volunteer_activities']['created_by'] != volunteer_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Aprobar solicitud
+        supabase.table('volunteer_activity_requests')\
+            .update({
+                'status': 'approved',
+                'reviewed_at': datetime.utcnow().isoformat()
+            })\
+            .eq('id', request_id)\
+            .execute()
+
+        return jsonify({'message': 'Request approved successfully'})
+
+    except Exception as e:
+        print(f"[ERROR] Error approving request: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/volunteer-activities/requests/<request_id>/reject', methods=['POST'])
+def reject_activity_request(request_id):
+    """Rechazar solicitud para actividad de voluntario"""
+    try:
+        data = request.get_json()
+        volunteer_id = data.get('volunteer_id')
+
+        # Obtener la solicitud
+        request_data = supabase.table('volunteer_activity_requests')\
+            .select('*, volunteer_activities!volunteer_activity_requests_activity_id_fkey(created_by)')\
+            .eq('id', request_id)\
+            .execute()
+
+        if not request_data.data:
+            return jsonify({'error': 'Request not found'}), 404
+
+        # Verificar que el voluntario sea el creador
+        if request_data.data[0]['volunteer_activities']['created_by'] != volunteer_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Rechazar solicitud
+        supabase.table('volunteer_activity_requests')\
+            .update({
+                'status': 'rejected',
+                'reviewed_at': datetime.utcnow().isoformat()
+            })\
+            .eq('id', request_id)\
+            .execute()
+
+        return jsonify({'message': 'Request rejected successfully'})
+
+    except Exception as e:
+        print(f"[ERROR] Error rejecting request: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Para desarrollo local - FORZAR puerto 3000
     port = 3000  # Forzar puerto 3000 directamente

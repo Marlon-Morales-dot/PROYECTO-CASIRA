@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Heart, MessageCircle, MapPin, Calendar, Clock, Users, Share2,
-  ChevronDown, ChevronUp, CheckCircle, AlertCircle, XCircle
+  ChevronDown, ChevronUp, CheckCircle, AlertCircle, XCircle, User
 } from 'lucide-react';
 import { useActivityRegistrations } from '../lib/hooks/useActivityRegistrations.js';
 
@@ -112,7 +112,17 @@ const ActivityCard = ({
         <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2">
           {activity.title}
         </h3>
-        
+
+        {/* Badge del Creador (si es actividad de voluntario) */}
+        {activity.created_by_volunteer && (
+          <div className="mb-3">
+            <span className="inline-flex items-center bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-semibold">
+              <User className="h-3 w-3 mr-1" />
+              Creado por: {activity.creator_name}
+            </span>
+          </div>
+        )}
+
         {/* Description */}
         <div className="mb-4">
           <p className="text-gray-600 text-mobile">
