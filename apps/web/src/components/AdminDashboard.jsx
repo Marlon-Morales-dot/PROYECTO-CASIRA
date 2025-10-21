@@ -803,32 +803,34 @@ const AdminDashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50">
       {/* Admin Header - Mobile Optimized */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-30">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-4 space-y-3 sm:space-y-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 mr-4 flex items-center justify-center">
-                  <img 
-                    src="/logo.png" 
-                    alt="CASIRA Logo" 
-                    className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-md"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-sm items-center justify-center hidden">
-                    <Settings className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                <div className="mr-4 flex items-center justify-center">
+                  <div className="p-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+                    <img
+                      src="/logo.png"
+                      alt="CASIRA Logo"
+                      className="h-10 w-auto object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-r from-sky-600 to-blue-700 rounded-xl shadow-lg items-center justify-center hidden">
+                    <Settings className="h-6 w-6 text-white" />
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Admin Panel
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+                    Panel de Administración
                   </h1>
-                  <p className="text-xs sm:text-sm text-gray-500">CASIRA Connect</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Lisfa Palencia</p>
                 </div>
               </div>
               {/* Mobile Logout Button */}
@@ -938,57 +940,37 @@ const AdminDashboard = ({ user, onLogout }) => {
 
         {/* Quick Stats - Mobile Optimized */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl">
-                <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-              </div>
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-semibold text-gray-600">Activas</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.active_projects || 0}</p>
-              </div>
+          <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+              {stats.active_projects || 0}
             </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras en Progreso</div>
           </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-gradient-to-br from-green-100 to-green-200 rounded-xl">
-                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-              </div>
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-semibold text-gray-600">Completadas</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.completed_projects || 0}</p>
-              </div>
+
+          <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+              {stats.completed_projects || 0}
             </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras Completadas</div>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Voluntarios</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.total_volunteers}</p>
-              </div>
+
+          <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+              {stats.total_volunteers || 0}
             </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Voluntarios</div>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Impacto</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.lives_transformed}</p>
-              </div>
+
+          <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+              {stats.lives_transformed || 0}
             </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Vidas Impactadas</div>
           </div>
         </div>
 
         {/* Navigation Tabs - Mobile Optimized */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 mb-6 overflow-hidden">
           {/* Mobile Tabs - Horizontal Scroll */}
           <div className="sm:hidden">
             <nav className="flex overflow-x-auto scrollbar-hide px-1 py-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -998,7 +980,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-shrink-0 py-3 px-4 mx-1 rounded-lg font-semibold text-sm flex items-center justify-center relative transition-all duration-200 btn-touch ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transform scale-105'
+                      ? 'bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-md transform scale-105'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
@@ -1013,7 +995,7 @@ const AdminDashboard = ({ user, onLogout }) => {
               ))}
             </nav>
           </div>
-          
+
           {/* Desktop Tabs */}
           <div className="hidden sm:block">
             <div className="border-b border-gray-200">
@@ -1024,7 +1006,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`py-4 px-2 border-b-2 font-semibold text-sm flex items-center relative transition-all duration-200 btn-touch ${
                       activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600 transform translate-y-0.5'
+                        ? 'border-sky-600 text-sky-600 transform translate-y-0.5'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -1046,10 +1028,10 @@ const AdminDashboard = ({ user, onLogout }) => {
             {activeTab === 'activities' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Gestión de Actividades</h3>
+                  <h3 className="text-lg font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">Gestión de Actividades</h3>
                   <button
                     onClick={() => setShowCreateForm(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+                    className="bg-gradient-to-r from-sky-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium flex items-center"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Nueva Actividad
@@ -1058,45 +1040,39 @@ const AdminDashboard = ({ user, onLogout }) => {
 
                 {/* Quick Activity Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-2xl p-4 hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-green-600">Activas</p>
-                        <p className="text-2xl font-bold text-green-700">
+                        <p className="text-sm font-bold text-emerald-700">Activas</p>
+                        <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                           {Array.isArray(activities) ? activities.filter(a => a.status === 'active').length : 0}
                         </p>
                       </div>
-                      <div className="p-2 bg-green-200 rounded-lg">
-                        <Calendar className="h-5 w-5 text-green-600" />
-                      </div>
+                      <CheckCircle className="h-8 w-8 text-emerald-500" />
                     </div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+
+                  <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-200 rounded-2xl p-4 hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-blue-600">En Planificación</p>
-                        <p className="text-2xl font-bold text-blue-700">
+                        <p className="text-sm font-bold text-sky-700">En Planificación</p>
+                        <p className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
                           {Array.isArray(activities) ? activities.filter(a => a.status === 'planning').length : 0}
                         </p>
                       </div>
-                      <div className="p-2 bg-blue-200 rounded-lg">
-                        <Settings className="h-5 w-5 text-blue-600" />
-                      </div>
+                      <Calendar className="h-8 w-8 text-sky-500" />
                     </div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-4 hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-purple-600">Total Voluntarios</p>
-                        <p className="text-2xl font-bold text-purple-700">
+                        <p className="text-sm font-bold text-purple-700">Total Voluntarios</p>
+                        <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                           {Array.isArray(registrations) ? registrations.filter(r => r.status === 'registered').length : 0}
                         </p>
                       </div>
-                      <div className="p-2 bg-purple-200 rounded-lg">
-                        <Users className="h-5 w-5 text-purple-600" />
-                      </div>
+                      <Users className="h-8 w-8 text-purple-500" />
                     </div>
                   </div>
                 </div>
@@ -1239,8 +1215,8 @@ const AdminDashboard = ({ user, onLogout }) => {
             {activeTab === 'old-registrations' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Gestión de Solicitudes y Registros (Legacy)</h3>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <h3 className="text-lg font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">Gestión de Solicitudes y Registros (Legacy)</h3>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 font-medium">
                     <AlertCircle className="h-4 w-4" />
                     <span>{Array.isArray(notifications) ? notifications.filter(n => n.status === 'pending').length : 0} pendientes</span>
                   </div>
@@ -1494,9 +1470,9 @@ const AdminDashboard = ({ user, onLogout }) => {
             {activeTab === 'users' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Gestión de Usuarios</h3>
+                  <h3 className="text-lg font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">Gestión de Usuarios</h3>
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 font-medium">
                       <Users className="h-4 w-4" />
                       <span>{Array.isArray(allUsers) ? allUsers.length : 0} usuarios registrados</span>
                     </div>
@@ -1521,61 +1497,33 @@ const AdminDashboard = ({ user, onLogout }) => {
                 <AdminRoleChangeTest />
 
                 {/* Users Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-purple-600">Administradores</p>
-                        <p className="text-2xl font-bold text-purple-700">
-                          {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'admin').length : 0}
-                        </p>
-                      </div>
-                      <div className="p-2 bg-purple-200 rounded-lg">
-                        <Settings className="h-5 w-5 text-purple-600" />
-                      </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                  <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-purple-200">
+                    <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                      {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'admin').length : 0}
                     </div>
+                    <div className="text-xs sm:text-sm text-purple-700 font-medium mt-1">Administradores</div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-green-600">Voluntarios</p>
-                        <p className="text-2xl font-bold text-green-700">
-                          {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'volunteer').length : 0}
-                        </p>
-                      </div>
-                      <div className="p-2 bg-green-200 rounded-lg">
-                        <Users className="h-5 w-5 text-green-600" />
-                      </div>
+
+                  <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-emerald-50 to-teal-50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-emerald-200">
+                    <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                      {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'volunteer').length : 0}
                     </div>
+                    <div className="text-xs sm:text-sm text-emerald-700 font-medium mt-1">Voluntarios</div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-blue-600">Donantes</p>
-                        <p className="text-2xl font-bold text-blue-700">
-                          {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'donor').length : 0}
-                        </p>
-                      </div>
-                      <div className="p-2 bg-blue-200 rounded-lg">
-                        <Users className="h-5 w-5 text-blue-600" />
-                      </div>
+
+                  <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-sky-50 to-blue-50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-sky-200">
+                    <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+                      {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'donor').length : 0}
                     </div>
+                    <div className="text-xs sm:text-sm text-sky-700 font-medium mt-1">Donantes</div>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-yellow-600">Visitantes</p>
-                        <p className="text-2xl font-bold text-yellow-700">
-                          {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'visitor').length : 0}
-                        </p>
-                      </div>
-                      <div className="p-2 bg-yellow-200 rounded-lg">
-                        <Users className="h-5 w-5 text-yellow-600" />
-                      </div>
+
+                  <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 border-amber-200">
+                    <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                      {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'visitor').length : 0}
                     </div>
+                    <div className="text-xs sm:text-sm text-amber-700 font-medium mt-1">Visitantes</div>
                   </div>
                 </div>
 
@@ -1846,10 +1794,10 @@ const AdminDashboard = ({ user, onLogout }) => {
 
       {/* Enhanced User Details Modal */}
       {showUserModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-gray-200">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-white/20">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-6">
+            <div className="bg-gradient-to-r from-sky-600 to-blue-700 rounded-t-2xl p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0 h-16 w-16">
@@ -2068,10 +2016,10 @@ const AdminDashboard = ({ user, onLogout }) => {
 
       {/* Create Activity Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-gray-200">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center overflow-y-auto h-full w-full z-50 p-4">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-white/20">
             {/* Header más compacto */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-4">
+            <div className="bg-gradient-to-r from-sky-600 to-blue-700 rounded-t-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 flex items-center justify-center">
