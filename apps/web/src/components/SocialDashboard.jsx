@@ -150,9 +150,20 @@ const SocialDashboard = ({ user, onLogout }) => {
       // Save comments to state
       setAllComments(loadedComments);
 
-      // Filter user's registered activities
-      const userActivityIds = userRegistrations.map(r => r.activity_id);
+      // Filter user's registered activities - ONLY APPROVED
+      console.log('📊 SocialDashboard: User registrations:', userRegistrations.map(r => ({
+        id: r.id,
+        activity_id: r.activity_id,
+        status: r.status
+      })));
+
+      const approvedRegistrations = userRegistrations.filter(r => r.status === 'approved');
+      console.log('✅ SocialDashboard: Approved registrations:', approvedRegistrations.length);
+
+      const userActivityIds = approvedRegistrations.map(r => r.activity_id);
       const registeredActivities = allActivities.filter(a => userActivityIds.includes(a.id));
+
+      console.log('🎯 SocialDashboard: My activities (approved only):', registeredActivities.map(a => a.title));
       setMyActivities(registeredActivities);
 
       // Create social posts from activities, comments and photos

@@ -925,7 +925,50 @@ export const volunteersAPI = {
   },
 
   getUserRegistrations: async (userId) => {
-    return dataStore.volunteers.filter(v => v.user_id == userId);
+    console.log('📋 getUserRegistrations called for userId:', userId);
+
+    if (USE_SUPABASE) {
+      try {
+        // Obtener el usuario actual para encontrar su supabase_id
+        const currentUser = await supabaseAPI.users.getUserById(userId);
+        const supabaseUserId = currentUser?.id || userId;
+
+        console.log('🔍 Looking up registrations for:', {
+          providedUserId: userId,
+          resolvedSupabaseId: supabaseUserId
+        });
+
+        // Consultar solicitudes de Supabase (volunteer_requests)
+        const { data: supabaseRequests, error } = await supabase
+          .from('volunteer_requests')
+          .select('*')
+          .eq('user_id', supabaseUserId);
+
+        if (error) {
+          console.error('❌ Error fetching Supabase volunteer requests:', error);
+        } else {
+          console.log('✅ Supabase requests found:', supabaseRequests?.length || 0);
+          console.log('📊 Supabase requests:', supabaseRequests?.map(r => ({
+            id: r.id,
+            activity_id: r.activity_id,
+            status: r.status,
+            created_at: r.created_at
+          })));
+
+          if (supabaseRequests && supabaseRequests.length > 0) {
+            return supabaseRequests;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Exception fetching Supabase requests:', error);
+      }
+    }
+
+    // Fallback a dataStore local
+    console.log('📦 Falling back to local dataStore');
+    const localRegistrations = dataStore.volunteers.filter(v => v.user_id == userId);
+    console.log('📊 Local registrations found:', localRegistrations.length);
+    return localRegistrations;
   },
 
   updateRegistrationStatus: async (registrationId, status) => {
