@@ -942,28 +942,28 @@ const AdminDashboard = ({ user, onLogout }) => {
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
             <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-              {stats.active_projects || 0}
+              {Array.isArray(activities) ? activities.filter(a => a.status === 'active').length : (stats.active_projects || 0)}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras en Progreso</div>
           </div>
 
           <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
             <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-              {stats.completed_projects || 0}
+              {Array.isArray(activities) ? activities.filter(a => a.status === 'completed').length : (stats.completed_projects || 0)}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Obras Completadas</div>
           </div>
 
           <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
             <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-              {stats.total_volunteers || 0}
+              {Array.isArray(allUsers) ? allUsers.filter(u => u.role === 'volunteer').length : (stats.total_volunteers || 0)}
             </div>
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">Voluntarios</div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Voluntarios Registrados</div>
           </div>
 
           <div className="text-center p-3 sm:p-4 bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
             <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-              {stats.lives_transformed || 0}
+              {Array.isArray(activities) ? activities.reduce((total, a) => total + (a.current_volunteers || 0), 0) : (stats.lives_transformed || 0)}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Vidas Impactadas</div>
           </div>
@@ -1067,9 +1067,9 @@ const AdminDashboard = ({ user, onLogout }) => {
                   <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-4 hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-bold text-purple-700">Total Voluntarios</p>
+                        <p className="text-sm font-bold text-purple-700">Participaciones</p>
                         <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                          {Array.isArray(registrations) ? registrations.filter(r => r.status === 'registered').length : 0}
+                          {Array.isArray(activities) ? activities.reduce((total, a) => total + (a.current_volunteers || 0), 0) : 0}
                         </p>
                       </div>
                       <Users className="h-8 w-8 text-purple-500" />
