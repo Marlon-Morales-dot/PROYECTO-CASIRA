@@ -104,55 +104,64 @@ const LandingPage = () => {
   // Datos exactos del diseño original (preservando todo)
   const impactStories = [
     {
-      title: "Nueva Biblioteca en San Juan",
-      description: "Gracias a nuestros donantes, 300 niños ahora tienen acceso a libros y tecnología",
-      image: "https://colegio.agape.edu.sv/wp-content/uploads/2024/08/SL2.png",
+      title: "Ampliación Estructural del LISFA",
+      description: "Nuevas instalaciones educativas que permiten ampliar la capacidad de estudiantes y mejorar la calidad de la enseñanza",
+      image: "/costruccion.PNG",
       donorCount: 12,
       impact: "300 niños beneficiados",
-      beforeAfter: "De aula vacía a biblioteca completa"
+      beforeAfter: "De espacios limitados a instalaciones modernas"
     },
     {
-      title: "Laboratorio de Ciencias Renovado",
-      description: "El Liceo San Francisco ahora cuenta con equipamiento moderno para experimentos",
-      image: "https://www.colegiosanfranciscodeasis.cl/csfda/wp-content/uploads/2016/10/CSFDA_infraestructura_lab_ciencias_2-1051x750.jpg",
+      title: "Contenedores Bazar",
+      description: "Contenedor equipado para bazar de productos variados y equipo de computación de segunda mano. Un espacio que promueve la economía circular, el reciclaje y el acceso a tecnología para familias de escasos recursos",
+      image: "/CONTENEDORES.jpeg",
       donorCount: 8,
-      impact: "200 estudiantes beneficiados",
-      beforeAfter: "De laboratorio básico a centro de innovación"
+      impact: "200 familias beneficiadas",
+      beforeAfter: "De desperdicio a reutilización sostenible"
     },
     {
-      title: "Centro Comunitario Construido",
-      description: "Un espacio de encuentro que fortalece los lazos de toda la comunidad",
-      image: "https://www.feyalegria.org.do/wp-content/uploads/2021/03/09.jpg",
+      title: "Becas Proyecto CASIRA - Los Padrinos",
+      description: "Programa de apadrinamiento que garantiza el acceso a educación de calidad para niños y jóvenes de escasos recursos",
+      image: "/canada.PNG",
       donorCount: 15,
-      impact: "500 familias beneficiadas",
-      beforeAfter: "De terreno baldío a centro comunitario"
+      impact: "500 estudiantes becados",
+      beforeAfter: "De la exclusión a la oportunidad educativa"
     }
   ];
 
   const donorSpotlight = [
     {
-      name: "Hermanos Franciscanos",
+      name: "Hermanas Franciscanas de la Inmaculada Concepción",
       type: "Organización Religiosa",
-      contribution: "Infraestructura educativa",
+      contribution: "Reparar la viña del Señor en oración, sacrificio y acción",
       worksSupported: ["Liceo San Francisco", "Biblioteca Comunitaria", "Centro de Capacitación"],
-      recognition: "Transformadores de Educación",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyq5FXnebK1KS9Ld_fLAcHIX3gOT4vdHZIqkJLesTfrGSqz0mrIVAEGuyexBxDy1H2kCY&usqp=CAU"
+      recognition: "Transformadoras de Vida",
+      avatar: "/hermanos.jpeg",
+      location: "Mexico City, Mexico",
+      followers: "5.9K",
+      website: "franciscanashfic.org"
     },
     {
-      name: "Grupo Voluntarios Canadienses",
-      type: "Grupo Internacional",
-      contribution: "Trabajo especializado y capacitación",
+      name: "Proyecto CASIRA",
+      type: "Grupo Voluntarios Canadienses",
+      contribution: "Centre Amitié de Solidarité Internationale de la Région des Appalaches",
       worksSupported: ["Laboratorio de Ciencias", "Programa Digital", "Capacitación Docente"],
       recognition: "Embajadores del Conocimiento",
-      avatar: "/grupo-canadienses.jpg"
+      avatar: "/logo.png",
+      location: "Thetford Mines, QC, Canadá",
+      address: "37 Rue Notre Dame O, Thetford Mines, QC G6G 1J1",
+      phone: "+1 418-338-6211",
+      website: "www.casira.org"
     },
     {
-      name: "Constructora Solidaria",
-      type: "Empresa Local",
-      contribution: "Materiales y construcción",
+      name: "Lisfa Palencia",
+      type: "Colegio Religioso",
+      contribution: "Institución Educativa Católica Franciscana de excelencia que educa integralmente a las presentes y futuras generaciones, mediante los valores y la fuerza dinamizadora del Evangelio",
       worksSupported: ["Centro Comunitario", "Aulas Nuevas", "Biblioteca"],
-      recognition: "Constructores de Sueños",
-      avatar: "https://hficprovinciadivinosalvador.com/wp-content/uploads/2023/05/2-3.jpg"
+      recognition: "Forma para construir un mundo fraterno",
+      avatar: "/LISFA.PNG",
+      location: "Palencia, Guatemala",
+      website: "www.facebook.com/profile.php?id=100011275861880"
     }
   ];
 
@@ -241,7 +250,9 @@ const LandingPage = () => {
                 <img src="/logo.png" alt="AMISTAD CASIRA" className="h-10 w-auto object-contain" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent ml-3">
-                AMISTAD CASIRA
+                <span className="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 bg-clip-text text-transparent animate-pulse">
+                  AMISTAD PALENCIA
+                </span>
               </h1>
             </div>
             <nav className="hidden md:flex space-x-6">
@@ -335,7 +346,7 @@ const LandingPage = () => {
               </h1>
               <p className="text-lg sm:text-xl text-gray-600 max-w-lg leading-relaxed">
                 Únete a nuestra red de constructores de sueños que están 
-                creando obras tangibles para las comunidades de Guatemala.
+                creando obras tangibles para las comunidades de Palencia, Guatemala.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button 
@@ -494,8 +505,13 @@ const LandingPage = () => {
       <section className="py-24 bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-800 rounded-full text-sm font-medium mb-4">
-              ⭐ Héroes de la Transformación
+            <div className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-full text-sm font-semibold mb-4 shadow-lg">
+              <span className="mr-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </span>
+              Héroes de la Transformación
             </div>
             <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-6">
               Nuestros Constructores de Sueños
@@ -507,18 +523,18 @@ const LandingPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {donorSpotlight.map((donor, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="group relative bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl p-8 text-center shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-500 hover:scale-105"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5 rounded-3xl"></div>
                 <div className="relative">
                   <div className="relative mb-6">
-                    <div className="absolute -inset-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-full blur-lg group-hover:blur-xl transition-all duration-300"></div>
-                    <img 
-                      src={donor.avatar} 
+                    <div className="absolute -inset-3 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-full blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                    <img
+                      src={donor.avatar}
                       alt={donor.name}
-                      className="relative w-20 h-20 rounded-full mx-auto object-cover border-4 border-white shadow-lg"
+                      className="relative w-32 h-32 rounded-full mx-auto object-contain bg-white p-3 border-4 border-white shadow-lg"
                     />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{donor.name}</h3>
@@ -531,6 +547,46 @@ const LandingPage = () => {
                   <p className="text-gray-600 text-sm italic mb-6 leading-relaxed">
                     "{donor.contribution}"
                   </p>
+
+                  {/* Información adicional */}
+                  {donor.location && (
+                    <div className="mb-4 space-y-2">
+                      <div className="flex items-center justify-center text-xs text-gray-500">
+                        <MapPin className="w-3 h-3 mr-1" />
+                        <span>{donor.location}</span>
+                      </div>
+                      {donor.address && (
+                        <div className="text-xs text-gray-400 px-2">
+                          {donor.address}
+                        </div>
+                      )}
+                      {donor.phone && (
+                        <a
+                          href={`tel:${donor.phone}`}
+                          className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                        >
+                          📞 {donor.phone}
+                        </a>
+                      )}
+                      {donor.followers && (
+                        <div className="text-xs font-semibold text-blue-600">
+                          {donor.followers} seguidores
+                        </div>
+                      )}
+                      {donor.website && (
+                        <a
+                          href={`https://${donor.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-xs font-medium rounded-full transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
+                        >
+                          <span>🌐</span>
+                          <span className="ml-1">Visitar Sitio Web</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-gray-900">Obras Apoyadas:</p>
                     {donor.worksSupported.slice(0, 2).map((work, i) => (
@@ -557,8 +613,9 @@ const LandingPage = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/3 to-purple-600/3"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 rounded-full text-sm font-medium mb-4">
-              🎯 Impacto Real
+            <div className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full text-sm font-semibold mb-4 shadow-lg">
+              <span className="mr-2 w-2 h-2 bg-white rounded-full animate-pulse"></span>
+              Impacto Real
             </div>
             <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-6">
               Obras que Transforman Vidas
@@ -568,98 +625,65 @@ const LandingPage = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {impactStories.map((story, index) => (
-              <div 
-                key={index} 
-                className="group relative bg-white rounded-3xl shadow-2xl overflow-hidden hover:shadow-3xl transform hover:-translate-y-5 transition-all duration-700 hover:scale-[1.03]"
+              <div
+                key={index}
+                className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300"
               >
-                {/* Decorative gradient border */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl p-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                  <div className="bg-white rounded-3xl h-full w-full"></div>
-                </div>
-                
-                <div className="relative">
-                  <div className="relative overflow-hidden rounded-t-3xl">
-                    <img 
-                      src={story.image} 
-                      alt={story.title}
-                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                    
-                    {/* Enhanced status badge */}
-                    <div className="absolute top-6 right-6 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-2xl font-bold shadow-xl backdrop-blur-sm border border-white/20">
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-                        Completado
-                      </div>
-                    </div>
-                    
-                    {/* Progress overlay */}
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-lg">
-                        <div className="flex items-center justify-between text-sm mb-2">
-                          <span className="font-bold text-gray-800">Estado del Proyecto</span>
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">100%</span>
-                        </div>
-                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full w-full animate-pulse"></div>
-                        </div>
-                      </div>
-                    </div>
+                {/* Imagen */}
+                <div className="relative h-48 sm:h-56 overflow-hidden">
+                  <img
+                    src={story.image}
+                    alt={story.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 right-3">
+                    <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                      ✓ Completado
+                    </span>
                   </div>
-                  
-                  <div className="p-8">
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-500">
-                        {story.title}
-                      </h3>
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                        <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                </div>
+
+                {/* Contenido */}
+                <div className="p-5 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">
+                    {story.title}
+                  </h3>
+
+                  <p className="text-sm sm:text-base text-gray-600 mb-4 leading-relaxed">
+                    {story.description}
+                  </p>
+
+                  {/* Badge de transformación */}
+                  <div className="inline-flex items-center px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-xs sm:text-sm text-blue-800 font-medium">{story.beforeAfter}</span>
+                  </div>
+
+                  {/* Estadísticas */}
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-2">
+                          {Array.from({ length: Math.min(story.donorCount, 3) }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                            >
+                              {String.fromCharCode(65 + i)}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-xs sm:text-sm font-semibold text-gray-700">
+                          {story.donorCount} Constructores
+                        </span>
                       </div>
                     </div>
-                    
-                    <p className="text-gray-600 mb-6 leading-relaxed">
-                      {story.description}
-                    </p>
-                    
-                    {/* Enhanced transform badge */}
-                    <div className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-2 border-blue-200 rounded-2xl mb-6 group-hover:border-purple-300 transition-colors duration-300">
-                      <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mr-3 animate-pulse"></div>
-                      <span className="text-blue-800 font-bold text-sm">{story.beforeAfter}</span>
-                    </div>
-                    
-                    {/* Enhanced bottom section */}
-                    <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 rounded-2xl p-5 border border-gray-100 group-hover:border-blue-200 transition-colors duration-300">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="flex -space-x-2">
-                            {Array.from({ length: Math.min(story.donorCount, 4) }).map((_, i) => (
-                              <div 
-                                key={i} 
-                                className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center text-white text-sm font-bold hover:scale-110 transition-transform duration-200"
-                              >
-                                {String.fromCharCode(65 + i)}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                              {story.donorCount} Constructores
-                            </div>
-                            <div className="text-xs text-gray-500">unidos por el cambio</div>
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-xl font-bold shadow-lg">
-                            {story.impact}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">impacto real</div>
-                        </div>
+
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs sm:text-sm font-bold rounded-lg">
+                        {story.impact}
                       </div>
                     </div>
                   </div>
@@ -676,7 +700,7 @@ const LandingPage = () => {
         <div className="absolute inset-0" style={{backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%23ffffff\" fill-opacity=\"0.1\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')"}}></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
           <div className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-medium mb-6">
-            🚀 Únete al Cambio
+             Únete al Cambio
           </div>
           <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
             ¿Listo para Construir el{' '}
@@ -714,43 +738,117 @@ const LandingPage = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Columna 1: Logo y Descripción */}
             <div>
               <div className="flex items-center mb-4">
-                <img src="/logo.png" alt="AMISTAD CASIRA" className="h-8 w-auto object-contain mr-3 brightness-75" />
-                <span className="text-lg font-semibold">AMISTAD CASIRA</span>
+                <img src="/logo.png" alt="AMISTAD PALENCIA" className="h-8 w-auto object-contain mr-3 brightness-0 invert" />
+                <span className="text-lg font-semibold">AMISTAD PALENCIA</span>
               </div>
-              <p className="text-gray-400">
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
                 Transformando comunidades a través de obras que perduran.
               </p>
+              <a
+                href="https://www.facebook.com/people/Lisfa-Palencia/pfbid02SnCjvsrPD9Uqw3HCU98VEM2BLdgJdXyWEmLwyB48NGaFnndm7qpAtcofMQuFddAFl/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                <span>Síguenos en Facebook</span>
+              </a>
             </div>
+
+            {/* Columna 2: Obras */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">Obras</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>Proyectos Activos</li>
-                <li>Obras Completadas</li>
-                <li>Galería de Impacto</li>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-white">Obras</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Proyectos Activos
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Obras Completadas
+                  </a>
+                </li>
+                <li>
+                  <a href="#obras-realizadas" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Galería de Impacto
+                  </a>
+                </li>
               </ul>
             </div>
+
+            {/* Columna 3: Comunidad */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">Comunidad</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>Constructores</li>
-                <li>Voluntarios</li>
-                <li>Beneficiarios</li>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-white">Comunidad</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Constructores
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Voluntarios
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                    Beneficiarios
+                  </a>
+                </li>
               </ul>
             </div>
+
+            {/* Columna 4: Contacto */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">Contacto</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>info@casira.org</li>
-                <li>+502 1234-5678</li>
-                <li>Guatemala, Guatemala</li>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-white">Contacto</h3>
+              <ul className="space-y-3 text-sm">
+                <li>
+                  <a
+                    href="https://mail.google.com/mail/?view=cm&fs=1&to=marlonmrale@gmail.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    marlonmrale@gmail.com
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="tel:+50255249739"
+                    className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    +502 5524 9739
+                  </a>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-gray-400">Palencia, Guatemala</span>
+                </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 CASIRA Connect. Todos los derechos reservados.</p>
+
+          {/* Copyright */}
+          <div className="border-t border-gray-800 mt-10 pt-8 text-center">
+            <p className="text-gray-400 text-sm">
+              &copy; 2025 AMISTAD PALENCIA. Todos los derechos reservados.
+            </p>
           </div>
         </div>
       </footer>
@@ -824,7 +922,7 @@ const LandingPage = () => {
                   {!countersLoading && lastUpdated && (
                     <div className="text-center mt-4">
                       <span className="text-xs text-gray-500">
-                        🔄 Última actualización: {new Date(lastUpdated).toLocaleString()}
+                         Última actualización: {new Date(lastUpdated).toLocaleString()}
                       </span>
                     </div>
                   )}
